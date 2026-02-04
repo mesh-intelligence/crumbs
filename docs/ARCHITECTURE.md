@@ -2,13 +2,9 @@
 
 ## System Overview
 
-<!-- The crumbs system has its own semantics. This has to do with elements from VISION.md as well as properties these have built in. Right now we do not emphasize what happens when properties are used, like you can't delete a trail if any of its crumbs are active. We should have those rules recorded somewhere. Like in a PRD.-->
-
 Crumbs is a storage system for work items with first-class support for exploratory trails. The core insight is that coding agents need backtracking: an agent drops crumbs as it explores an implementation approach, and if the approach leads nowhere, the agent abandons the entire trail without polluting the permanent task list.
 
-The system provides a Go library (`pkg/cupboard`) for agents and a command-line tool (`crumbs` CLI) for development and personal use. The primary use case is a VS Code coding agent that uses trails to explore implementation approaches. Storage is pluggable—SQLite for local development, Dolt for version control, DynamoDB for cloud scale. All operations are asynchronous. All identifiers use UUID v7 (time-ordered, sortable).
-
-<!-- Remove notes and put them in the text or caption of the figure.-->
+The system provides a Go library (`pkg/cupboard`) for agents and a command-line tool (`crumbs` CLI) for development and personal use. The primary use case is a VS Code coding agent that uses trails to explore implementation approaches. Storage is pluggable—SQLite for local development, Dolt for version control, DynamoDB for cloud scale. All operations are asynchronous and use UUID v7 identifiers (time-ordered, sortable). Backend selection happens via configuration at startup.
 
 ```plantuml
 @startuml
@@ -43,98 +39,68 @@ package "Storage Backends" {
 [Cupboard API] --> [Dolt Backend]
 [Cupboard API] --> [DynamoDB Backend]
 
-note right of [Cupboard API]
-  Asynchronous operations
-  UUID v7 identifiers
-  Backend selection via config
-end note
-
-note bottom of [Trails Manager]
-  StartTrail, CompleteTrail,
-  AbandonTrail operations
-end note
-
-note top of [Agent Logic]
-  Primary use case:
-  Explore implementations,
-  abandon dead ends
-end note
-
 @enduml
 ```
 
 ### Lifecycle
 
-<!-- Align this to PRDs. "States" are built in properties -->
+Crumbs have a lifecycle driven by state transitions and trail operations. State is a core field on the Crumb struct, not a property (see prd-crumbs-interface R1, R2).
 
-Crumbs have a lifecycle driven by state transitions and trail operations.
+**Crumb states** (prd-crumbs-interface R2): `draft` → `pending` → `ready` → `taken` → `completed` or `failed` → `archived`. Initial state on creation is `draft`. CrumbTable tracks state but does not enforce transitions—agents or coordination layers define transition rules.
 
-**Crumb states**: `pending` → `ready` → `running` → `completed` or `failed`. Agents define state semantics. Crumbs storage tracks state but does not enforce transitions—agents or coordination layers handle that.
+**Trail states** (prd-trails-interface R2): `active` → `completed` or `abandoned`. When a trail completes, belongs_to links are removed and crumbs become permanent. When a trail is abandoned, all crumbs on the trail are deleted—the exploration failed and you backtrack.
 
-**Trail states**: `active` → `completed` or `abandoned`. When a trail completes, all crumbs on the trail become permanent (trail_id cleared). When a trail is abandoned, all crumbs on the trail are deleted or excluded from queries—the exploration failed and you backtrack.
-
-**Trail structure**: Trails form a tree of DAGs. Each trail is a directed acyclic graph (DAG) of crumbs: crumbs within the trail (all tagged with the same trail_id) have explicit dependency relationships (recorded in the dependencies property) that form the DAG edges. Trails can branch—a new trail can deviate from a crumb on an existing trail (recorded via parent_crumb_id in the new trail). The overall structure is a tree of trails, where each trail is a DAG of crumbs. A path is a special case where a trail's DAG is linear (each crumb has at most one dependency).
+**Trail structure**: Trails group crumbs via belongs_to links (prd-sqlite-backend). Crumbs within a trail can have explicit dependency relationships via the dependencies property. Trails can branch—a new trail can deviate from a crumb on an existing trail (recorded via ParentCrumbID on the Trail struct). A crumb belongs to at most one trail at a time.
 
 ### Coordination Pattern
 
 Crumbs provides storage, not coordination. Agents or coordination frameworks build claiming, timeouts, and announcements on top of the Cupboard API. We expose async read/write operations; agents add workflow semantics.
 
 ## Main Interface
-<!-- Align this to PRDs-->
 
-The Cupboard API is the contract between applications and storage backends. All operations are asynchronous (return futures or use async/await). Operations are grouped by entity: crumbs, trails, properties, metadata.
+The Cupboard interface is the contract between applications and storage backends (prd-cupboard-core R2). Operations are grouped into table accessors: `Crumbs()`, `Trails()`, `Properties()`, `Metadata()`, `Links()`, and `Stashes()`. Each accessor returns a table-specific interface.
 
 ### Data Structures
 
 | Type | Description | Key fields |
 |------|-------------|------------|
-| Crumb | Work item | crumb_id (UUID v7), name, state, trail_id, timestamps |
-| Trail | Exploration session | trail_id (UUID v7), parent_crumb_id, state, timestamps |
-| Property | Property definition | property_id (UUID v7), name, value_type, description |
-| Category | Categorical value | category_id (UUID v7), property_id, name, ordinal |
-| Metadata | Extensible data | metadata_id (UUID v7), crumb_id, content, timestamps |
+| Crumb | Work item | CrumbID (UUID v7), Name, State, CreatedAt, UpdatedAt |
+| Trail | Exploration session | TrailID (UUID v7), ParentCrumbID, State, CreatedAt, CompletedAt |
+| Property | Property definition | PropertyID (UUID v7), Name, ValueType, Description, CreatedAt |
+| Category | Categorical value | CategoryID (UUID v7), PropertyID, Name, Ordinal |
+| Stash | Shared state | StashID (UUID v7), TrailID, Name, StashType, Value, Version |
 
-Full field specs are in the PRD (prd-task-storage).
+Full field specs are in the interface PRDs (prd-crumbs-interface, prd-trails-interface, prd-properties-interface, prd-stash-interface).
 
-### Operations
+### Table Interfaces
+
+| Table | Operations | PRD |
+|-------|------------|-----|
+| CrumbTable | Add, Get, Update, SetState, Archive, Purge, Fetch, SetProperty, GetProperty, GetProperties, ClearProperty | prd-crumbs-interface |
+| TrailTable | Start, Get, GetCrumbs, AddCrumb, RemoveCrumb, Complete, Abandon | prd-trails-interface |
+| PropertyTable | Define, Get, List, DefineCategory, ListCategories | prd-properties-interface |
+| MetadataTable | Register, Add, Get, Search | prd-metadata-interface |
+| LinkTable | Add, Remove, GetByFrom, GetByTo | prd-sqlite-backend |
+| StashTable | Create, Get, GetByName, List, Delete, Set, GetValue, Increment, Acquire, Release, TryAcquire, GetHistory, GetValueAtVersion | prd-stash-interface |
+
+### Lifecycle Operations
 
 | Operation | Purpose |
 |-----------|---------|
-| OpenCupboard(config) | Initialize storage backend |
-| CloseCupboard() | Release resources |
-| DropCrumb(name, trail_id?) | Create crumb; optionally assign to trail |
-| GetCrumb(crumb_id) | Retrieve crumb by ID |
-| DeleteCrumb(crumb_id) | Remove crumb and all properties/metadata |
-| StartTrail(parent_crumb_id?) | Create trail; optionally deviate from crumb |
-| GetTrail(trail_id) | Retrieve trail by ID |
-| GetTrailCrumbs(trail_id) | List all crumbs on a trail |
-| CompleteTrail(trail_id) | Mark trail completed; clear trail_id from crumbs (merge to permanent) |
-| AbandonTrail(trail_id) | Mark trail abandoned; delete or exclude crumbs (backtrack) |
-| DefineProperty(name, description, value_type) | Create property definition |
-| ListProperties() | List all property definitions |
-| DefineCategory(property_id, name, ordinal) | Create category for categorical property |
-| SetCrumbProperty(crumb_id, property_id, value) | Set property value for crumb |
-| GetCrumbProperty(crumb_id, property_id) | Get property value |
-| GetCrumbProperties(crumb_id) | Get all properties for crumb |
-| ClearCrumbProperty(crumb_id, property_id) | Remove property value |
-| RegisterMetadataTable(table_name, schema) | Add new metadata table type |
-| AddMetadata(table_name, crumb_id, content, property_id?) | Add metadata entry |
-| GetMetadata(table_name, crumb_id) | Retrieve metadata entries |
-| SearchMetadata(table_name, filter) | Search metadata by crumb, property, or text |
-| FetchCrumbs(filter) | Query crumbs by properties; exclude abandoned trails by default |
+| OpenCupboard(config) | Initialize storage backend; returns Cupboard instance |
+| Close() | Release resources; subsequent operations return ErrCupboardClosed |
 
 ## System Components
-<!-- Align this to PRDs-->
 
-**Cupboard API (pkg/cupboard)**: Main interface. Agents and applications call OpenCupboard with config, get a Cupboard instance, and invoke operations. Delegates to backend implementations. Handles UUID v7 generation and timestamp derivation.
+**Cupboard API (pkg/types)**: Public types and interfaces. Applications import this package to use the Cupboard interface and entity types (Crumb, Trail, Property, Stash). The Cupboard interface provides table accessors (Crumbs(), Trails(), etc.) that return table-specific interfaces (prd-cupboard-core R2).
 
-**Properties Engine (internal/properties)**: Manages property definitions, categories, and type-specific property storage (categorical, text, integer, list). Enforces property types and validates values. Extensible—new properties defined at runtime without schema changes.
+**SQLite Backend (internal/sqlite)**: Primary backend for local development. JSON files are the source of truth; SQLite (modernc.org/sqlite, pure Go) serves as a query cache. On startup, JSON is loaded into SQLite. Writes persist to JSON first, then update SQLite. Implements all table interfaces (prd-sqlite-backend).
 
-**Trails Manager (internal/trails)**: Implements trail lifecycle. CompleteTrail clears trail_id from all crumbs (they become permanent). AbandonTrail deletes or marks crumbs as abandoned. Ensures queries exclude abandoned trails by default.
+**Stash Manager**: Part of the SQLite backend. Manages stashes for sharing state between crumbs on a trail. Supports resource, artifact, context, counter, and lock stash types. Maintains versioned history of all changes (prd-stash-interface).
 
-**Storage Backends (internal/backends)**: Pluggable implementations. SQLite backend uses JSON files as the source of truth with SQLite (modernc.org/sqlite) as a query engine for local development. Dolt backend uses SQL with version control. DynamoDB backend uses NoSQL tables for cloud scale. Each backend implements the full Cupboard interface.
+**CLI (cmd/crumbs)**: Command-line tool for development and personal use. Commands map to Cupboard operations. Config file selects backend.
 
-**CLI (cmd/crumbs)**: Command-line tool for development and personal use. Commands map to Cupboard operations (drop, show, trail start, trail complete, trail abandon, fetch). Config file selects backend. Used for testing and as a reference implementation.
+**Future Backends**: Dolt backend (SQL with version control) and DynamoDB backend (serverless NoSQL) are planned but not yet implemented. Each backend implements the full Cupboard interface (prd-cupboard-core R6).
 
 ## Design Decisions
 
@@ -164,38 +130,34 @@ Full field specs are in the PRD (prd-task-storage).
 | Async | Goroutines + channels | Concurrent operations, future-like patterns |
 
 ## Project Structure
-<!-- Update with latest structure-->
 
 ```
 crumbs/
 ├── cmd/
-│   └── crumbs/          # CLI entry point
+│   └── crumbs/              # CLI entry point
 ├── pkg/
-│   └── cupboard/        # Public API: Cupboard interface, types
+│   └── types/               # Public API: Cupboard interface, entity types
 ├── internal/
-│   ├── properties/      # Properties engine (definitions, categories, values)
-│   ├── trails/          # Trails manager (complete, abandon, queries)
-│   └── backends/
-│       ├── sqlite/      # SQLite backend (JSON source of truth)
-│       ├── dolt/        # Dolt SQL backend
-│       └── dynamodb/    # DynamoDB backend
+│   └── sqlite/              # SQLite backend implementation
 ├── docs/
 │   ├── VISION.md
 │   ├── ARCHITECTURE.md
-│   └── product-requirements/
-│       ├── prd-cupboard-core.md
-│       ├── prd-sqlite-backend.md
-│       └── ...                 # Interface PRDs
-└── .claude/             # Project rules and commands
+│   ├── product-requirements/
+│   │   ├── prd-cupboard-core.md
+│   │   ├── prd-sqlite-backend.md
+│   │   ├── prd-crumbs-interface.md
+│   │   ├── prd-trails-interface.md
+│   │   ├── prd-properties-interface.md
+│   │   ├── prd-metadata-interface.md
+│   │   └── prd-stash-interface.md
+│   └── use-cases/
+│       └── uc-crud-operations.md
+└── .claude/                 # Project rules and commands
 ```
 
-**pkg/cupboard**: Public API. Agents and applications import this. Defines Cupboard interface, crumb/trail/property types, and OpenCupboard factory function.
+**pkg/types**: Public API. Applications import this package to access the Cupboard interface and all entity types (Crumb, Trail, Property, Category, Stash, etc.). Contains no implementation.
 
-**internal/properties**: Property definitions, category management, and type-specific property storage. Not directly importable; used via Cupboard API.
-
-**internal/trails**: Trail lifecycle operations. Manages trail state transitions, crumb membership, and query filtering.
-
-**internal/backends**: Backend implementations. Each backend is a separate package implementing the Cupboard interface.
+**internal/sqlite**: SQLite backend implementation. Implements all table interfaces (CrumbTable, TrailTable, PropertyTable, MetadataTable, LinkTable, StashTable). JSON files are the source of truth; SQLite is a query cache.
 
 **cmd/crumbs**: CLI tool. Parses commands, loads config, opens Cupboard, and invokes operations.
 
@@ -214,7 +176,6 @@ We are currently in the bootstrap phase. Implementation will proceed in phases:
 Success criteria (from VISION): operations complete with low latency, agents integrate the library quickly, trail workflows feel natural for coding agents exploring implementation approaches.
 
 ## Related Documents
-<!-- Update as needed-->
 
 | Document | Purpose |
 |----------|---------|
@@ -225,6 +186,8 @@ Success criteria (from VISION): operations complete with low latency, agents int
 | prd-trails-interface.md | TrailTable operations |
 | prd-properties-interface.md | PropertyTable operations |
 | prd-metadata-interface.md | MetadataTable operations |
+| prd-stash-interface.md | StashTable operations for shared state |
+| uc-crud-operations.md | Tracer bullet for core CRUD operations |
 
 ## References
 

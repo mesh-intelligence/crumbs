@@ -9,7 +9,6 @@ A developer creates a SQLite-backed cupboard, adds crumbs with various states, m
 The actor is a developer or automated test harness. The trigger is the need to validate that the crumbs system correctly handles the full lifecycle of crumbs and properties, including the enforcement that all crumbs have values for all defined properties.
 
 ## Flow
-<!-- Isnt there a make functon on GO that does somethong like this? We need an interface to Cubboard and we call the Open method on it.-->
 
 1. **Create the database**: Call `OpenCupboard` with a SQLite backend configuration specifying a DataDir. The backend creates the directory, initializes empty JSON files, creates the SQLite schema, and seeds built-in properties (priority, type, description, owner, labels, dependencies).
 

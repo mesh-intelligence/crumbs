@@ -18,13 +18,11 @@ Crumbs solves this by providing storage with first-class support for trails. We 
 
 **Trails** are exploration sessions --  DAG subgraphs of the workflow -- that agents create while exploring an approach. Each trail is a DAG: crumbs within the trail have explicit dependencies on each other, forming the graph structure. You can drop new crumbs on a trail at any time and specify their dependencies. Trails can also branch: you can deviate (start a new trail that branches from a crumb on the current trail), dead-end (the approach fails and you abandon the entire trail DAG), or merge back (complete the trail successfully and the entire DAG becomes part of the permanent record). A path is a special case where the trail is linear (each crumb has at most one dependency).
 
-<!-- Align this to PRDs-->
-**Stashes** are a way to share trail state between crumbs. Stashes hold resources like attachments or large metadata outside the main cupboard storage, allowing efficient rollback without duplicating all data.
+**Stashes** enable crumbs on a trail to share state. A stash can hold resources (files, URLs), artifacts (outputs from one crumb as inputs to another), context (shared configuration), counters (atomic numeric state), or locks (mutual exclusion). Stashes are scoped to a trail or global, versioned, and maintain a full history of changes for auditability.
 
 **Cupboard** is the storage system that holds all crumbs, trails, and stashes.
 
-<!-- Align this to PRDs-->
-When you **drop a crumb**, you create a work item. When you **deviate**, you start a new trail to explore an alternative. If the trail leads nowhere, you **backtrack**—abandon it and the entire trail is cleaned up atomically. When a trail succeeds, you **complete** it and merge crumbs into the permanent task list.
+When you **add a crumb**, you create a work item (via `Crumbs().Add()`). When you **start a trail**, you create an exploration session and can add crumbs to it (via `Trails().Start()` and `Trails().AddCrumb()`). If the trail leads nowhere, you **abandon** it and all crumbs on the trail are deleted atomically. When a trail succeeds, you **complete** it and crumbs become permanent (no longer associated with the trail).
 
 The storage system supports multiple backends (local JSON files, Dolt for version control, DynamoDB for cloud scale) with a pluggable architecture. All identifiers use UUID v7 for time-ordered, sortable IDs. Properties are first-class entities with extensible schemas—you define new properties at runtime. Metadata tables (comments, attachments, logs) can be added without changing the core schema.
 
