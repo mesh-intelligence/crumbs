@@ -20,12 +20,14 @@ Based on this, propose next steps:
 2. If no epics exist: suggest epics to create and initial issues for each
 3. Identify dependencies - what should be built first and why?
 
-When proposing issues:
+When proposing issues (per issue-format rule):
 
 1. **Type**: Say whether each issue is **documentation** (markdown in `docs/`) or **code** (implementation).
-2. **Structure** (all issues): Requirements, Design Decisions (optional), Acceptance Criteria.
-3. **Documentation issues** (per issue-format rule): Add **output path** (e.g. `docs/product-requirements/prd-foo.md`), **required sections** from the right format (PRD: Problem, Goals, Requirements, Non-Goals, Acceptance Criteria; use case: Summary, Actor/trigger, Flow, Success criteria), and scope bullets so the agent knows what to write.
-4. **Code issues**: Requirements, Design Decisions, Acceptance Criteria (tests/behavior); no PRD-style Problem/Goals/Non-Goals.
+2. **Required Reading**: List files the agent must read before starting (PRDs, ARCHITECTURE sections, existing code). This is mandatory for all issues.
+3. **Files to Create/Modify**: Explicit list of files the issue will produce or change. For docs: output path. For code: packages/files to create or edit.
+4. **Structure** (all issues): Requirements, Design Decisions (optional), Acceptance Criteria.
+5. **Documentation issues**: Add **format rule** reference and **required sections** (PRD: Problem, Goals, Requirements, Non-Goals, Acceptance Criteria; use case: Summary, Actor/trigger, Flow, Success criteria).
+6. **Code issues**: Requirements, Design Decisions, Acceptance Criteria (tests/behavior); no PRD-style Problem/Goals/Non-Goals.
 
 Don't create any issues yet - just propose the breakdown so we can discuss it.
 

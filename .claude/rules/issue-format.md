@@ -6,9 +6,11 @@ Beads issues fall into two deliverable types: **documentation** (markdown in `do
 
 Every issue description should include:
 
-1. **Requirements** – What needs to be built or written (functional requirements, scope)
-2. **Design Decisions** – Key technical or structural choices to follow (optional but recommended)
-3. **Acceptance Criteria** – How we know it is done (checkable outcomes, tests, or completeness checklist)
+1. **Required Reading** – Files the agent must read before starting work. List PRDs, ARCHITECTURE sections, existing code, or other docs that provide context. This prevents the agent from working without understanding the design.
+2. **Files to Create/Modify** – Explicit list of files the issue will produce or change. For documentation: the output path. For code: the packages or files to create/edit.
+3. **Requirements** – What needs to be built or written (functional requirements, scope)
+4. **Design Decisions** – Technical or structural choices to follow (optional but recommended)
+5. **Acceptance Criteria** – How we know it is done (checkable outcomes, tests, or completeness checklist)
 
 For epics, the description can be higher level; child tasks carry the detailed structure.
 
@@ -35,8 +37,12 @@ Documentation issues produce markdown (and optionally diagrams) under `docs/`. T
 Example (PRD issue):
 
 ```markdown
-## PRD Location
-docs/product-requirements/prd-feature-name.md
+## Required Reading
+- docs/ARCHITECTURE.md § System Components
+- docs/product-requirements/prd-cupboard-core.md (interface contract)
+
+## Files to Create/Modify
+- docs/product-requirements/prd-feature-name.md (create)
 
 ## Required Sections (per prd-format rule)
 1. Problem - ...
@@ -54,16 +60,40 @@ docs/product-requirements/prd-feature-name.md
 
 Code issues produce or change implementation (e.g. Go, Python, config, tests) outside of `docs/`. The issue must specify:
 
+- **Required Reading** – PRDs, ARCHITECTURE sections, or existing code the agent must read first
+- **Files to Create/Modify** – Packages or files to create/edit (e.g. `internal/crumbs/crumbs.go`, `pkg/types/crumb.go`)
 - **Requirements** – Features, behaviors, or changes to implement
 - **Design Decisions** – Architecture, patterns, or constraints
 - **Acceptance Criteria** – How to verify: tests, CLI behavior, observable outcomes
 
-Optionally:
+Do not put PRD-style "Problem/Goals/Non-Goals" in code issues; use the structure above.
 
-- **Component or path** – e.g. `pkg/`, `internal/`, `cmd/`
-- **References** – PRD or ARCHITECTURE section that defines the contract
+Example (code issue):
 
-Do not put PRD-style "Problem/Goals/Non-Goals" in code issues; use Requirements + Design Decisions + Acceptance Criteria.
+```markdown
+## Required Reading
+- docs/product-requirements/prd-crumbs-interface.md (CrumbTable contract)
+- pkg/types/cupboard.go (existing interface)
+
+## Files to Create/Modify
+- pkg/types/crumb.go (create) - Crumb struct, Filter type
+- internal/sqlite/crumbs.go (create) - CrumbTable implementation
+- internal/sqlite/crumbs_test.go (create) - tests
+
+## Requirements
+- Implement CrumbTable interface per prd-crumbs-interface
+- Add, Get, Archive, Purge, Fetch operations
+- Property operations (Set/Get/Clear)
+
+## Design Decisions
+- Use table accessor pattern from prd-cupboard-core
+- Filter as map[string]any per PRD
+
+## Acceptance Criteria
+- [ ] All CrumbTable operations implemented
+- [ ] Tests pass for each operation
+- [ ] Errors match PRD error types
+```
 
 ### Go Layout (Recommended)
 
@@ -77,14 +107,15 @@ When proposing or implementing code issues, keep implementation in **internal/**
 
 | Issue type | Output | Key sections in issue |
 | ---------- | ------ | ---------------------- |
-| Documentation (ARCHITECTURE, general docs) | `docs/*.md`, `docs/**/*.puml` | Context, Requirements, Acceptance Criteria; follow documentation-standards |
-| Documentation (PRD) | `docs/product-requirements/prd-*.md` | PRD location, Required sections (Problem, Goals, Requirements, Non-Goals, Acceptance Criteria), Acceptance Criteria; follow prd-format |
-| Documentation (use case) | `docs/use-cases/uc-*.md` | File location, Summary, Actor/trigger, Flow, Success criteria; follow use-case-format |
-| Code | `pkg/`, `internal/`, `cmd/` | Requirements, Design Decisions, Acceptance Criteria (tests/behavior); see Go layout above |
+| Documentation (ARCHITECTURE, general docs) | `docs/*.md`, `docs/**/*.puml` | Required Reading, Files to Create/Modify, Requirements, Acceptance Criteria; follow documentation-standards |
+| Documentation (PRD) | `docs/product-requirements/prd-*.md` | Required Reading, Files to Create/Modify, Required sections (Problem, Goals, Requirements, Non-Goals, Acceptance Criteria), Acceptance Criteria; follow prd-format |
+| Documentation (use case) | `docs/use-cases/uc-*.md` | Required Reading, Files to Create/Modify, Summary, Actor/trigger, Flow, Success criteria; follow use-case-format |
+| Code | `pkg/`, `internal/`, `cmd/` | Required Reading, Files to Create/Modify, Requirements, Design Decisions, Acceptance Criteria (tests/behavior); see Go layout above |
 
 ## When Creating or Editing Issues
 
 1. Set **deliverable type**: documentation vs code.
-2. If documentation: set **output path** and **format rule** (PRD, use case, ARCHITECTURE).
-3. Include **Requirements** and **Acceptance Criteria** in every issue.
-4. For documentation, add **Required sections** and scope bullets so the agent knows what to write and where to save it.
+2. List **Required Reading**: PRDs, ARCHITECTURE sections, or code the agent must read before starting.
+3. List **Files to Create/Modify**: explicit paths for all outputs.
+4. If documentation: set **format rule** (PRD, use case, ARCHITECTURE) and **required sections**.
+5. Include **Requirements** and **Acceptance Criteria** in every issue.
