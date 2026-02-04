@@ -68,3 +68,4 @@ bd close atlas-123
 - NEVER leave uncommitted changes - commit everything
 - **After creating or editing any files** (docs, code, use cases, rules, config), run `git add -A` and `git commit` with a descriptive message **before ending your turn**. Do not hand off with uncommitted changes.
 - **We work offline** - Do not push; local commit is required and works. The user will push when they have network access.
+- **Do not sign commits** - Use `git commit --no-gpg-sign` or ensure GPG signing is disabled. Signed commits require user interaction.
