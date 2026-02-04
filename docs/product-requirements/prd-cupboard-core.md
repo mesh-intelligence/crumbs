@@ -54,26 +54,69 @@ This PRD defines the cupboard lifecycle interface: configuration, initialization
 
 ```go
 type Cupboard interface {
-    // Close releases all resources. Idempotent.
+    // Table accessors - each returns a table-specific interface
+    Crumbs() CrumbTable
+    Trails() TrailTable
+    Properties() PropertyTable
+    Metadata() MetadataTable
+    Links() LinkTable
+
+    // Lifecycle
     Close() error
 }
 ```
-<!-- TODO: GetTable operation which retrieves the table we want. Each table follows the same interface Get/Set?. We don't want this interface to be used for all operations on the cuboard. Keep it clean. -->
-2.3. The Cupboard interface must include crumb operations (defined in prd-crumbs-interface):
-- DropCrumb, GetCrumb, DeleteCrumb
 
-2.4. The Cupboard interface must include trail operations (defined in prd-trails-interface):
-- StartTrail, GetTrail, GetTrailCrumbs, CompleteTrail, AbandonTrail
+2.3. Table accessors group related operations and keep the Cupboard interface clean:
 
-2.5. The Cupboard interface must include property operations (defined in prd-properties-interface and prd-crumb-properties-interface):
-- DefineProperty, GetProperty, ListProperties, DefineCategory
-- SetCrumbProperty, GetCrumbProperty, GetCrumbProperties, ClearCrumbProperty
+```go
+type CrumbTable interface {
+    Drop(name string) (*Crumb, error)
+    Get(id string) (*Crumb, error)
+    Delete(id string) error
+    Fetch(filter Filter) ([]*Crumb, error)
+    SetProperty(crumbID, propertyID string, value any) error
+    GetProperty(crumbID, propertyID string) (any, error)
+    GetProperties(crumbID string) (map[string]any, error)
+    ClearProperty(crumbID, propertyID string) error
+}
 
-2.6. The Cupboard interface must include metadata operations (defined in prd-metadata-interface):
-- RegisterMetadataTable, AddMetadata, GetMetadata, SearchMetadata
+type TrailTable interface {
+    Start(parentCrumbID *string) (*Trail, error)
+    Get(id string) (*Trail, error)
+    GetCrumbs(id string) ([]*Crumb, error)
+    Complete(id string) error
+    Abandon(id string) error
+}
 
-2.7. The Cupboard interface must include query operations (defined in prd-query-interface):
-- FetchCrumbs
+type PropertyTable interface {
+    Define(name, description, valueType string) (*Property, error)
+    Get(id string) (*Property, error)
+    List() ([]*Property, error)
+    DefineCategory(propertyID, name string, ordinal int) (*Category, error)
+}
+
+type MetadataTable interface {
+    Register(tableName string, schema Schema) error
+    Add(tableName, crumbID string, content string, propertyID *string) (*Metadata, error)
+    Get(tableName, crumbID string) ([]*Metadata, error)
+    Search(tableName string, filter MetadataFilter) ([]*Metadata, error)
+}
+
+type LinkTable interface {
+    Add(linkType, fromID, toID string) error
+    Remove(linkType, fromID, toID string) error
+    GetByFrom(linkType, fromID string) ([]string, error)
+    GetByTo(linkType, toID string) ([]string, error)
+}
+```
+
+2.4. Each table interface is defined in its own PRD:
+
+- CrumbTable: prd-crumbs-interface
+- TrailTable: prd-trails-interface
+- PropertyTable: prd-properties-interface
+- MetadataTable: prd-metadata-interface
+- LinkTable: prd-sqlite-backend (graph model)
 
 ### R3: OpenCupboard
 
@@ -128,27 +171,6 @@ func NewDoltBackend(cfg DoltConfig) (Backend, error)
 func NewDynamoDBBackend(cfg DynamoDBConfig) (Backend, error)
 ```
 
-<!-- Is this still needed here? -->
-
-### R7: SQLite Backend Design
-
-7.1. The sqlite backend uses JSON files as the source of truth. SQLite (modernc.org/sqlite, pure Go) serves as a query engine to reuse SQL code across backends and avoid reimplementing filtering, joins, and indexing.
-
-7.2. On OpenCupboard, the sqlite backend must:
-
-- Create or open a SQLite database file in DataDir
-- Load data from JSON files into SQLite tables
-- If JSON files do not exist, initialize empty tables
-
-7.3. On write operations (DropCrumb, DeleteCrumb, etc.), the sqlite backend must:
-
-- Update the SQLite database
-- Persist changes back to JSON files
-
-7.4. On Close, the sqlite backend must ensure all pending writes are flushed to JSON before releasing resources
-
-7.5. JSON file format and location are implementation details; the sqlite backend owns this schema
-
 ## Non-Goals
 
 1. This PRD does not define individual crumb, trail, property, metadata, or query operations. Those are defined in their respective interface PRDs.
@@ -180,4 +202,5 @@ func NewDynamoDBBackend(cfg DynamoDBConfig) (Backend, error)
 ## References
 
 - prd-task-storage R8 (Storage Backends), R9 (Cupboard Lifecycle)
-- prd-crumbs-interface, prd-trails-interface, prd-properties-interface, prd-crumb-properties-interface, prd-metadata-interface, prd-query-interface
+- prd-sqlite-backend (SQLite backend internals, JSON↔SQLite sync, graph model)
+- prd-crumbs-interface, prd-trails-interface, prd-properties-interface, prd-metadata-interface
