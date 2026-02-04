@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-Crumbs is a general-purpose storage system for work items with built-in support for exploratory work sessions. We provide a command-line tool and Go library for tracking work with trails—sequences of crumbs you can complete (merge) or abandon (backtrack). We are not a workflow engine, coordination framework, or message queue.
+Crumbs is a general-purpose storage system for work items with built-in support for exploratory work sessions. We use the breadcrumb metaphor (Hansel and Gretel): the **cupboard** holds all work items (crumbs), and **trails** are exploration paths you can complete (merge crumbs into the permanent record) or abandon (backtrack—clean up the entire trail). We provide a command-line tool and Go library. We are not a workflow engine, coordination framework, or message queue.
 
 ## The Problem
 
@@ -12,9 +12,15 @@ Current task storage systems lack support for this exploratory workflow. They co
 
 ## What This Does
 
-Crumbs solves this by providing storage with first-class support for trails. You drop crumbs (work items) as you explore. Each crumb can belong to a trail—a work session or exploration path. Trails can grow anywhere, deviate from the main path, and either complete (crumbs become permanent) or be abandoned (backtracking—the entire trail is cleaned up).
+Crumbs solves this by providing storage with first-class support for trails. We use the breadcrumb metaphor (Hansel and Gretel) because it naturally captures how exploratory work flows.
 
-We use the breadcrumb metaphor (Hansel and Gretel) because it naturally captures how work flows. The **cupboard** holds all crumbs and trails. You **drop crumbs** as you work. You **follow the trail** to complete dependencies. You **deviate** to explore a new path. If the trail leads nowhere, you **backtrack**—abandon it and start fresh. When a trail succeeds, you **sweep up**—complete it and merge crumbs into the permanent record.
+**Crumbs** are individual work items. You drop crumbs as you explore an implementation. Each crumb can depend on other crumbs—forming a path to follow.
+
+**Trails** are exploration sessions—sequences of crumbs connected by time and dependency. A trail is the path you are exploring. You follow a trail of crumbs to complete work. Trails can grow anywhere (add crumbs in the middle, not just at the end), deviate (leave the main path and explore alternatives), dead-end (the approach fails), or merge back (successful trails become part of the permanent record).
+
+**Cupboard** is the storage system that holds all crumbs and trails.
+
+When you **drop a crumb**, you create a work item. When you **deviate**, you start a new trail to explore an alternative. If the trail leads nowhere, you **backtrack**—abandon it and the entire trail is cleaned up atomically. When a trail succeeds, you **complete** it and merge crumbs into the permanent task list.
 
 The storage system supports multiple backends (local JSON files, Dolt for version control, DynamoDB for cloud scale) with a pluggable architecture. All identifiers use UUID v7 for time-ordered, sortable IDs. Properties are first-class entities with extensible schemas—you define new properties at runtime. Metadata tables (comments, attachments, logs) can be added without changing the core schema.
 
