@@ -4,7 +4,7 @@
 
 Crumbs is a storage system for work items with first-class support for exploratory trails. The core insight is that coding agents need backtracking: an agent drops crumbs as it explores an implementation approach, and if the approach leads nowhere, the agent abandons the entire trail without polluting the permanent task list.
 
-The system provides a Go library (`pkg/cupboard`) for agents and a command-line tool (`crumbs` CLI) for development and personal use. The primary use case is a VS Code coding agent that uses trails to explore implementation approaches. Storage is pluggable—local JSON files for development, Dolt for version control, DynamoDB for cloud scale. All operations are asynchronous. All identifiers use UUID v7 (time-ordered, sortable).
+The system provides a Go library (`pkg/cupboard`) for agents and a command-line tool (`crumbs` CLI) for development and personal use. The primary use case is a VS Code coding agent that uses trails to explore implementation approaches. Storage is pluggable—SQLite for local development, Dolt for version control, DynamoDB for cloud scale. All operations are asynchronous. All identifiers use UUID v7 (time-ordered, sortable).
 
 ```plantuml
 @startuml
@@ -26,7 +26,7 @@ package "Go Library" {
 }
 
 package "Storage Backends" {
-  [JSON Backend]
+  [SQLite Backend]
   [Dolt Backend]
   [DynamoDB Backend]
 }
@@ -35,7 +35,7 @@ package "Storage Backends" {
 [Command Handler] --> [Cupboard API]
 [Cupboard API] --> [Properties Engine]
 [Cupboard API] --> [Trails Manager]
-[Cupboard API] --> [JSON Backend]
+[Cupboard API] --> [SQLite Backend]
 [Cupboard API] --> [Dolt Backend]
 [Cupboard API] --> [DynamoDB Backend]
 
@@ -124,7 +124,7 @@ Full field specs are in the PRD (prd-task-storage).
 
 **Trails Manager (internal/trails)**: Implements trail lifecycle. CompleteTrail clears trail_id from all crumbs (they become permanent). AbandonTrail deletes or marks crumbs as abandoned. Ensures queries exclude abandoned trails by default.
 
-**Storage Backends (internal/backends)**: Pluggable implementations. JSON backend writes to local files for development. Dolt backend uses SQL with version control. DynamoDB backend uses NoSQL tables for cloud scale. Each backend implements the full Cupboard interface.
+**Storage Backends (internal/backends)**: Pluggable implementations. SQLite backend uses JSON files as the source of truth with SQLite (modernc.org/sqlite) as a query engine for local development. Dolt backend uses SQL with version control. DynamoDB backend uses NoSQL tables for cloud scale. Each backend implements the full Cupboard interface.
 
 **CLI (cmd/crumbs)**: Command-line tool for development and personal use. Commands map to Cupboard operations (drop, show, trail start, trail complete, trail abandon, fetch). Config file selects backend. Used for testing and as a reference implementation.
 
@@ -138,7 +138,9 @@ Full field specs are in the PRD (prd-task-storage).
 
 **Decision 4: Pluggable backends with full interface**. Each backend implements the entire Cupboard interface. This allows backend-specific optimizations (Dolt version history, DynamoDB single-table design) without leaking details into the API. Alternative: a generic SQL backend with schema generation is less flexible and cannot leverage backend-specific features.
 
-**Decision 5: Asynchronous API**. All operations return futures or use async/await patterns. This supports backends with network calls (DynamoDB) and keeps the CLI responsive. Backends may implement operations synchronously internally if local (JSON files). Alternative: synchronous API is simpler but blocks on I/O and does not scale to remote backends.
+**Decision 5: Asynchronous API**. All operations return futures or use async/await patterns. This supports backends with network calls (DynamoDB) and keeps the CLI responsive. Backends may implement operations synchronously internally if local. Alternative: synchronous API is simpler but blocks on I/O and does not scale to remote backends.
+
+**Decision 6: JSON as source of truth for SQLite backend**. The SQLite backend uses JSON files as the canonical data store. SQLite (modernc.org/sqlite, pure Go) serves as a query engine to reuse SQL code across backends and avoid reimplementing filtering, joins, and indexing. On startup, we load JSON into SQLite; on writes, we persist back to JSON. This gives us human-readable files, easy backup, and code reuse. Alternative: raw JSON with custom query logic duplicates work that SQL handles well; pure SQLite loses the human-readable file benefit.
 
 ## Technology Choices
 
@@ -147,7 +149,7 @@ Full field specs are in the PRD (prd-task-storage).
 | Language | Go | CLI tool and library; strong concurrency, static typing |
 | Identifiers | UUID v7 (RFC 9562) | Time-ordered, sortable, distributed-safe IDs |
 | CLI | cobra + viper | Command parsing and config management |
-| JSON backend | encoding/json | Local file storage for development |
+| SQLite backend | modernc.org/sqlite | Local development; JSON files as source of truth, SQLite as query engine |
 | Dolt backend | go-mysql-driver + Dolt SQL | Version-controlled relational storage |
 | DynamoDB backend | AWS SDK for Go v2 | Serverless NoSQL cloud storage |
 | Testing | Go testing + testify | Unit and integration tests |
@@ -165,7 +167,7 @@ crumbs/
 │   ├── properties/      # Properties engine (definitions, categories, values)
 │   ├── trails/          # Trails manager (complete, abandon, queries)
 │   └── backends/
-│       ├── json/        # JSON file backend
+│       ├── sqlite/      # SQLite backend (JSON source of truth)
 │       ├── dolt/        # Dolt SQL backend
 │       └── dynamodb/    # DynamoDB backend
 ├── docs/
@@ -190,7 +192,7 @@ crumbs/
 
 We are currently in the bootstrap phase. Implementation will proceed in phases:
 
-**Phase 1: Core storage with JSON backend**. Implement Cupboard API, crumb/trail tables, JSON backend, basic CLI commands (drop, show, fetch). Validates core concepts and provides a working system for local use.
+**Phase 1: Core storage with SQLite backend**. Implement Cupboard API, crumb/trail tables, SQLite backend (JSON source of truth), basic CLI commands (drop, show, fetch). Validates core concepts and provides a working system for local use.
 
 **Phase 2: Properties and metadata**. Add properties table, type-specific property storage, metadata tables, RegisterMetadataTable. Enables extensibility without schema changes.
 
