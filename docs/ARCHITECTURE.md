@@ -2,14 +2,18 @@
 
 ## System Overview
 
-Crumbs is a storage system for work items with first-class support for exploratory trails. The core insight is that work exploration needs backtracking: you drop crumbs as you try a path, and if it leads nowhere, you abandon the entire trail without polluting the permanent record.
+Crumbs is a storage system for work items with first-class support for exploratory trails. The core insight is that coding agents need backtracking: an agent drops crumbs as it explores an implementation approach, and if the approach leads nowhere, the agent abandons the entire trail without polluting the permanent task list.
 
-The system provides a command-line tool (`crumbs` CLI) and a Go library (`pkg/cupboard`) for applications. Storage is pluggable—local JSON files for development, Dolt for version control, DynamoDB for cloud scale. All operations are asynchronous. All identifiers use UUID v7 (time-ordered, sortable).
+The system provides a Go library (`pkg/cupboard`) for agents and a command-line tool (`crumbs` CLI) for development and personal use. The primary use case is a VS Code coding agent that uses trails to explore implementation approaches. Storage is pluggable—local JSON files for development, Dolt for version control, DynamoDB for cloud scale. All operations are asynchronous. All identifiers use UUID v7 (time-ordered, sortable).
 
 ```plantuml
 @startuml
 !theme plain
 skinparam backgroundColor white
+
+package "VS Code Agent" {
+  [Agent Logic]
+}
 
 package "Crumbs CLI" {
   [Command Handler]
@@ -27,6 +31,7 @@ package "Storage Backends" {
   [DynamoDB Backend]
 }
 
+[Agent Logic] --> [Cupboard API]
 [Command Handler] --> [Cupboard API]
 [Cupboard API] --> [Properties Engine]
 [Cupboard API] --> [Trails Manager]
@@ -45,6 +50,12 @@ note bottom of [Trails Manager]
   AbandonTrail operations
 end note
 
+note top of [Agent Logic]
+  Primary use case:
+  Explore implementations,
+  abandon dead ends
+end note
+
 @enduml
 ```
 
@@ -52,13 +63,13 @@ end note
 
 Crumbs have a lifecycle driven by state transitions and trail operations.
 
-**Crumb states**: `pending` → `ready` → `running` → `completed` or `failed`. Applications define state semantics. Crumbs storage tracks state but does not enforce transitions—coordination layers handle that.
+**Crumb states**: `pending` → `ready` → `running` → `completed` or `failed`. Agents define state semantics. Crumbs storage tracks state but does not enforce transitions—agents or coordination layers handle that.
 
 **Trail states**: `active` → `completed` or `abandoned`. When a trail completes, all crumbs on the trail become permanent (trail_id cleared). When a trail is abandoned, all crumbs on the trail are deleted or excluded from queries—the exploration failed and you backtrack.
 
 ### Coordination Pattern
 
-Crumbs provides storage, not coordination. Applications or coordination frameworks (like Task Fountain) build claiming, timeouts, and announcements on top of the Cupboard API. We expose async read/write operations; higher layers add semantics.
+Crumbs provides storage, not coordination. Agents or coordination frameworks build claiming, timeouts, and announcements on top of the Cupboard API. We expose async read/write operations; agents add workflow semantics.
 
 ## Main Interface
 
@@ -69,7 +80,7 @@ The Cupboard API is the contract between applications and storage backends. All 
 | Type | Description | Key fields |
 |------|-------------|------------|
 | Crumb | Work item | crumb_id (UUID v7), name, state, trail_id, timestamps |
-| Trail | Work session | trail_id (UUID v7), parent_crumb_id, state, timestamps |
+| Trail | Exploration session | trail_id (UUID v7), parent_crumb_id, state, timestamps |
 | Property | Property definition | property_id (UUID v7), name, value_type, description |
 | Category | Categorical value | category_id (UUID v7), property_id, name, ordinal |
 | Metadata | Extensible data | metadata_id (UUID v7), crumb_id, content, timestamps |
@@ -105,7 +116,7 @@ Full field specs are in the PRD (prd-task-storage).
 
 ## System Components
 
-**Cupboard API (pkg/cupboard)**: Main interface. Applications call OpenCupboard with config, get a Cupboard instance, and invoke operations. Delegates to backend implementations. Handles UUID v7 generation and timestamp derivation.
+**Cupboard API (pkg/cupboard)**: Main interface. Agents and applications call OpenCupboard with config, get a Cupboard instance, and invoke operations. Delegates to backend implementations. Handles UUID v7 generation and timestamp derivation.
 
 **Properties Engine (internal/properties)**: Manages property definitions, categories, and type-specific property storage (categorical, text, integer, list). Enforces property types and validates values. Extensible—new properties defined at runtime without schema changes.
 
@@ -113,15 +124,15 @@ Full field specs are in the PRD (prd-task-storage).
 
 **Storage Backends (internal/backends)**: Pluggable implementations. JSON backend writes to local files for development. Dolt backend uses SQL with version control. DynamoDB backend uses NoSQL tables for cloud scale. Each backend implements the full Cupboard interface.
 
-**CLI (cmd/crumbs)**: Command-line tool for personal use. Commands map to Cupboard operations (drop, show, trail start, trail complete, trail abandon, fetch). Config file selects backend.
+**CLI (cmd/crumbs)**: Command-line tool for development and personal use. Commands map to Cupboard operations (drop, show, trail start, trail complete, trail abandon, fetch). Config file selects backend. Used for testing and as a reference implementation.
 
 ## Design Decisions
 
 **Decision 1: UUID v7 for all identifiers**. We chose UUID v7 (time-ordered UUIDs per RFC 9562) because they are sortable by creation time without separate timestamp columns. This simplifies pagination, reduces index size, and works across distributed backends. Alternative: auto-increment IDs are not suitable for distributed systems; UUID v4 lacks time ordering.
 
-**Decision 2: Properties as first-class entities**. Property definitions have their own IDs and table. This enables runtime extensibility—applications define new properties without schema migrations. Type-specific tables (categorical, text, integer, list) enforce value types and enable efficient queries. Alternative: storing properties as JSON blobs is less queryable and loses type safety.
+**Decision 2: Properties as first-class entities**. Property definitions have their own IDs and table. This enables runtime extensibility—agents define new properties without schema migrations. Type-specific tables (categorical, text, integer, list) enforce value types and enable efficient queries. Alternative: storing properties as JSON blobs is less queryable and loses type safety.
 
-**Decision 3: Trails with complete/abandon semantics**. Trails represent exploratory work. CompleteTrail merges crumbs into the permanent record by clearing trail_id. AbandonTrail removes crumbs entirely (backtracking). This keeps the permanent record clean and makes exploratory workflows explicit. Alternative: marking crumbs as "tentative" is less clear and requires manual cleanup.
+**Decision 3: Trails with complete/abandon semantics**. Trails represent agent exploration sessions. CompleteTrail merges crumbs into the permanent record by clearing trail_id. AbandonTrail removes crumbs entirely (backtracking). This keeps the permanent task list clean and makes agent exploration explicit—try an approach, abandon if it fails, complete if it succeeds. Alternative: marking crumbs as "tentative" is less clear and requires agents to manually track and clean up failed explorations.
 
 **Decision 4: Pluggable backends with full interface**. Each backend implements the entire Cupboard interface. This allows backend-specific optimizations (Dolt version history, DynamoDB single-table design) without leaking details into the API. Alternative: a generic SQL backend with schema generation is less flexible and cannot leverage backend-specific features.
 
@@ -163,7 +174,7 @@ crumbs/
 └── .claude/             # Project rules and commands
 ```
 
-**pkg/cupboard**: Public API. Applications import this. Defines Cupboard interface, crumb/trail/property types, and OpenCupboard factory function.
+**pkg/cupboard**: Public API. Agents and applications import this. Defines Cupboard interface, crumb/trail/property types, and OpenCupboard factory function.
 
 **internal/properties**: Property definitions, category management, and type-specific property storage. Not directly importable; used via Cupboard API.
 
@@ -185,7 +196,7 @@ We are currently in the bootstrap phase. Implementation will proceed in phases:
 
 **Phase 4: Additional backends**. Add Dolt backend (version control) and DynamoDB backend (cloud scale). Validates pluggable architecture and backend-specific optimizations.
 
-Success criteria (from VISION): operations complete with low latency, developers integrate the library quickly, trail workflows feel natural in the CLI.
+Success criteria (from VISION): operations complete with low latency, agents integrate the library quickly, trail workflows feel natural for coding agents exploring implementation approaches.
 
 ## Related Documents
 

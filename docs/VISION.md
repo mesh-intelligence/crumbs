@@ -6,9 +6,9 @@ Crumbs is a general-purpose storage system for work items with built-in support 
 
 ## The Problem
 
-Applications need general-purpose storage for work items that is independent of any coordination framework. Current task storage systems couple directly to a specific database or workflow engine, making it difficult to switch backends or run in different environments. Worse, they lack support for exploratory work—the ability to try a path, decide it leads nowhere, and backtrack without polluting the permanent record.
+Coding agents need storage for work items that supports how they actually work—exploring solutions, hitting dead ends, and backtracking. When an agent explores a solution approach, it creates tasks and subtasks. Sometimes the approach works and those tasks become permanent work. Sometimes the agent realizes the approach will not work and needs to abandon the entire exploration without polluting the main task list.
 
-When you explore a solution, you drop crumbs as you go. Sometimes the path succeeds and those crumbs become permanent work. Sometimes you hit a dead end and need to abandon the entire trail. Existing systems force you to either commit failed work or manually clean up abandoned items.
+Current task storage systems lack support for this exploratory workflow. They couple directly to a specific database or workflow engine, making it difficult to switch backends. More importantly, they have no concept of tentative work sessions. Agents must either commit failed exploration tasks to the permanent record or manually track and clean up abandoned items. Neither is acceptable—the first pollutes the task history with dead ends, the second is error-prone and complex.
 
 ## What This Does
 
@@ -18,7 +18,7 @@ We use the breadcrumb metaphor (Hansel and Gretel) because it naturally captures
 
 The storage system supports multiple backends (local JSON files, Dolt for version control, DynamoDB for cloud scale) with a pluggable architecture. All identifiers use UUID v7 for time-ordered, sortable IDs. Properties are first-class entities with extensible schemas—you define new properties at runtime. Metadata tables (comments, attachments, logs) can be added without changing the core schema.
 
-We provide both a command-line tool for personal use and a Go library for applications that need general-purpose task storage with trail support.
+We provide both a command-line tool and a Go library. The primary use case is coding agents—the first implementation is a VS Code coding agent that uses trails to explore implementation approaches, complete successful paths, and abandon dead ends atomically. The library and CLI also support personal task tracking and other agent workflows.
 
 ## What Success Looks Like
 
@@ -28,7 +28,7 @@ We measure success along three dimensions.
 
 **Developer Experience**: Developers integrate the Go library quickly. The API is asynchronous, type-safe, and self-explanatory. Adding a new backend takes hours, not days. Defining new properties or metadata tables requires no schema migrations.
 
-**Trail Workflow**: Users create trails, drop crumbs, and abandon dead-end explorations without manual cleanup. Completed trails merge seamlessly into the permanent record. The command-line tool makes trail workflows natural and fast.
+**Agent Workflow**: Coding agents create trails for exploration, drop crumbs as they plan implementation steps, and abandon dead-end approaches without manual cleanup. Completed trails merge seamlessly into the permanent task list. The VS Code agent demonstrates that trail-based exploration feels natural and improves code quality by encouraging agents to explore alternatives.
 
 ## What This Is NOT
 
