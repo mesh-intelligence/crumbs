@@ -16,7 +16,7 @@ Crumbs solves this by providing storage with first-class support for trails. We 
 
 **Crumbs** are individual work items. You drop crumbs as you explore an implementation. Each crumb can depend on other crumbs—forming a path to follow.
 
-**Trails** are exploration sessions—collections of crumbs you create while exploring an approach. A trail is the path you are exploring. Crumbs within a trail can have dependencies on each other, forming a graph. You can drop new crumbs on a trail at any time, deviate (start a new trail branching from a crumb on the current trail), dead-end (the approach fails and you abandon the entire trail), or merge back (complete the trail successfully and all its crumbs become part of the permanent record).
+**Trails** are exploration sessions—directed acyclic graphs (DAGs) of crumbs you create while exploring an approach. Each trail is a DAG: crumbs within the trail have explicit dependencies on each other, forming the graph structure. You can drop new crumbs on a trail at any time and specify their dependencies. Trails can also branch: you can deviate (start a new trail that branches from a crumb on the current trail), dead-end (the approach fails and you abandon the entire trail DAG), or merge back (complete the trail successfully and the entire DAG becomes part of the permanent record). A path is a special case where the trail is linear (each crumb has at most one dependency).
 
 **Cupboard** is the storage system that holds all crumbs and trails.
 

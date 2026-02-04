@@ -67,7 +67,7 @@ Crumbs have a lifecycle driven by state transitions and trail operations.
 
 **Trail states**: `active` → `completed` or `abandoned`. When a trail completes, all crumbs on the trail become permanent (trail_id cleared). When a trail is abandoned, all crumbs on the trail are deleted or excluded from queries—the exploration failed and you backtrack.
 
-**Trail structure**: Trails form a tree. Each trail is a flat collection of crumbs (all tagged with the same trail_id), but trails can branch—a new trail can deviate from a crumb on an existing trail (recorded via parent_crumb_id). Within a trail, crumbs can have dependency relationships (recorded in the dependencies property), forming a directed acyclic graph. The overall structure is a tree of trails, each containing a DAG of crumbs.
+**Trail structure**: Trails form a tree of DAGs. Each trail is a directed acyclic graph (DAG) of crumbs: crumbs within the trail (all tagged with the same trail_id) have explicit dependency relationships (recorded in the dependencies property) that form the DAG edges. Trails can branch—a new trail can deviate from a crumb on an existing trail (recorded via parent_crumb_id in the new trail). The overall structure is a tree of trails, where each trail is a DAG of crumbs. A path is a special case where a trail's DAG is linear (each crumb has at most one dependency).
 
 ### Coordination Pattern
 
