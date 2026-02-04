@@ -11,33 +11,35 @@ The system provides a Go library (`pkg/cupboard`) for agents and a command-line 
 !theme plain
 skinparam backgroundColor white
 
-package "VS Code Agent" {
-  [Agent Logic]
+package "Applications" {
+  [VS Code Agent]
+  [CLI Tool]
 }
 
-package "Crumbs CLI" {
-  [Command Handler]
+package "pkg/types" {
+  [Cupboard Interface]
+  [Table Interfaces]
+  [Entity Types]
 }
 
-package "Go Library" {
-  [Cupboard API]
-  [Properties Engine]
-  [Trails Manager]
-}
-
-package "Storage Backends" {
+package "internal/sqlite" {
   [SQLite Backend]
+  [JSON Persistence]
+}
+
+package "Future Backends" {
   [Dolt Backend]
   [DynamoDB Backend]
 }
 
-[Agent Logic] --> [Cupboard API]
-[Command Handler] --> [Cupboard API]
-[Cupboard API] --> [Properties Engine]
-[Cupboard API] --> [Trails Manager]
-[Cupboard API] --> [SQLite Backend]
-[Cupboard API] --> [Dolt Backend]
-[Cupboard API] --> [DynamoDB Backend]
+[VS Code Agent] --> [Cupboard Interface]
+[CLI Tool] --> [Cupboard Interface]
+[Cupboard Interface] --> [Table Interfaces]
+[Table Interfaces] ..> [Entity Types]
+[SQLite Backend] ..|> [Cupboard Interface] : implements
+[Dolt Backend] ..|> [Cupboard Interface] : implements
+[DynamoDB Backend] ..|> [Cupboard Interface] : implements
+[SQLite Backend] --> [JSON Persistence]
 
 @enduml
 ```
@@ -55,6 +57,28 @@ Crumbs have a lifecycle driven by state transitions and trail operations. State 
 ### Coordination Pattern
 
 Crumbs provides storage, not coordination. Agents or coordination frameworks build claiming, timeouts, and announcements on top of the Cupboard API. We expose async read/write operations; agents add workflow semantics.
+
+### Properties Model
+
+Properties extend crumbs with custom attributes. The system enforces that every crumb has a value for every defined property—there is no concept of a property being "not set" (prd-properties-interface R3.5, R3.6).
+
+**Property types** (prd-properties-interface R3): categorical (enum from defined categories), text, integer, boolean, timestamp, list (of strings). Each type has a default value used for initialization.
+
+**Enforcement rules**:
+
+- When a crumb is created, all defined properties are initialized with type-based defaults (prd-crumbs-interface R3.7)
+- When a property is defined, it is backfilled to all existing crumbs with the type's default value (prd-properties-interface R4.9)
+- ClearProperty resets to the default value, not null (prd-crumbs-interface R12.2)
+
+**Built-in properties** (prd-properties-interface R8): Six properties are seeded on first startup—priority (categorical), type (categorical), description (text), owner (text), labels (list), dependencies (list). Applications can define additional properties at runtime.
+
+### Stashes
+
+Stashes enable crumbs on a trail to share state (prd-stash-interface). Unlike properties (which are attributes of individual crumbs), stashes are standalone entities scoped to a trail or global.
+
+**Stash types** (prd-stash-interface R3): resource (files, URLs), artifact (outputs from one crumb as inputs to another), context (shared configuration), counter (atomic numeric state), lock (mutual exclusion).
+
+**Versioning**: Every mutation increments a version number and records a history entry. The full history is queryable for auditability and debugging.
 
 ## Main Interface
 
@@ -116,6 +140,10 @@ Full field specs are in the interface PRDs (prd-crumbs-interface, prd-trails-int
 
 **Decision 6: JSON as source of truth for SQLite backend**. The SQLite backend uses JSON files as the canonical data store. SQLite (modernc.org/sqlite, pure Go) serves as a query engine to reuse SQL code across backends and avoid reimplementing filtering, joins, and indexing. On startup, we load JSON into SQLite; on writes, we persist back to JSON. This gives us human-readable files, easy backup, and code reuse. Alternative: raw JSON with custom query logic duplicates work that SQL handles well; pure SQLite loses the human-readable file benefit.
 
+**Decision 7: Properties always present with type-based defaults**. Every crumb has a value for every defined property. When a property is defined, existing crumbs are backfilled with the type's default value. When a crumb is created, all properties are initialized. This eliminates null-checking complexity and ensures consistent schema across all crumbs. Alternative: allowing "not set" properties requires null handling everywhere and makes queries more complex (filtering on missing vs present values).
+
+**Decision 8: Stashes as separate entities for shared state**. Crumbs are individual work items with properties. When multiple crumbs on a trail need to share state (resources, artifacts, coordination primitives), we use stashes—not "special crumbs" or property values. Stashes are versioned with full history, supporting auditability and debugging. Alternative: encoding shared state in crumb properties conflates task attributes with coordination state; using external storage loses the trail-scoped lifecycle.
+
 ## Technology Choices
 
 | Component | Technology | Purpose |
@@ -165,13 +193,13 @@ crumbs/
 
 We are currently in the bootstrap phase. Implementation will proceed in phases:
 
-**Phase 1: Core storage with SQLite backend**. Implement Cupboard API, crumb/trail tables, SQLite backend (JSON source of truth), basic CLI commands (drop, show, fetch). Validates core concepts and provides a working system for local use.
+**Phase 1: Core storage with SQLite backend**. Implement Cupboard interface, CrumbTable (Add, Get, Update, SetState, Archive, Purge, Fetch), SQLite backend with JSON persistence, basic CLI commands. Validates core concepts and provides a working system for local use.
 
-**Phase 2: Properties and metadata**. Add properties table, type-specific property storage, metadata tables, RegisterMetadataTable. Enables extensibility without schema changes.
+**Phase 2: Properties with enforcement**. Implement PropertyTable (Define, Get, List, DefineCategory, ListCategories), property operations on CrumbTable (SetProperty, GetProperty, GetProperties, ClearProperty), built-in property seeding, and property enforcement (auto-initialization on crumb creation, backfill on property definition). Enables extensibility without schema changes.
 
-**Phase 3: Trails support**. Implement StartTrail, CompleteTrail, AbandonTrail. Add trail filtering to FetchCrumbs. Validates the exploratory workflow.
+**Phase 3: Trails and stashes**. Implement TrailTable (Start, Get, GetCrumbs, AddCrumb, RemoveCrumb, Complete, Abandon) and StashTable (Create, Get, Set, Increment, Acquire, Release, history operations). Add trail filtering to Fetch. Validates the exploratory workflow and shared state coordination.
 
-**Phase 4: Additional backends**. Add Dolt backend (version control) and DynamoDB backend (cloud scale). Validates pluggable architecture and backend-specific optimizations.
+**Phase 4: Metadata and additional backends**. Implement MetadataTable for extensible metadata. Add Dolt backend (version control) and DynamoDB backend (cloud scale). Validates pluggable architecture and backend-specific optimizations.
 
 Success criteria (from VISION): operations complete with low latency, agents integrate the library quickly, trail workflows feel natural for coding agents exploring implementation approaches.
 
