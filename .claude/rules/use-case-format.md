@@ -34,7 +34,8 @@ A **use case** describes a concrete usage of the architecture. It specifies a **
 
 ## File and Naming
 
-- **Location**: `docs/use-cases/uc-[short-name].md`
+- **Location**: `docs/use-cases/uc[NNN]-[short-name].md`
+- **Numeric prefix**: Three-digit sequence number (e.g., 001, 002, 003) for ordering use cases by creation or priority.
 - **Short name**: Lowercase, hyphenated, verb or scenario describing the use case.
 
 ## Relationship to Other Docs
@@ -54,4 +55,4 @@ A **use case** describes a concrete usage of the architecture. It specifies a **
 - [ ] Architecture touchpoints list interfaces, components, and protocols used
 - [ ] Success/demo criteria are observable and checkable
 - [ ] Out of scope keeps the use case focused
-- [ ] File saved as `uc-[short-name].md` in `docs/use-cases/`
+- [ ] File saved as `uc[NNN]-[short-name].md` in `docs/use-cases/`

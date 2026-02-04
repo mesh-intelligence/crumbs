@@ -179,7 +179,7 @@ crumbs/
 │   │   ├── prd-metadata-interface.md
 │   │   └── prd-stash-interface.md
 │   └── use-cases/
-│       └── uc-crud-operations.md
+│       └── uc001-crud-operations.md
 └── .claude/                 # Project rules and commands
 ```
 
@@ -215,8 +215,8 @@ Success criteria (from VISION): operations complete with low latency, agents int
 | prd-properties-interface.md | PropertyTable operations |
 | prd-metadata-interface.md | MetadataTable operations |
 | prd-stash-interface.md | StashTable operations for shared state |
-| uc-crud-operations.md | Tracer bullet for core CRUD operations |
-| uc-self-hosting.md | Milestone: crumbs builds crumbs |
+| uc001-crud-operations.md | Tracer bullet for core CRUD operations |
+| uc002-self-hosting.md | Milestone: crumbs builds crumbs |
 
 ## References
 
