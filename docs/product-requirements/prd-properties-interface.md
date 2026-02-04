@@ -79,6 +79,19 @@ This PRD defines the PropertyTable interface: the Property and Category structs,
 
 3.4. For categorical properties, values must be valid CategoryIDs defined for that property.
 
+3.5. Each value type has a default value used when initializing properties on crumbs:
+
+| ValueType | Default Value | Description |
+|-----------|---------------|-------------|
+| categorical | null | No category selected; first category by ordinal if categories exist |
+| text | "" | Empty string |
+| integer | 0 | Zero |
+| boolean | false | False |
+| timestamp | null | No timestamp set |
+| list | [] | Empty list |
+
+3.6. Default values ensure every crumb has a value for every defined property. There is no concept of a property being "not set" on a crumb.
+
 ### R4: Define Operation
 
 4.1. Define creates a new property definition:
@@ -100,6 +113,10 @@ func (t PropertyTable) Define(name, description, valueType string) (*Property, e
 4.7. Define must persist the property before returning.
 
 4.8. Define must return the created Property with all fields populated.
+
+4.9. Define must initialize the property on all existing crumbs with the type's default value (see R3.5). This backfill ensures every crumb has a value for every property.
+
+4.10. The backfill in 4.9 is atomic with property creation: if backfill fails, the property is not created.
 
 ### R5: Get Operation
 
@@ -231,7 +248,8 @@ func (t PropertyTable) DefineCategory(propertyID, name string, ordinal int) (*Ca
 - [ ] Property struct defined with PropertyID, Name, Description, ValueType, CreatedAt
 - [ ] Category struct defined with CategoryID, PropertyID, Name, Ordinal
 - [ ] Value types documented (categorical, text, integer, boolean, timestamp, list)
-- [ ] Define operation specified (create property, validate name/type)
+- [ ] Default values documented for each value type (R3.5)
+- [ ] Define operation specified (create property, validate name/type, backfill existing crumbs)
 - [ ] Get operation specified (retrieve by ID, error handling)
 - [ ] List operation specified (retrieve all properties)
 - [ ] DefineCategory operation specified (create category for categorical property)

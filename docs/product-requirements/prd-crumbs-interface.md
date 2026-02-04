@@ -77,6 +77,10 @@ func (t CrumbTable) Add(name string) (*Crumb, error)
 
 3.6. Add must return the created Crumb with all fields populated.
 
+3.7. Add must initialize all defined properties on the new crumb with their type-based default values (see prd-properties-interface R3.5). This ensures every crumb has a value for every property from creation.
+
+3.8. The property initialization in 3.7 is atomic with crumb creation: if initialization fails, the crumb is not created.
+
 ### R4: Get Operation
 
 4.1. Get retrieves a crumb by ID:
@@ -215,15 +219,13 @@ func (t CrumbTable) SetProperty(crumbID, propertyID string, value any) error
 func (t CrumbTable) GetProperty(crumbID, propertyID string) (any, error)
 ```
 
-10.2. GetProperty must return the value if set.
+10.2. GetProperty must return the value. Since all properties are initialized on crumb creation (R3.7) and backfilled on property definition (prd-properties-interface R4.9), every crumb always has a value for every property.
 
 10.3. GetProperty must return ErrNotFound if the crumb does not exist.
 
 10.4. GetProperty must return ErrPropertyNotFound if the property does not exist.
 
-10.5. GetProperty must return ErrPropertyNotSet if the property exists but has no value for this crumb.
-
-10.6. The returned value type corresponds to the property's value_type (see R9.4).
+10.5. The returned value type corresponds to the property's value_type (see R9.4).
 
 ### R11: GetProperties Operation
 
@@ -235,25 +237,25 @@ func (t CrumbTable) GetProperties(crumbID string) (map[string]any, error)
 
 11.2. GetProperties must return a map from property_id to value.
 
-11.3. GetProperties must return an empty map (not nil) if no properties are set.
+11.3. GetProperties must return all defined properties with their current values. Since properties are always initialized (R3.7), the map contains an entry for every defined property. The map is empty only if no properties are defined.
 
 11.4. GetProperties must return ErrNotFound if the crumb does not exist.
 
 ### R12: ClearProperty Operation
 
-12.1. ClearProperty removes a property value from a crumb:
+12.1. ClearProperty resets a property value to its type-based default (see prd-properties-interface R3.5):
 
 ```go
 func (t CrumbTable) ClearProperty(crumbID, propertyID string) error
 ```
 
-12.2. ClearProperty must delete the crumb_properties record.
+12.2. ClearProperty must set the property value to the type's default value, not delete the record. Properties are never unset.
 
 12.3. ClearProperty must return ErrNotFound if the crumb does not exist.
 
 12.4. ClearProperty must return ErrPropertyNotFound if the property does not exist.
 
-12.5. ClearProperty must succeed (no error) if the property exists but was not set. This is idempotent.
+12.5. ClearProperty is idempotent: clearing a property that already has the default value succeeds without error.
 
 12.6. ClearProperty must update the crumb's UpdatedAt timestamp.
 
@@ -268,7 +270,6 @@ func (t CrumbTable) ClearProperty(crumbID, propertyID string) error
 | ErrInvalidName | Name is empty (on Add) |
 | ErrInvalidFilter | Filter value has wrong type |
 | ErrPropertyNotFound | Property ID does not exist |
-| ErrPropertyNotSet | Property exists but has no value for crumb |
 | ErrInvalidCategory | Category ID is not valid for the property |
 | ErrTypeMismatch | Value type does not match property value_type |
 | ErrCupboardClosed | Cupboard has been closed |
@@ -291,13 +292,14 @@ func (t CrumbTable) ClearProperty(crumbID, propertyID string) error
 
 - [ ] Crumb struct defined with CrumbID, Name, State, CreatedAt, UpdatedAt
 - [ ] State values documented (draft, pending, ready, taken, completed, failed, archived)
-- [ ] Add operation specified (create crumb, generate UUID v7, set initial state to draft)
+- [ ] Add operation specified (create crumb, generate UUID v7, set initial state to draft, initialize all properties)
 - [ ] Get operation specified (retrieve by ID, error handling)
 - [ ] Archive operation specified (soft delete, transition to archived state)
 - [ ] Purge operation specified (hard delete, remove crumb and all associated data)
 - [ ] Filter map defined with states, trail_id, parent_id, properties, limit, offset
 - [ ] Fetch operation specified (query with filter map, pagination)
 - [ ] Property operations specified (SetProperty, GetProperty, GetProperties, ClearProperty)
+- [ ] Property auto-initialization documented (R3.7, R3.8)
 - [ ] Error types documented
 - [ ] All requirements numbered and specific
 - [ ] File saved at docs/product-requirements/prd-crumbs-interface.md
