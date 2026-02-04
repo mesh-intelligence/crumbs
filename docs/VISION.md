@@ -14,12 +14,16 @@ Current task storage systems lack support for this exploratory workflow. They co
 
 Crumbs solves this by providing storage with first-class support for trails. We use the breadcrumb metaphor (Hansel and Gretel) because it naturally captures how exploratory work flows.
 
-**Crumbs** are individual work items. You drop crumbs as you explore an implementation. Each crumb can depend on other crumbs—forming a graph of dependencies.
+**Crumbs** are individual work items. You drop crumbs as you explore an implementation. Each crumb can depend on other crumbs, forming a directed acyclic graph (DAG) of the workflow.
 
-**Trails** are exploration sessions—directed acyclic graphs (DAGs) of crumbs you create while exploring an approach. Each trail is a DAG: crumbs within the trail have explicit dependencies on each other, forming the graph structure. You can drop new crumbs on a trail at any time and specify their dependencies. Trails can also branch: you can deviate (start a new trail that branches from a crumb on the current trail), dead-end (the approach fails and you abandon the entire trail DAG), or merge back (complete the trail successfully and the entire DAG becomes part of the permanent record). A path is a special case where the trail is linear (each crumb has at most one dependency).
+**Trails** are exploration sessions --  DAG subgraphs of the workflow -- that agents create while exploring an approach. Each trail is a DAG: crumbs within the trail have explicit dependencies on each other, forming the graph structure. You can drop new crumbs on a trail at any time and specify their dependencies. Trails can also branch: you can deviate (start a new trail that branches from a crumb on the current trail), dead-end (the approach fails and you abandon the entire trail DAG), or merge back (complete the trail successfully and the entire DAG becomes part of the permanent record). A path is a special case where the trail is linear (each crumb has at most one dependency).
 
-**Cupboard** is the storage system that holds all crumbs and trails.
+<!-- Align this to PRDs-->
+**Stashes** are a way to share trail state between crumbs. Stashes hold resources like attachments or large metadata outside the main cupboard storage, allowing efficient rollback without duplicating all data.
 
+**Cupboard** is the storage system that holds all crumbs, trails, and stashes.
+
+<!-- Align this to PRDs-->
 When you **drop a crumb**, you create a work item. When you **deviate**, you start a new trail to explore an alternative. If the trail leads nowhere, you **backtrack**—abandon it and the entire trail is cleaned up atomically. When a trail succeeds, you **complete** it and merge crumbs into the permanent task list.
 
 The storage system supports multiple backends (local JSON files, Dolt for version control, DynamoDB for cloud scale) with a pluggable architecture. All identifiers use UUID v7 for time-ordered, sortable IDs. Properties are first-class entities with extensible schemas—you define new properties at runtime. Metadata tables (comments, attachments, logs) can be added without changing the core schema.
@@ -30,11 +34,17 @@ We provide both a command-line tool and a Go library. The primary use case is co
 
 We measure success along three dimensions.
 
-**Performance and Scale**: Operations complete with low latency as crumb counts and concurrent trails grow. We establish performance baselines as the codebase expands and refine targets based on real usage patterns.
+### Performance and Scale
 
-**Developer Experience**: Developers integrate the Go library quickly. The API is asynchronous, type-safe, and self-explanatory. Adding a new backend takes hours, not days. Defining new properties or metadata tables requires no schema migrations.
+Operations complete with low latency as crumb counts and concurrent trails grow. We establish performance baselines as the codebase expands and refine targets based on real usage patterns.
 
-**Agent Workflow**: Coding agents create trails for exploration, drop crumbs as they plan implementation steps, and abandon dead-end approaches without manual cleanup. Completed trails merge seamlessly into the permanent task list. The VS Code agent demonstrates that trail-based exploration feels natural and improves code quality by encouraging agents to explore alternatives.
+### Developer Experience
+
+Developers integrate the Go library quickly. The API is asynchronous, type-safe, and self-explanatory. Adding a new backend takes hours, not days. Defining new properties or metadata tables requires no schema migrations.
+
+### Agent Workflow
+
+Coding agents create trails for exploration, drop crumbs as they plan implementation steps, and abandon dead-end approaches without manual cleanup. Completed trails merge seamlessly into the permanent task list. The VS Code agent demonstrates that trail-based exploration feels natural and improves code quality by encouraging agents to explore alternatives.
 
 ## What This Is NOT
 

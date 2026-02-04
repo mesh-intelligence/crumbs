@@ -2,9 +2,13 @@
 
 ## System Overview
 
+<!-- The crumbs system has its own semantics. This has to do with elements from VISION.md as well as properties these have built in. Right now we do not emphasize what happens when properties are used, like you can't delete a trail if any of its crumbs are active. We should have those rules recorded somewhere. Like in a PRD.-->
+
 Crumbs is a storage system for work items with first-class support for exploratory trails. The core insight is that coding agents need backtracking: an agent drops crumbs as it explores an implementation approach, and if the approach leads nowhere, the agent abandons the entire trail without polluting the permanent task list.
 
 The system provides a Go library (`pkg/cupboard`) for agents and a command-line tool (`crumbs` CLI) for development and personal use. The primary use case is a VS Code coding agent that uses trails to explore implementation approaches. Storage is pluggable—SQLite for local development, Dolt for version control, DynamoDB for cloud scale. All operations are asynchronous. All identifiers use UUID v7 (time-ordered, sortable).
+
+<!-- Remove notes and put them in the text or caption of the figure.-->
 
 ```plantuml
 @startuml
@@ -61,6 +65,8 @@ end note
 
 ### Lifecycle
 
+<!-- Align this to PRDs. "States" are built in properties -->
+
 Crumbs have a lifecycle driven by state transitions and trail operations.
 
 **Crumb states**: `pending` → `ready` → `running` → `completed` or `failed`. Agents define state semantics. Crumbs storage tracks state but does not enforce transitions—agents or coordination layers handle that.
@@ -74,6 +80,7 @@ Crumbs have a lifecycle driven by state transitions and trail operations.
 Crumbs provides storage, not coordination. Agents or coordination frameworks build claiming, timeouts, and announcements on top of the Cupboard API. We expose async read/write operations; agents add workflow semantics.
 
 ## Main Interface
+<!-- Align this to PRDs-->
 
 The Cupboard API is the contract between applications and storage backends. All operations are asynchronous (return futures or use async/await). Operations are grouped by entity: crumbs, trails, properties, metadata.
 
@@ -117,6 +124,7 @@ Full field specs are in the PRD (prd-task-storage).
 | FetchCrumbs(filter) | Query crumbs by properties; exclude abandoned trails by default |
 
 ## System Components
+<!-- Align this to PRDs-->
 
 **Cupboard API (pkg/cupboard)**: Main interface. Agents and applications call OpenCupboard with config, get a Cupboard instance, and invoke operations. Delegates to backend implementations. Handles UUID v7 generation and timestamp derivation.
 
@@ -156,6 +164,7 @@ Full field specs are in the PRD (prd-task-storage).
 | Async | Goroutines + channels | Concurrent operations, future-like patterns |
 
 ## Project Structure
+<!-- Update with latest structure-->
 
 ```
 crumbs/
@@ -205,6 +214,7 @@ We are currently in the bootstrap phase. Implementation will proceed in phases:
 Success criteria (from VISION): operations complete with low latency, agents integrate the library quickly, trail workflows feel natural for coding agents exploring implementation approaches.
 
 ## Related Documents
+<!-- Update as needed-->
 
 | Document | Purpose |
 |----------|---------|

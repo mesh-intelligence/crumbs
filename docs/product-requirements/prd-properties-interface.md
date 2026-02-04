@@ -223,13 +223,23 @@ func (t PropertyTable) DefineCategory(propertyID, name string, ordinal int) (*Ca
 
 9.2. All errors must be checkable with errors.Is.
 
-### R10: Category Queries
+### R10: ListCategories Operation
 
-10.1. Retrieving categories for a property is done via the property ID. The backend must provide a way to list categories for a given property.
+10.1. ListCategories retrieves all categories for a categorical property:
 
-10.2. Categories are ordered by ordinal ascending, then name ascending for ties.
+```go
+func (t PropertyTable) ListCategories(propertyID string) ([]*Category, error)
+```
 
-10.3. Implementation note: The PropertyTable interface in prd-cupboard-core does not include a ListCategories operation. Backends may expose this via direct query or extend the interface. For now, categories can be queried via the links table or a backend-specific method.
+10.2. ListCategories must validate that the property exists (ErrNotFound if not).
+
+10.3. ListCategories must validate that the property's ValueType is "categorical" (ErrInvalidValueType if not).
+
+10.4. ListCategories must return categories ordered by ordinal ascending, then name ascending for ties.
+
+10.5. ListCategories must return an empty slice (not nil) if no categories are defined for the property.
+
+10.6. ListCategories must return ErrInvalidID if propertyID is empty.
 
 ## Non-Goals
 
@@ -253,6 +263,7 @@ func (t PropertyTable) DefineCategory(propertyID, name string, ordinal int) (*Ca
 - [ ] Get operation specified (retrieve by ID, error handling)
 - [ ] List operation specified (retrieve all properties)
 - [ ] DefineCategory operation specified (create category for categorical property)
+- [ ] ListCategories operation specified (retrieve categories for a property)
 - [ ] Built-in properties listed (priority, type, description, owner, labels, dependencies)
 - [ ] Built-in categories listed for priority and type
 - [ ] Error types documented

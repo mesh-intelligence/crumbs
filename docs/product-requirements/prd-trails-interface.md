@@ -179,9 +179,9 @@ func (t TrailTable) Abandon(id string) error
 
 8.3. Crumbs not on any trail (no belongs_to link) are considered permanent or "untracked."
 
-8.4. Adding a crumb to a trail is done via the LinkTable interface (Add with link_type "belongs_to"). This PRD does not define that operation; see prd-sqlite-backend for the LinkTable interface.
+8.4. The LinkTable interface provides low-level link operations. TrailTable provides AddCrumb and RemoveCrumb (R10, R11) as higher-level operations for managing membership.
 
-8.5. Moving a crumb between trails requires removing the old belongs_to link and adding a new one.
+8.5. Moving a crumb between trails requires removing from the old trail and adding to the new one.
 
 ### R9: Error Types
 
@@ -192,17 +192,63 @@ func (t TrailTable) Abandon(id string) error
 | ErrNotFound | Trail or crumb ID does not exist |
 | ErrInvalidID | Trail ID is empty |
 | ErrInvalidState | Operation not valid for current trail state |
+| ErrAlreadyInTrail | Crumb already belongs to another trail |
+| ErrNotInTrail | Crumb does not belong to the specified trail |
 | ErrCupboardClosed | Cupboard has been closed |
 
 9.2. All errors must be checkable with errors.Is.
 
 9.3. ErrInvalidState should include the current state and expected state in the error message for debugging.
 
+### R10: AddCrumb Operation
+
+10.1. AddCrumb adds a crumb to a trail:
+
+```go
+func (t TrailTable) AddCrumb(trailID, crumbID string) error
+```
+
+10.2. AddCrumb must validate that the trail exists (ErrNotFound if not).
+
+10.3. AddCrumb must validate that the crumb exists (ErrNotFound if not).
+
+10.4. AddCrumb must validate that the trail is in "active" state (ErrInvalidState if not).
+
+10.5. AddCrumb must validate that the crumb does not already belong to another trail (ErrAlreadyInTrail if it does).
+
+10.6. AddCrumb must create a belongs_to link from the crumb to the trail.
+
+10.7. AddCrumb must return ErrInvalidID if trailID or crumbID is empty.
+
+10.8. AddCrumb is idempotent: adding a crumb that already belongs to this trail succeeds without error.
+
+### R11: RemoveCrumb Operation
+
+11.1. RemoveCrumb removes a crumb from a trail:
+
+```go
+func (t TrailTable) RemoveCrumb(trailID, crumbID string) error
+```
+
+11.2. RemoveCrumb must validate that the trail exists (ErrNotFound if not).
+
+11.3. RemoveCrumb must validate that the crumb exists (ErrNotFound if not).
+
+11.4. RemoveCrumb must validate that the trail is in "active" state (ErrInvalidState if not).
+
+11.5. RemoveCrumb must remove the belongs_to link from the crumb to the trail.
+
+11.6. RemoveCrumb must return ErrInvalidID if trailID or crumbID is empty.
+
+11.7. RemoveCrumb is idempotent: removing a crumb that does not belong to this trail succeeds without error.
+
+11.8. After RemoveCrumb, the crumb still exists but is no longer associated with any trail (becomes permanent).
+
 ## Non-Goals
 
 1. This PRD does not define crumb CRUD operations. See prd-crumbs-interface.
 
-2. This PRD does not define the LinkTable interface or how to add crumbs to trails. The LinkTable (Add, Remove, GetByFrom, GetByTo) is defined in prd-cupboard-core and detailed in prd-sqlite-backend.
+2. This PRD does not define the LinkTable interface. The LinkTable (Add, Remove, GetByFrom, GetByTo) is defined in prd-cupboard-core and detailed in prd-sqlite-backend. AddCrumb and RemoveCrumb (R10, R11) provide higher-level operations for trail membership.
 
 3. This PRD does not define nested trails or trail hierarchies. Each trail is independent.
 
@@ -220,7 +266,9 @@ func (t TrailTable) Abandon(id string) error
 - [ ] Complete operation specified (mark completed, remove belongs_to links)
 - [ ] Abandon operation specified (mark abandoned, delete crumbs and links)
 - [ ] Crumb membership semantics documented (belongs_to link, one trail per crumb)
-- [ ] Error types documented
+- [ ] AddCrumb operation specified (add crumb to trail, validation)
+- [ ] RemoveCrumb operation specified (remove crumb from trail, idempotent)
+- [ ] Error types documented (including ErrAlreadyInTrail, ErrNotInTrail)
 - [ ] All requirements numbered and specific
 - [ ] File saved at docs/product-requirements/prd-trails-interface.md
 

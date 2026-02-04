@@ -73,6 +73,8 @@ type Cupboard interface {
 type CrumbTable interface {
     Add(name string) (*Crumb, error)
     Get(id string) (*Crumb, error)
+    Update(id string, name string) error
+    SetState(id string, state string) error
     Archive(id string) error
     Purge(id string) error
     Fetch(filter map[string]any) ([]*Crumb, error)
@@ -86,6 +88,8 @@ type TrailTable interface {
     Start(parentCrumbID *string) (*Trail, error)
     Get(id string) (*Trail, error)
     GetCrumbs(id string) ([]*Crumb, error)
+    AddCrumb(trailID, crumbID string) error
+    RemoveCrumb(trailID, crumbID string) error
     Complete(id string) error
     Abandon(id string) error
 }
@@ -95,6 +99,7 @@ type PropertyTable interface {
     Get(id string) (*Property, error)
     List() ([]*Property, error)
     DefineCategory(propertyID, name string, ordinal int) (*Category, error)
+    ListCategories(propertyID string) ([]*Category, error)
 }
 
 type MetadataTable interface {

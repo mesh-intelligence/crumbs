@@ -267,7 +267,8 @@ func (t CrumbTable) ClearProperty(crumbID, propertyID string) error
 |-------|------|
 | ErrNotFound | Crumb ID does not exist |
 | ErrInvalidID | Crumb ID is empty |
-| ErrInvalidName | Name is empty (on Add) |
+| ErrInvalidName | Name is empty (on Add or Update) |
+| ErrInvalidState | State value is not recognized |
 | ErrInvalidFilter | Filter value has wrong type |
 | ErrPropertyNotFound | Property ID does not exist |
 | ErrInvalidCategory | Category ID is not valid for the property |
@@ -275,6 +276,44 @@ func (t CrumbTable) ClearProperty(crumbID, propertyID string) error
 | ErrCupboardClosed | Cupboard has been closed |
 
 13.2. All errors must be checkable with errors.Is.
+
+### R14: SetState Operation
+
+14.1. SetState transitions a crumb to a specified state:
+
+```go
+func (t CrumbTable) SetState(id string, state string) error
+```
+
+14.2. SetState must validate that the crumb exists (ErrNotFound if not).
+
+14.3. SetState must validate that state is one of the valid states in R2.1 (ErrInvalidState if not).
+
+14.4. SetState must update the crumb's State field.
+
+14.5. SetState must update the crumb's UpdatedAt timestamp.
+
+14.6. SetState must return ErrInvalidID if id is empty.
+
+14.7. SetState is idempotent: setting a crumb to its current state succeeds without error.
+
+### R15: Update Operation
+
+15.1. Update modifies a crumb's name:
+
+```go
+func (t CrumbTable) Update(id string, name string) error
+```
+
+15.2. Update must validate that the crumb exists (ErrNotFound if not).
+
+15.3. Update must validate that name is non-empty (ErrInvalidName if empty).
+
+15.4. Update must update the crumb's Name field.
+
+15.5. Update must update the crumb's UpdatedAt timestamp.
+
+15.6. Update must return ErrInvalidID if id is empty.
 
 ## Non-Goals
 
@@ -300,7 +339,9 @@ func (t CrumbTable) ClearProperty(crumbID, propertyID string) error
 - [ ] Fetch operation specified (query with filter map, pagination)
 - [ ] Property operations specified (SetProperty, GetProperty, GetProperties, ClearProperty)
 - [ ] Property auto-initialization documented (R3.7, R3.8)
-- [ ] Error types documented
+- [ ] SetState operation specified (state transition, validation)
+- [ ] Update operation specified (rename crumb)
+- [ ] Error types documented (including ErrInvalidState)
 - [ ] All requirements numbered and specific
 - [ ] File saved at docs/product-requirements/prd-crumbs-interface.md
 
