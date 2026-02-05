@@ -1,0 +1,585 @@
+// Tests for SQLite backend implementation.
+// Implements: prd-sqlite-backend acceptance criteria (unit tests).
+package sqlite
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/petardjukic/crumbs/pkg/types"
+)
+
+func TestBackend_Attach(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	b := NewBackend()
+	config := types.Config{
+		Backend: types.BackendSQLite,
+		DataDir: tmpDir,
+	}
+
+	err := b.Attach(config)
+	if err != nil {
+		t.Fatalf("Attach failed: %v", err)
+	}
+
+	// Verify database file created
+	dbPath := filepath.Join(tmpDir, "cupboard.db")
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		t.Error("cupboard.db not created")
+	}
+
+	// Verify double attach fails
+	err = b.Attach(config)
+	if err != types.ErrAlreadyAttached {
+		t.Errorf("expected ErrAlreadyAttached, got %v", err)
+	}
+
+	// Clean up
+	b.Detach()
+}
+
+func TestBackend_Detach(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	b := NewBackend()
+	config := types.Config{
+		Backend: types.BackendSQLite,
+		DataDir: tmpDir,
+	}
+
+	b.Attach(config)
+
+	err := b.Detach()
+	if err != nil {
+		t.Fatalf("Detach failed: %v", err)
+	}
+
+	// Verify idempotent
+	err = b.Detach()
+	if err != nil {
+		t.Errorf("second Detach should not error, got %v", err)
+	}
+
+	// Verify operations fail after detach
+	_, err = b.GetTable(types.CrumbsTable)
+	if err != types.ErrCupboardDetached {
+		t.Errorf("expected ErrCupboardDetached, got %v", err)
+	}
+}
+
+func TestBackend_GetTable(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	b := NewBackend()
+	config := types.Config{
+		Backend: types.BackendSQLite,
+		DataDir: tmpDir,
+	}
+	b.Attach(config)
+	defer b.Detach()
+
+	tables := []string{
+		types.CrumbsTable,
+		types.TrailsTable,
+		types.PropertiesTable,
+		types.MetadataTable,
+		types.LinksTable,
+		types.StashesTable,
+	}
+
+	for _, name := range tables {
+		tbl, err := b.GetTable(name)
+		if err != nil {
+			t.Errorf("GetTable(%q) failed: %v", name, err)
+		}
+		if tbl == nil {
+			t.Errorf("GetTable(%q) returned nil", name)
+		}
+	}
+
+	// Unknown table
+	_, err := b.GetTable("unknown")
+	if err != types.ErrTableNotFound {
+		t.Errorf("expected ErrTableNotFound for unknown table, got %v", err)
+	}
+}
+
+func TestCrumbTable_CRUD(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	b := NewBackend()
+	config := types.Config{
+		Backend: types.BackendSQLite,
+		DataDir: tmpDir,
+	}
+	b.Attach(config)
+	defer b.Detach()
+
+	tbl, _ := b.GetTable(types.CrumbsTable)
+
+	// Create
+	crumb := &types.Crumb{
+		Name:  "Test Crumb",
+		State: types.StatePending,
+	}
+
+	id, err := tbl.Set("", crumb)
+	if err != nil {
+		t.Fatalf("Set failed: %v", err)
+	}
+	if id == "" {
+		t.Error("Set should return generated ID")
+	}
+
+	// Read
+	result, err := tbl.Get(id)
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+
+	gotCrumb, ok := result.(*types.Crumb)
+	if !ok {
+		t.Fatalf("expected *types.Crumb, got %T", result)
+	}
+	if gotCrumb.Name != "Test Crumb" {
+		t.Errorf("expected Name='Test Crumb', got %q", gotCrumb.Name)
+	}
+	if gotCrumb.State != types.StatePending {
+		t.Errorf("expected State='pending', got %q", gotCrumb.State)
+	}
+
+	// Update
+	crumb.Name = "Updated Crumb"
+	crumb.CrumbID = id
+	_, err = tbl.Set(id, crumb)
+	if err != nil {
+		t.Fatalf("Update failed: %v", err)
+	}
+
+	result, _ = tbl.Get(id)
+	gotCrumb = result.(*types.Crumb)
+	if gotCrumb.Name != "Updated Crumb" {
+		t.Errorf("expected updated Name, got %q", gotCrumb.Name)
+	}
+
+	// Delete
+	err = tbl.Delete(id)
+	if err != nil {
+		t.Fatalf("Delete failed: %v", err)
+	}
+
+	_, err = tbl.Get(id)
+	if err != types.ErrNotFound {
+		t.Errorf("expected ErrNotFound after delete, got %v", err)
+	}
+}
+
+func TestCrumbTable_Fetch(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	b := NewBackend()
+	config := types.Config{
+		Backend: types.BackendSQLite,
+		DataDir: tmpDir,
+	}
+	b.Attach(config)
+	defer b.Detach()
+
+	tbl, _ := b.GetTable(types.CrumbsTable)
+
+	// Insert test data
+	crumbs := []*types.Crumb{
+		{Name: "Crumb A", State: types.StatePending},
+		{Name: "Crumb B", State: types.StatePending},
+		{Name: "Crumb C", State: types.StateReady},
+	}
+
+	for _, c := range crumbs {
+		tbl.Set("", c)
+	}
+
+	// Fetch all
+	results, err := tbl.Fetch(nil)
+	if err != nil {
+		t.Fatalf("Fetch all failed: %v", err)
+	}
+	if len(results) != 3 {
+		t.Errorf("expected 3 crumbs, got %d", len(results))
+	}
+
+	// Fetch with filter
+	results, err = tbl.Fetch(map[string]any{"State": types.StatePending})
+	if err != nil {
+		t.Fatalf("Fetch with filter failed: %v", err)
+	}
+	if len(results) != 2 {
+		t.Errorf("expected 2 pending crumbs, got %d", len(results))
+	}
+}
+
+func TestTrailTable_CRUD(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	b := NewBackend()
+	config := types.Config{
+		Backend: types.BackendSQLite,
+		DataDir: tmpDir,
+	}
+	b.Attach(config)
+	defer b.Detach()
+
+	tbl, _ := b.GetTable(types.TrailsTable)
+
+	// Create
+	trail := &types.Trail{
+		State: types.TrailStateActive,
+	}
+
+	id, err := tbl.Set("", trail)
+	if err != nil {
+		t.Fatalf("Set failed: %v", err)
+	}
+
+	// Read
+	result, err := tbl.Get(id)
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+
+	gotTrail, ok := result.(*types.Trail)
+	if !ok {
+		t.Fatalf("expected *types.Trail, got %T", result)
+	}
+	if gotTrail.State != types.TrailStateActive {
+		t.Errorf("expected State='active', got %q", gotTrail.State)
+	}
+
+	// Update with parent crumb
+	parentID := "parent-123"
+	trail.ParentCrumbID = &parentID
+	trail.TrailID = id
+	tbl.Set(id, trail)
+
+	result, _ = tbl.Get(id)
+	gotTrail = result.(*types.Trail)
+	if gotTrail.ParentCrumbID == nil || *gotTrail.ParentCrumbID != "parent-123" {
+		t.Errorf("expected ParentCrumbID='parent-123', got %v", gotTrail.ParentCrumbID)
+	}
+
+	// Delete
+	err = tbl.Delete(id)
+	if err != nil {
+		t.Fatalf("Delete failed: %v", err)
+	}
+}
+
+func TestPropertyTable_CRUD(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	b := NewBackend()
+	config := types.Config{
+		Backend: types.BackendSQLite,
+		DataDir: tmpDir,
+	}
+	b.Attach(config)
+	defer b.Detach()
+
+	tbl, _ := b.GetTable(types.PropertiesTable)
+
+	// Create
+	prop := &types.Property{
+		Name:        "priority",
+		Description: "Task priority",
+		ValueType:   types.ValueTypeCategorical,
+	}
+
+	id, err := tbl.Set("", prop)
+	if err != nil {
+		t.Fatalf("Set failed: %v", err)
+	}
+
+	// Read
+	result, err := tbl.Get(id)
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+
+	gotProp, ok := result.(*types.Property)
+	if !ok {
+		t.Fatalf("expected *types.Property, got %T", result)
+	}
+	if gotProp.Name != "priority" {
+		t.Errorf("expected Name='priority', got %q", gotProp.Name)
+	}
+
+	// Delete
+	err = tbl.Delete(id)
+	if err != nil {
+		t.Fatalf("Delete failed: %v", err)
+	}
+}
+
+func TestLinkTable_CRUD(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	b := NewBackend()
+	config := types.Config{
+		Backend: types.BackendSQLite,
+		DataDir: tmpDir,
+	}
+	b.Attach(config)
+	defer b.Detach()
+
+	tbl, _ := b.GetTable(types.LinksTable)
+
+	// Create
+	link := &types.Link{
+		LinkType: types.LinkTypeBelongsTo,
+		FromID:   "crumb-123",
+		ToID:     "trail-456",
+	}
+
+	id, err := tbl.Set("", link)
+	if err != nil {
+		t.Fatalf("Set failed: %v", err)
+	}
+
+	// Read
+	result, err := tbl.Get(id)
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+
+	gotLink, ok := result.(*types.Link)
+	if !ok {
+		t.Fatalf("expected *types.Link, got %T", result)
+	}
+	if gotLink.LinkType != types.LinkTypeBelongsTo {
+		t.Errorf("expected LinkType='belongs_to', got %q", gotLink.LinkType)
+	}
+	if gotLink.FromID != "crumb-123" {
+		t.Errorf("expected FromID='crumb-123', got %q", gotLink.FromID)
+	}
+
+	// Fetch by type
+	results, err := tbl.Fetch(map[string]any{"LinkType": types.LinkTypeBelongsTo})
+	if err != nil {
+		t.Fatalf("Fetch failed: %v", err)
+	}
+	if len(results) != 1 {
+		t.Errorf("expected 1 link, got %d", len(results))
+	}
+
+	// Delete
+	err = tbl.Delete(id)
+	if err != nil {
+		t.Fatalf("Delete failed: %v", err)
+	}
+}
+
+func TestStashTable_CRUD(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	b := NewBackend()
+	config := types.Config{
+		Backend: types.BackendSQLite,
+		DataDir: tmpDir,
+	}
+	b.Attach(config)
+	defer b.Detach()
+
+	tbl, _ := b.GetTable(types.StashesTable)
+
+	// Create counter stash
+	stash := &types.Stash{
+		Name:      "task_counter",
+		StashType: types.StashTypeCounter,
+		Value:     map[string]any{"value": int64(0)},
+		Version:   1,
+	}
+
+	id, err := tbl.Set("", stash)
+	if err != nil {
+		t.Fatalf("Set failed: %v", err)
+	}
+
+	// Read
+	result, err := tbl.Get(id)
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+
+	gotStash, ok := result.(*types.Stash)
+	if !ok {
+		t.Fatalf("expected *types.Stash, got %T", result)
+	}
+	if gotStash.Name != "task_counter" {
+		t.Errorf("expected Name='task_counter', got %q", gotStash.Name)
+	}
+	if gotStash.StashType != types.StashTypeCounter {
+		t.Errorf("expected StashType='counter', got %q", gotStash.StashType)
+	}
+
+	// Update stash with trail scope
+	trailID := "trail-789"
+	stash.TrailID = &trailID
+	stash.StashID = id
+	stash.Version = 2
+	tbl.Set(id, stash)
+
+	result, _ = tbl.Get(id)
+	gotStash = result.(*types.Stash)
+	if gotStash.TrailID == nil || *gotStash.TrailID != "trail-789" {
+		t.Errorf("expected TrailID='trail-789', got %v", gotStash.TrailID)
+	}
+
+	// Delete
+	err = tbl.Delete(id)
+	if err != nil {
+		t.Fatalf("Delete failed: %v", err)
+	}
+}
+
+func TestMetadataTable_CRUD(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	b := NewBackend()
+	config := types.Config{
+		Backend: types.BackendSQLite,
+		DataDir: tmpDir,
+	}
+	b.Attach(config)
+	defer b.Detach()
+
+	tbl, _ := b.GetTable(types.MetadataTable)
+
+	// Create
+	meta := &types.Metadata{
+		TableName: "comments",
+		CrumbID:   "crumb-123",
+		Content:   "This is a comment",
+	}
+
+	id, err := tbl.Set("", meta)
+	if err != nil {
+		t.Fatalf("Set failed: %v", err)
+	}
+
+	// Read
+	result, err := tbl.Get(id)
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+
+	gotMeta, ok := result.(*types.Metadata)
+	if !ok {
+		t.Fatalf("expected *types.Metadata, got %T", result)
+	}
+	if gotMeta.TableName != "comments" {
+		t.Errorf("expected TableName='comments', got %q", gotMeta.TableName)
+	}
+	if gotMeta.Content != "This is a comment" {
+		t.Errorf("expected Content='This is a comment', got %q", gotMeta.Content)
+	}
+
+	// Fetch by crumb
+	results, err := tbl.Fetch(map[string]any{"CrumbID": "crumb-123"})
+	if err != nil {
+		t.Fatalf("Fetch failed: %v", err)
+	}
+	if len(results) != 1 {
+		t.Errorf("expected 1 metadata entry, got %d", len(results))
+	}
+
+	// Delete
+	err = tbl.Delete(id)
+	if err != nil {
+		t.Fatalf("Delete failed: %v", err)
+	}
+}
+
+func TestTable_ErrNotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	b := NewBackend()
+	config := types.Config{
+		Backend: types.BackendSQLite,
+		DataDir: tmpDir,
+	}
+	b.Attach(config)
+	defer b.Detach()
+
+	tbl, _ := b.GetTable(types.CrumbsTable)
+
+	// Get non-existent
+	_, err := tbl.Get("non-existent-id")
+	if err != types.ErrNotFound {
+		t.Errorf("expected ErrNotFound, got %v", err)
+	}
+
+	// Delete non-existent
+	err = tbl.Delete("non-existent-id")
+	if err != types.ErrNotFound {
+		t.Errorf("expected ErrNotFound on delete, got %v", err)
+	}
+}
+
+func TestTable_InvalidData(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	b := NewBackend()
+	config := types.Config{
+		Backend: types.BackendSQLite,
+		DataDir: tmpDir,
+	}
+	b.Attach(config)
+	defer b.Detach()
+
+	tbl, _ := b.GetTable(types.CrumbsTable)
+
+	// Try to set wrong type
+	_, err := tbl.Set("", &types.Trail{})
+	if err != types.ErrInvalidData {
+		t.Errorf("expected ErrInvalidData for wrong type, got %v", err)
+	}
+}
+
+func TestTable_TimestampPersistence(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	b := NewBackend()
+	config := types.Config{
+		Backend: types.BackendSQLite,
+		DataDir: tmpDir,
+	}
+	b.Attach(config)
+	defer b.Detach()
+
+	tbl, _ := b.GetTable(types.CrumbsTable)
+
+	// Create with specific timestamp
+	now := time.Now().Truncate(time.Second)
+	crumb := &types.Crumb{
+		Name:      "Test",
+		State:     types.StatePending,
+		CreatedAt: now,
+	}
+
+	id, _ := tbl.Set("", crumb)
+
+	result, _ := tbl.Get(id)
+	gotCrumb := result.(*types.Crumb)
+
+	// CreatedAt should be preserved
+	if !gotCrumb.CreatedAt.Equal(now) {
+		t.Errorf("CreatedAt not preserved: expected %v, got %v", now, gotCrumb.CreatedAt)
+	}
+
+	// UpdatedAt should be set automatically
+	if gotCrumb.UpdatedAt.IsZero() {
+		t.Error("UpdatedAt should be set automatically")
+	}
+}
