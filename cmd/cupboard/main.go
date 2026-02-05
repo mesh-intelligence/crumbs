@@ -11,8 +11,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/dukaforge/crumbs/internal/sqlite"
-	"github.com/dukaforge/crumbs/pkg/types"
+	"github.com/petar-djukic/crumbs/internal/sqlite"
+	"github.com/petar-djukic/crumbs/pkg/types"
 )
 
 var (

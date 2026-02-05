@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dukaforge/crumbs/pkg/types"
+	"github.com/petar-djukic/crumbs/pkg/types"
 )
 
 // TestJSON_FileCreationOnAttach verifies that JSONL files are created on first attach.

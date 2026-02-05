@@ -10,7 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/dukaforge/crumbs/pkg/types"
+	"github.com/petar-djukic/crumbs/pkg/types"
 )
 
 var crumbDeleteCmd = &cobra.Command{

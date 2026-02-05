@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dukaforge/crumbs/pkg/types"
+	"github.com/petar-djukic/crumbs/pkg/types"
 )
 
 // TestIntegration_CrumbCRUD tests the full CRUD lifecycle for Crumb entities
