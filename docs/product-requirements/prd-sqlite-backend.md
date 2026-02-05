@@ -724,5 +724,6 @@ type Table interface {
 ## References
 
 - prd-cupboard-core (Cupboard interface, configuration, lifecycle)
+- prd-configuration-directories (directory structure, JSONL file format—supersedes R1, R2 file layout and format)
 - prd-crumbs-interface, prd-trails-interface, prd-properties-interface, prd-metadata-interface, prd-stash-interface
 - modernc.org/sqlite documentation
