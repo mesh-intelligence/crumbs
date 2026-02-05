@@ -35,4 +35,4 @@ go.work.sum
 BACKGROUND/
 .github/
 .cursor
-scripts/
+#scripts/
