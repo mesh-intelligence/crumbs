@@ -55,15 +55,20 @@ bd close atlas-123
    # Delta: +79 LOC (prod), +45 LOC (test), +868 words (docs)
    ```
 
-3. **Include delta in commit message** - Add the delta to the commit message:
+3. **Include full stats in commit message** - Add the Stats block with totals and deltas:
 
    ```text
    Add feature X (issue-id)
 
    - Description of changes
 
-   Delta: +79 LOC (prod), +45 LOC (test), +868 words (docs)
+   Stats:
+     Lines of code (Go, production): 520 (+79)
+     Lines of code (Go, tests):      45 (+45)
+     Words (documentation):          21900 (+868)
    ```
+
+   **Do NOT use a condensed format** like `Delta: +79 LOC (prod)...`. Always use the full Stats block.
 
 ## Landing the Plane (Session Completion)
 
