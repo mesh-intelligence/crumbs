@@ -34,9 +34,21 @@ A **use case** describes a concrete usage of the architecture. It specifies a **
 
 ## File and Naming
 
-- **Location**: `docs/use-cases/uc[NNN]-[short-name].md`
-- **Numeric prefix**: Three-digit sequence number (e.g., 001, 002, 003) for ordering use cases by creation or priority.
+- **Location**: `docs/use-cases/ph[NN]-uc[NNN]-[short-name].md`
+- **Phase prefix**: Two-digit phase number (e.g., 01, 02, 03, 04) indicating which implementation phase this use case validates. Use 00 for cross-phase milestones and 99 for future/deferred use cases.
+- **Use case number**: Three-digit sequence number within the phase (e.g., 001, 002, 003).
 - **Short name**: Lowercase, hyphenated, verb or scenario describing the use case.
+
+### Phase Numbering
+
+| Phase | Focus |
+|-------|-------|
+| 00 | Cross-phase milestones (span multiple phases) |
+| 01 | Core storage with SQLite backend |
+| 02 | Properties with enforcement |
+| 03 | Trails and stashes |
+| 04 | Metadata and additional backends |
+| 99 | Future/deferred (post-MVP) |
 
 ## Relationship to Other Docs
 
@@ -55,4 +67,4 @@ A **use case** describes a concrete usage of the architecture. It specifies a **
 - [ ] Architecture touchpoints list interfaces, components, and protocols used
 - [ ] Success/demo criteria are observable and checkable
 - [ ] Out of scope keeps the use case focused
-- [ ] File saved as `uc[NNN]-[short-name].md` in `docs/use-cases/`
+- [ ] File saved as `ph[NN]-uc[NNN]-[short-name].md` in `docs/use-cases/`
