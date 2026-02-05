@@ -45,6 +45,10 @@ func init() {
 
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(initCmd)
+	rootCmd.AddCommand(getCmd)
+	rootCmd.AddCommand(setCmd)
+	rootCmd.AddCommand(deleteCmd)
+	rootCmd.AddCommand(listCmd)
 }
 
 var initCmd = &cobra.Command{
