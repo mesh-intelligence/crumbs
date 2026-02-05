@@ -41,6 +41,8 @@ A **use case** describes a concrete usage of the architecture. It specifies a **
 
 ### Release Numbering
 
+See ROADMAP.md for the authoritative release schedule and use case status. Summary:
+
 | Release | Focus |
 |---------|-------|
 | 00.0 | Cross-release milestones (span multiple releases) |
@@ -48,7 +50,7 @@ A **use case** describes a concrete usage of the architecture. It specifies a **
 | 02.0 | Properties with enforcement |
 | 03.0 | Trails and stashes |
 | 04.0 | Metadata and additional backends |
-| 99.0 | Future/deferred (post-MVP) |
+| 99.0 | Unscheduled (not yet assigned to a release) |
 
 Minor releases (e.g., 01.1, 02.1) add functionality to a major release without renumbering existing use cases.
 
@@ -57,6 +59,7 @@ Minor releases (e.g., 01.1, 02.1) add functionality to a major release without r
 | Document | Role |
 |----------|------|
 | **VISION** | Why we build; use case should support vision goals. |
+| **ROADMAP** | Release schedule and use case status; determines work priority. |
 | **ARCHITECTURE** | What we build; use case traces a path through it. |
 | **PRDs** | Detailed requirements for components; use case motivates which PRD items to implement first. |
 | **Use case** | One tracer bullet through the stack → PoC/demo; guides development order. |

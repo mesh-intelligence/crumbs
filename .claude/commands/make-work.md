@@ -1,24 +1,29 @@
 # Command: Make Work
 
-Read VISION.md, ARCHITECTURE.md, docs/product-requirements/README.md, and docs/use-cases/README.md if they exist.
+Read VISION.md, ARCHITECTURE.md, ROADMAP.md, docs/product-requirements/README.md, and docs/use-cases/README.md if they exist.
 
 First, check the current state of work:
 
 1. Run `bd list` to see existing epics and issues
 2. Check what's in progress, what's completed, what's pending
+3. **Check ROADMAP.md** for release schedule and use case status
 
 Then, summarize:
 
 1. What problem this project solves
 2. The high-level architecture (major components and how they fit together)
 3. The current state of implementation (what's done, what's in progress)
-4. Current repo size: run `./scripts/stats.sh` and include its output (Go production/test LOC, doc words)
+4. **Current release**: Which release we are working on and which use cases remain
+5. Current repo size: run `./scripts/stats.sh` and include its output (Go production/test LOC, doc words)
 
-Based on this, propose next steps:
+Based on this, propose next steps using **release priority**:
 
-1. If epics exist: suggest new issues to add to existing epics, or identify what to work on next
-2. If no epics exist: suggest epics to create and initial issues for each
-3. Identify dependencies - what should be built first and why?
+1. **Focus on earliest incomplete release**: Prioritize completing use cases from the current release in ROADMAP.md
+2. **Early preview allowed**: Later use cases can be partially implemented if they share functionality with the current release
+3. **Assign issues to releases**: Each issue should map to a use case in ROADMAP.md; if uncertain, use release 99.0 (unscheduled)
+4. If epics exist: suggest new issues to add to existing epics, or identify what to work on next
+5. If no epics exist: suggest epics to create and initial issues for each
+6. Identify dependencies - what should be built first and why?
 
 When proposing issues (per issue-format rule):
 

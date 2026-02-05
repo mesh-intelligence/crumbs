@@ -244,15 +244,7 @@ crumbs/
 
 ## Implementation Status
 
-We are currently in the bootstrap release. Implementation will proceed in releases:
-
-**Release 01.0: Core storage with SQLite backend**. Implement Cupboard interface with GetTable, Table interface (Get, Set, Delete, Fetch), entity types (Crumb, Trail, etc.), SQLite backend with JSON persistence, basic CLI commands. Validates core concepts and provides a working system for local use.
-
-**Release 02.0: Properties with enforcement**. Implement Property and Category entities, property entity methods (DefineCategory, GetCategories), Crumb property methods (SetProperty, GetProperty, ClearProperty), built-in property seeding, and property enforcement (auto-initialization on crumb creation, backfill on property definition). Enables extensibility without schema changes.
-
-**Release 03.0: Trails and stashes**. Implement Trail entity methods (Complete, Abandon, AddCrumb, RemoveCrumb, GetCrumbs) and Stash entity methods (SetValue, GetValue, Increment, Acquire, Release, GetHistory). Add trail filtering to Fetch. Validates the exploratory workflow and shared state coordination.
-
-**Release 04.0: Metadata and additional backends**. Implement Metadata entity and schema registration. Add Dolt backend (version control) and DynamoDB backend (cloud scale). Validates pluggable architecture and backend-specific optimizations.
+We are currently in release 01.0 (core storage with SQLite backend). See ROADMAP.md for the full release schedule, use case status, and prioritization rules.
 
 Success criteria (from VISION): operations complete with low latency, agents integrate the library quickly, trail workflows feel natural for coding agents exploring implementation approaches.
 
@@ -261,6 +253,7 @@ Success criteria (from VISION): operations complete with low latency, agents int
 | Document | Purpose |
 |----------|---------|
 | VISION.md | What we are building and why; success criteria and boundaries |
+| ROADMAP.md | Release schedule, use cases, prioritization rules |
 | prd-cupboard-core.md | Cupboard interface, configuration, lifecycle |
 | prd-sqlite-backend.md | SQLite backend internals, JSON↔SQLite sync, graph model |
 | prd-crumbs-interface.md | Crumb entity, state transitions, property methods |
@@ -268,8 +261,6 @@ Success criteria (from VISION): operations complete with low latency, agents int
 | prd-properties-interface.md | Property and Category entities, value types |
 | prd-metadata-interface.md | Metadata entity, schema registration |
 | prd-stash-interface.md | Stash entity, shared state, versioning |
-| rel01.0-uc001-cupboard-lifecycle.md | Tracer bullet for config and lifecycle |
-| rel00.0-uc001-self-hosting.md | Milestone: crumbs builds crumbs |
 
 ## References
 
