@@ -94,6 +94,7 @@ Use cases not yet assigned to a release. These will be scheduled as the roadmap 
 | Use Case | Summary | Status |
 |----------|---------|--------|
 | rel99.0-uc001-blazes-templates | Workflow templates for common patterns | Not started |
+| rel99.0-uc002-docker-bootstrap | Build crumbs from docs alone in Docker | Not started |
 
 ## Prioritization Rules
 
