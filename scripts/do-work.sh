@@ -19,7 +19,8 @@ REPO_ROOT="${1:-$(dirname "$0")/..}"
 cd "$REPO_ROOT" || exit 1
 REPO_ROOT=$(pwd)
 
-WORKTREE_BASE="/tmp/crumbs-worktrees"
+PROJECT_NAME=$(basename "$REPO_ROOT")
+WORKTREE_BASE="/tmp/${PROJECT_NAME}-worktrees"
 
 # Globals set by pick_task
 ISSUE_JSON=""
