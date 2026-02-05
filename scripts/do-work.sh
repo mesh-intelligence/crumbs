@@ -66,4 +66,15 @@ EOF
 # --dangerously-skip-permissions: auto-approve all tool use
 # --print: non-interactive mode, exit when done
 # --verbose: show full turn-by-turn output
-exec claude --dangerously-skip-permissions --print --verbose "$prompt"
+claude --dangerously-skip-permissions --print --verbose "$prompt"
+
+# Close the issue and commit
+echo ""
+echo "Closing task: $issue_id"
+bd close "$issue_id" >/dev/null 2>&1
+
+echo "Committing beads changes..."
+git add .beads/
+git commit -m "Close $issue_id" --allow-empty >/dev/null 2>&1 || true
+
+echo "Done."
