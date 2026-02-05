@@ -2,6 +2,9 @@
 #
 # Pick the top task from beads and invoke Claude to do the work.
 #
+# The script handles task picking and reservation. Claude receives a clean
+# prompt focused on the work itself, without beads-specific instructions.
+#
 
 set -e
 
@@ -15,9 +18,10 @@ if [ -z "$issue_json" ] || [ "$issue_json" = "[]" ]; then
   exit 0
 fi
 
-# Extract issue ID and title for display
+# Extract issue fields
 issue_id=$(echo "$issue_json" | jq -r '.[0].id // empty')
 issue_title=$(echo "$issue_json" | jq -r '.[0].title // empty')
+issue_description=$(echo "$issue_json" | jq -r '.[0].description // empty')
 
 if [ -z "$issue_id" ]; then
   echo "Failed to parse issue from beads output."
@@ -25,19 +29,23 @@ if [ -z "$issue_id" ]; then
 fi
 
 echo "Picking up task: $issue_id - $issue_title"
+
+# Claim the task
+bd update "$issue_id" --status in_progress >/dev/null 2>&1
+echo "Task claimed."
 echo ""
 
-# Build the prompt for Claude
+# Build the prompt for Claude (beads-free)
 prompt=$(cat <<EOF
 /do-work
 
-Work on the following issue from beads:
+## Task: $issue_title
 
-Issue ID: $issue_id
-Issue JSON:
-$issue_json
+$issue_description
 
-Use 'bd show $issue_id' to get the full issue details, then claim it with 'bd update $issue_id --status in_progress' and complete the work.
+---
+
+Complete this task. When done, commit your changes with a descriptive message that includes the task ID ($issue_id) in the commit message.
 EOF
 )
 
