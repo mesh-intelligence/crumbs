@@ -2,6 +2,10 @@
 
 Pick **one** of the two workflows below depending on the type of work. Use **do-work-docs** for documentation tasks, **do-work-code** for implementation tasks.
 
+## Task Priority
+
+When selecting from available issues, **prefer documentation issues over code issues**. Documentation establishes the design before implementation begins. Complete PRDs, use cases, and architecture updates before moving to code tasks.
+
 ## Choose the right command
 
 | Task type | Command | How to tell |
