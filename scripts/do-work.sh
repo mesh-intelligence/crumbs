@@ -166,6 +166,7 @@ close_task() {
   echo ""
   echo "Closing task: $ISSUE_ID"
   bd close "$ISSUE_ID" >/dev/null 2>&1
+  bd sync >/dev/null 2>&1
 
   echo "Committing beads changes..."
   git add .beads/
