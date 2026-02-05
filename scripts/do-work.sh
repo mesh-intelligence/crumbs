@@ -5,6 +5,11 @@
 # The script handles task picking, reservation, and git worktree management.
 # Claude receives a clean prompt focused on the work itself.
 #
+# Usage: do-work.sh [--silence-claude] [repo-root]
+#
+# Options:
+#   --silence-claude  Suppress Claude's output
+#
 # Workflow:
 # 1. Pick and claim a task from beads
 # 2. Create a git worktree with a branch for the task
@@ -15,7 +20,24 @@
 
 set -e
 
-REPO_ROOT="${1:-$(dirname "$0")/..}"
+# Parse arguments
+SILENCE_CLAUDE=false
+REPO_ARG=""
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --silence-claude)
+      SILENCE_CLAUDE=true
+      shift
+      ;;
+    *)
+      REPO_ARG="$1"
+      shift
+      ;;
+  esac
+done
+
+REPO_ROOT="${REPO_ARG:-$(dirname "$0")/..}"
 cd "$REPO_ROOT" || exit 1
 REPO_ROOT=$(pwd)
 
@@ -110,7 +132,11 @@ run_claude() {
   # --dangerously-skip-permissions: auto-approve all tool use
   # -p: non-interactive mode, exit when done
   # --verbose --output-format stream-json: stream events, pipe to jq for readability
-  echo "$prompt" | claude --dangerously-skip-permissions -p --verbose --output-format stream-json | jq
+  if [ "$SILENCE_CLAUDE" = true ]; then
+    echo "$prompt" | claude --dangerously-skip-permissions -p --verbose --output-format stream-json >/dev/null 2>&1
+  else
+    echo "$prompt" | claude --dangerously-skip-permissions -p --verbose --output-format stream-json | jq
+  fi
 
   cd "$REPO_ROOT"
 }
