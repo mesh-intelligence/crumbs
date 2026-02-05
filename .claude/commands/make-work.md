@@ -29,6 +29,8 @@ When proposing issues (per issue-format rule):
 5. **Documentation issues**: Add **format rule** reference and **required sections** (PRD: Problem, Goals, Requirements, Non-Goals, Acceptance Criteria; use case: Summary, Actor/trigger, Flow, Success criteria).
 6. **Code issues**: Requirements, Design Decisions, Acceptance Criteria (tests/behavior); no PRD-style Problem/Goals/Non-Goals.
 
+**Code task sizing**: Target 300-700 lines of production code per task. This keeps tasks completable in a single session while being substantial enough to make meaningful progress. Split larger features into multiple tasks; combine trivial changes into one task.
+
 Don't create any issues yet - just propose the breakdown so we can discuss it.
 
 After we agree on the plan and you create epics/issues:
