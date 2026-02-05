@@ -54,9 +54,24 @@ Read VISION.md and ARCHITECTURE.md for context. For PRDs also scan existing `doc
    ```
 5. If you found follow-up work, file it in Beads.
 
+## 5. After completing an epic
+
+When you close the **last issue in an epic** (all child tasks complete):
+
+1. **Review all docs** created or modified during the epic for consistency
+2. **Verify epic-level acceptance criteria** (from the epic issue description)
+3. **Evaluate use case completion**:
+   - Identify which use case(s) this epic contributes to
+   - Review success criteria in `docs/use-cases/`
+   - If all criteria are met, update ROADMAP.md to mark the use case status as "Complete"
+   - If not complete, note what remains and ensure follow-up tasks exist
+4. **File follow-up issues** for any gaps discovered
+5. **Summarize epic completion**: run `./scripts/stats.sh` and report what was built and use case status
+
 IMPORTANT:
 - Never edit `.beads/` by hand; use `bd` only.
 - Always commit `.beads/issues.jsonl` with your doc changes.
 - Track token usage and lines of code for every issue closed.
+- **Update ROADMAP.md** when use cases are completed.
 
 Show what you completed and what's next. When summarizing, run `./scripts/stats.sh` and include its output.

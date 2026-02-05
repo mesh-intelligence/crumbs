@@ -59,11 +59,17 @@ When you close the **last issue in an epic** (all child tasks complete), perform
 4. **Run full test suite** and any integration tests
 5. **File follow-up issues** for any technical debt, refactoring, or improvements discovered
 6. **Check for doc updates needed**: if implementation revealed design changes or clarifications, **ask the user** before updating architecture or PRD docs
-7. **Summarize epic completion**: run `./scripts/stats.sh` and report:
+7. **Evaluate use case completion**:
+   - Identify which use case(s) this epic contributes to
+   - Review success criteria in `docs/use-cases/`
+   - If all criteria are met, update ROADMAP.md to mark the use case status as "Complete"
+   - If not complete, note what remains and ensure follow-up tasks exist
+8. **Summarize epic completion**: run `./scripts/stats.sh` and report:
    - What was built (components, features)
    - Total metrics (tokens, LOC across all child issues)
    - Any deviations from original design
    - Follow-up work filed
+   - Use case status (complete or remaining work)
 
 IMPORTANT:
 - Never edit `.beads/` by hand; use `bd` only.

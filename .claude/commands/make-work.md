@@ -36,6 +36,8 @@ When proposing issues (per issue-format rule):
 
 **Code task sizing**: Target 300-700 lines of production code per task, touching no more than 5 files. This keeps tasks completable in a single session while being substantial enough to make meaningful progress. Split larger features into multiple tasks; combine trivial changes into one task.
 
+**Task limit**: Create no more than 10 tasks at a time. If more work is needed, create additional tasks after completing some of the current batch.
+
 Don't create any issues yet - just propose the breakdown so we can discuss it.
 
 After we agree on the plan and you create epics/issues:
