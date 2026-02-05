@@ -1,0 +1,95 @@
+# Crumbs Roadmap
+#
+# Each release delivers use cases that validate specific functionality.
+# Complete releases in order, prioritizing the earliest incomplete release.
+# Read together with VISION.md and ARCHITECTURE.md.
+
+prioritization_rules:
+  - Complete releases in order (finish N before starting N+1)
+  - Milestones (00.0) validate production readiness
+  - Minor releases (X.1, X.2) add to completed releases
+  - Unscheduled (99.0) only when all scheduled releases complete
+
+releases:
+  - version: "00.0"
+    name: Cross-Release Milestones
+    description: Milestones that span multiple releases and validate end-to-end system readiness.
+    done_when: The crumbs system can track crumbs development work, replacing beads for this repository.
+    use_cases:
+      - id: rel00.0-uc001-self-hosting
+        summary: Crumbs tracks its own development
+        status: not_started
+
+  - version: "01.0"
+    name: Core Storage with SQLite Backend
+    description: Implement the Cupboard and Table interfaces with SQLite backend. Validates core concepts and provides a working system for local use.
+    done_when: All three use cases pass. An agent can create, query, and manage crumbs via the Table interface.
+    deliverables:
+      - Cupboard interface with Attach, Detach, GetTable
+      - Table interface with Get, Set, Delete, Fetch
+      - Crumb entity with state transitions
+      - SQLite backend with JSON persistence
+      - Basic CLI commands
+    use_cases:
+      - id: rel01.0-uc001-cupboard-lifecycle
+        summary: Config, attach, detach, error handling
+        status: not_started
+      - id: rel01.0-uc002-sqlite-crud
+        summary: "ORM pattern: get, modify, save entities"
+        status: not_started
+      - id: rel01.0-uc003-crud-operations
+        summary: Add, Get, Archive, Purge, Fetch operations
+        status: not_started
+
+  - version: "02.0"
+    name: Properties with Enforcement
+    description: Implement the property system with automatic initialization and backfill. Enables extensibility without schema changes.
+    done_when: Every crumb always has a value for every defined property. No gaps, no partial state.
+    deliverables:
+      - Property and Category entities
+      - PropertyTable with Define, List operations
+      - "Crumb property methods: SetProperty, GetProperty, ClearProperty"
+      - Built-in property seeding (priority, type, description, owner, labels, dependencies)
+      - "Property enforcement: auto-initialization on crumb creation, backfill on property definition"
+    use_cases:
+      - id: rel02.0-uc001-property-enforcement
+        summary: Define properties, auto-init, backfill
+        status: not_started
+
+  - version: "03.0"
+    name: Trails and Stashes
+    description: Implement trail lifecycle for exploratory workflows and stash for shared state coordination.
+    done_when: An agent can explore implementation approaches with trails, abandoning failed attempts and completing successful ones.
+    deliverables:
+      - "Trail entity with lifecycle methods: Complete, Abandon, AddCrumb, RemoveCrumb, GetCrumbs"
+      - "Stash entity with methods: SetValue, GetValue, Increment, Acquire, Release, GetHistory"
+      - Trail filtering in Fetch
+      - Atomic cleanup on trail abandonment
+    use_cases:
+      - id: rel03.0-uc001-trail-exploration
+        summary: Create trails, add crumbs, complete/abandon
+        status: not_started
+
+  - version: "04.0"
+    name: Metadata and Additional Backends
+    description: Implement pluggable backend architecture with Dolt for version control.
+    done_when: The same Table interface works with both SQLite and Dolt backends. Dolt provides version-controlled task tracking.
+    deliverables:
+      - Metadata entity and schema registration
+      - Dolt backend with version control (commit, branch, checkout, merge)
+      - Backend abstraction validated with multiple implementations
+    use_cases:
+      - id: rel04.0-uc001-dolt-backend
+        summary: Dolt backend with commits, branches, merge
+        status: not_started
+
+  - version: "99.0"
+    name: Unscheduled
+    description: Use cases not yet assigned to a release. These will be scheduled as the roadmap evolves.
+    use_cases:
+      - id: rel99.0-uc001-blazes-templates
+        summary: Workflow templates for common patterns
+        status: not_started
+      - id: rel99.0-uc002-docker-bootstrap
+        summary: Build crumbs from docs alone in Docker
+        status: not_started
