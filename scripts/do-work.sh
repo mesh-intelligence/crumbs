@@ -35,17 +35,30 @@ bd update "$issue_id" --status in_progress >/dev/null 2>&1
 echo "Task claimed."
 echo ""
 
+# Determine task type from issue
+issue_type=$(echo "$issue_json" | jq -r '.[0].type // "task"')
+
 # Build the prompt for Claude (beads-free)
 prompt=$(cat <<EOF
-/do-work
-
 ## Task: $issue_title
+
+**Task ID:** $issue_id
+**Type:** $issue_type
+
+### Description
 
 $issue_description
 
 ---
 
-Complete this task. When done, commit your changes with a descriptive message that includes the task ID ($issue_id) in the commit message.
+### Instructions
+
+1. Read VISION.md and ARCHITECTURE.md for context
+2. Read any PRDs or docs referenced in the description
+3. Complete the task according to the description and acceptance criteria
+4. Commit your changes with a message that includes the task ID ($issue_id)
+
+Do not use beads (bd) commands - task tracking is handled externally.
 EOF
 )
 
