@@ -26,8 +26,8 @@ set -e
 
 # Parse arguments
 SILENCE_CLAUDE=false
-MAKE_WORK_LIMIT=1
-CYCLES=1
+MAKE_WORK_LIMIT=5
+CYCLES=0
 REPO_ARG=""
 
 while [[ $# -gt 0 ]]; do
@@ -216,39 +216,37 @@ call_make_work() {
 
 main() {
   local total_tasks=0
-  local current_cycle=1
+  local make_work_calls=0
 
-  while [ "$current_cycle" -le "$CYCLES" ]; do
-    echo "========================================"
-    echo "Cycle $current_cycle of $CYCLES"
-    echo "========================================"
-    echo ""
-
-    local cycle_tasks=0
-
+  while true; do
     # Do all available tasks
     while pick_task; do
       do_one_task
-      cycle_tasks=$((cycle_tasks + 1))
       total_tasks=$((total_tasks + 1))
       echo ""
       echo "----------------------------------------"
       echo ""
     done
 
-    echo "Completed $cycle_tasks task(s) in cycle $current_cycle."
+    echo "Queue empty. Completed $total_tasks task(s) so far."
 
-    # If not on the last cycle, create more work
-    if [ "$current_cycle" -lt "$CYCLES" ]; then
+    # Check if we should create more work
+    if [ "$make_work_calls" -lt "$CYCLES" ]; then
+      make_work_calls=$((make_work_calls + 1))
+      echo ""
+      echo "========================================"
+      echo "Make-work call $make_work_calls of $CYCLES"
+      echo "========================================"
       call_make_work
+    else
+      break
     fi
-
-    current_cycle=$((current_cycle + 1))
   done
 
   echo ""
   echo "========================================"
-  echo "All cycles complete. Total tasks: $total_tasks"
+  echo "Done. Total tasks completed: $total_tasks"
+  echo "Make-work calls: $make_work_calls"
   echo "========================================"
 }
 
