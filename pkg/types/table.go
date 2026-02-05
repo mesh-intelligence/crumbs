@@ -12,6 +12,22 @@ var (
 	ErrInvalidData = errors.New("invalid entity data")
 )
 
+// Entity method errors.
+var (
+	ErrInvalidState      = errors.New("invalid state value")
+	ErrInvalidTransition = errors.New("invalid state transition")
+	ErrInvalidName       = errors.New("invalid name")
+	ErrPropertyNotFound  = errors.New("property not found")
+	ErrTypeMismatch      = errors.New("type mismatch")
+	ErrInvalidCategory   = errors.New("invalid category")
+	ErrInvalidStashType  = errors.New("invalid stash type or operation")
+	ErrLockHeld          = errors.New("lock is held")
+	ErrNotLockHolder     = errors.New("caller is not the lock holder")
+	ErrInvalidHolder     = errors.New("holder cannot be empty")
+	ErrAlreadyInTrail    = errors.New("crumb already belongs to a trail")
+	ErrNotInTrail        = errors.New("crumb does not belong to the trail")
+)
+
 // Table provides uniform CRUD operations for all entity types.
 // All entity types (Crumb, Trail, Property, etc.) are accessed through
 // this interface. Callers use type assertions to access entity-specific fields.

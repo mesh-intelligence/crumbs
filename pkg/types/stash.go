@@ -47,6 +47,122 @@ type Stash struct {
 	CreatedAt time.Time
 }
 
+// SetValue updates the stash value.
+// Returns ErrInvalidStashType if called on a lock-type stash.
+// Increments Version. Caller must save via Table.Set.
+func (s *Stash) SetValue(value any) error {
+	if s.StashType == StashTypeLock {
+		return ErrInvalidStashType
+	}
+	s.Value = value
+	s.Version++
+	return nil
+}
+
+// GetValue retrieves the current value.
+// Returns nil if the stash has no value set.
+func (s *Stash) GetValue() any {
+	return s.Value
+}
+
+// Increment atomically adds delta to the counter value.
+// Returns ErrInvalidStashType if the stash is not a counter type.
+// Returns the new counter value. Increments Version.
+// Caller must save via Table.Set.
+func (s *Stash) Increment(delta int64) (int64, error) {
+	if s.StashType != StashTypeCounter {
+		return 0, ErrInvalidStashType
+	}
+
+	var current int64
+	if s.Value != nil {
+		switch v := s.Value.(type) {
+		case map[string]any:
+			if val, ok := v["value"]; ok {
+				switch n := val.(type) {
+				case int64:
+					current = n
+				case float64:
+					current = int64(n)
+				case int:
+					current = int64(n)
+				}
+			}
+		case int64:
+			current = v
+		case float64:
+			current = int64(v)
+		case int:
+			current = int64(v)
+		}
+	}
+
+	newVal := current + delta
+	s.Value = map[string]any{"value": newVal}
+	s.Version++
+	return newVal, nil
+}
+
+// Acquire obtains the lock.
+// Returns ErrInvalidStashType if the stash is not a lock type.
+// Returns ErrInvalidHolder if holder is empty.
+// Returns ErrLockHeld if the lock is held by another holder.
+// Increments Version. Caller must save via Table.Set.
+func (s *Stash) Acquire(holder string) error {
+	if s.StashType != StashTypeLock {
+		return ErrInvalidStashType
+	}
+	if holder == "" {
+		return ErrInvalidHolder
+	}
+
+	if s.Value != nil {
+		if lockData, ok := s.Value.(map[string]any); ok {
+			if currentHolder, ok := lockData["holder"].(string); ok {
+				if currentHolder == holder {
+					return nil // reentrant
+				}
+				return ErrLockHeld
+			}
+		}
+	}
+
+	s.Value = map[string]any{
+		"holder":      holder,
+		"acquired_at": time.Now().Format(time.RFC3339),
+	}
+	s.Version++
+	return nil
+}
+
+// Release releases the lock.
+// Returns ErrInvalidStashType if the stash is not a lock type.
+// Returns ErrNotLockHolder if the lock is not held by the specified holder.
+// Increments Version. Caller must save via Table.Set.
+func (s *Stash) Release(holder string) error {
+	if s.StashType != StashTypeLock {
+		return ErrInvalidStashType
+	}
+
+	if s.Value == nil {
+		return ErrNotLockHolder
+	}
+
+	lockData, ok := s.Value.(map[string]any)
+	if !ok {
+		return ErrNotLockHolder
+	}
+
+	currentHolder, ok := lockData["holder"].(string)
+	if !ok || currentHolder != holder {
+		return ErrNotLockHolder
+	}
+
+	s.Value = nil
+	s.Version++
+	return nil
+}
+
 // StashHistoryEntry records a change to a stash.
 type StashHistoryEntry struct {
 	// HistoryID is a UUID v7 of the history entry.
