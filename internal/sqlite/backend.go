@@ -1,6 +1,7 @@
 // Package sqlite implements the SQLite storage backend for Crumbs.
 // Implements: prd-sqlite-backend R4, R5, R6, R11, R12;
 //
+//	prd-configuration-directories R3, R4, R5, R6;
 //	prd-cupboard-core R2, R4, R5;
 //	docs/ARCHITECTURE § SQLite Backend.
 package sqlite
@@ -102,16 +103,16 @@ func (b *Backend) Attach(config types.Config) error {
 	b.db = db
 	b.config = config
 
-	// Initialize JSON files if they don't exist (per R1.4)
-	if err := b.initJSONFiles(); err != nil {
+	// Initialize JSONL files if they don't exist (per prd-configuration-directories R4.3)
+	if err := b.initJSONLFiles(); err != nil {
 		db.Close()
 		return err
 	}
 
-	// Load JSON files into SQLite (per R4.1)
-	if err := b.loadAllJSON(); err != nil {
+	// Load JSONL files into SQLite (per prd-configuration-directories R5.1)
+	if err := b.loadAllJSONL(); err != nil {
 		db.Close()
-		return fmt.Errorf("load JSON: %w", err)
+		return fmt.Errorf("load JSONL: %w", err)
 	}
 
 	b.attached = true

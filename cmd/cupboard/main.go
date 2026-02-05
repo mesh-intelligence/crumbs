@@ -1,6 +1,7 @@
 // Package main provides the cupboard CLI.
-// Implements: prd-cupboard-core R2, R4, R5;
+// Implements: prd-configuration-directories R1, R2, R7;
 //
+//	prd-cupboard-core R2, R4, R5;
 //	docs/ARCHITECTURE § CLI.
 package main
 
@@ -15,8 +16,11 @@ import (
 )
 
 var (
-	// configFile is set by the --config flag.
-	configFile string
+	// configDir is set by the --config-dir flag (per R1.3).
+	configDir string
+
+	// dataDir is set by the --data-dir flag (per R2.3).
+	dataDir string
 
 	// cupboard is the global Cupboard instance, initialized on startup.
 	cupboard types.Cupboard
@@ -42,7 +46,13 @@ with the Cupboard storage backend.`,
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&configFile, "config", "", "config file (default: .crumbs.yaml or ~/.crumbs/config.yaml)")
+	// Configuration directory flag (per R1.3)
+	rootCmd.PersistentFlags().StringVar(&configDir, "config-dir", "",
+		"configuration directory (default: platform-specific, see docs)")
+
+	// Data directory flag (per R2.3)
+	rootCmd.PersistentFlags().StringVar(&dataDir, "data-dir", "",
+		"data directory for backend storage (default: platform-specific, see docs)")
 
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(initCmd)
@@ -79,7 +89,7 @@ func initCupboard(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	cfg, err := loadConfig(configFile)
+	cfg, err := loadConfig(configDir, dataDir)
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}

@@ -1,6 +1,7 @@
 // Table implements the Table interface for a specific entity type.
 // Implements: prd-sqlite-backend R13, R14, R15;
 //
+//	prd-configuration-directories R6;
 //	prd-cupboard-core R3;
 //	docs/ARCHITECTURE § Table Interfaces.
 package sqlite
@@ -136,22 +137,22 @@ func (t *Table) Delete(id string) error {
 	switch t.tableName {
 	case types.CrumbsTable:
 		query = "DELETE FROM crumbs WHERE crumb_id = ?"
-		deleteFromJSON = t.backend.deleteCrumbFromJSON
+		deleteFromJSON = t.backend.deleteCrumbFromJSONL
 	case types.TrailsTable:
 		query = "DELETE FROM trails WHERE trail_id = ?"
-		deleteFromJSON = t.backend.deleteTrailFromJSON
+		deleteFromJSON = t.backend.deleteTrailFromJSONL
 	case types.PropertiesTable:
 		query = "DELETE FROM properties WHERE property_id = ?"
-		deleteFromJSON = t.backend.deletePropertyFromJSON
+		deleteFromJSON = t.backend.deletePropertyFromJSONL
 	case types.MetadataTable:
 		query = "DELETE FROM metadata WHERE metadata_id = ?"
-		deleteFromJSON = t.backend.deleteMetadataFromJSON
+		deleteFromJSON = t.backend.deleteMetadataFromJSONL
 	case types.LinksTable:
 		query = "DELETE FROM links WHERE link_id = ?"
-		deleteFromJSON = t.backend.deleteLinkFromJSON
+		deleteFromJSON = t.backend.deleteLinkFromJSONL
 	case types.StashesTable:
 		query = "DELETE FROM stashes WHERE stash_id = ?"
-		deleteFromJSON = t.backend.deleteStashFromJSON
+		deleteFromJSON = t.backend.deleteStashFromJSONL
 	default:
 		return types.ErrTableNotFound
 	}
@@ -169,9 +170,9 @@ func (t *Table) Delete(id string) error {
 		return types.ErrNotFound
 	}
 
-	// Persist deletion to JSON (per R5)
+	// Persist deletion to JSONL (per prd-configuration-directories R6)
 	if err := deleteFromJSON(id); err != nil {
-		return fmt.Errorf("persist deletion to JSON: %w", err)
+		return fmt.Errorf("persist deletion to JSONL: %w", err)
 	}
 
 	return nil
@@ -244,9 +245,9 @@ func (t *Table) setCrumb(id string, crumb *types.Crumb) (string, error) {
 		return "", err
 	}
 
-	// Persist to JSON (per R5)
-	if err := t.backend.saveCrumbToJSON(crumb); err != nil {
-		return "", fmt.Errorf("persist crumb to JSON: %w", err)
+	// Persist to JSONL (per prd-configuration-directories R6)
+	if err := t.backend.saveCrumbToJSONL(crumb); err != nil {
+		return "", fmt.Errorf("persist crumb to JSONL: %w", err)
 	}
 
 	return id, nil
@@ -373,9 +374,9 @@ func (t *Table) setTrail(id string, trail *types.Trail) (string, error) {
 		return "", err
 	}
 
-	// Persist to JSON (per R5)
-	if err := t.backend.saveTrailToJSON(trail); err != nil {
-		return "", fmt.Errorf("persist trail to JSON: %w", err)
+	// Persist to JSONL (per prd-configuration-directories R6)
+	if err := t.backend.saveTrailToJSONL(trail); err != nil {
+		return "", fmt.Errorf("persist trail to JSONL: %w", err)
 	}
 
 	return id, nil
@@ -508,9 +509,9 @@ func (t *Table) setProperty(id string, prop *types.Property) (string, error) {
 		return "", err
 	}
 
-	// Persist to JSON (per R5)
-	if err := t.backend.savePropertyToJSON(prop); err != nil {
-		return "", fmt.Errorf("persist property to JSON: %w", err)
+	// Persist to JSONL (per prd-configuration-directories R6)
+	if err := t.backend.savePropertyToJSONL(prop); err != nil {
+		return "", fmt.Errorf("persist property to JSONL: %w", err)
 	}
 
 	return id, nil
@@ -642,9 +643,9 @@ func (t *Table) setMetadata(id string, meta *types.Metadata) (string, error) {
 		return "", err
 	}
 
-	// Persist to JSON (per R5)
-	if err := t.backend.saveMetadataToJSON(meta); err != nil {
-		return "", fmt.Errorf("persist metadata to JSON: %w", err)
+	// Persist to JSONL (per prd-configuration-directories R6)
+	if err := t.backend.saveMetadataToJSONL(meta); err != nil {
+		return "", fmt.Errorf("persist metadata to JSONL: %w", err)
 	}
 
 	return id, nil
@@ -770,9 +771,9 @@ func (t *Table) setLink(id string, link *types.Link) (string, error) {
 		return "", err
 	}
 
-	// Persist to JSON (per R5)
-	if err := t.backend.saveLinkToJSON(link); err != nil {
-		return "", fmt.Errorf("persist link to JSON: %w", err)
+	// Persist to JSONL (per prd-configuration-directories R6)
+	if err := t.backend.saveLinkToJSONL(link); err != nil {
+		return "", fmt.Errorf("persist link to JSONL: %w", err)
 	}
 
 	return id, nil
@@ -907,9 +908,9 @@ func (t *Table) setStash(id string, stash *types.Stash) (string, error) {
 		return "", err
 	}
 
-	// Persist to JSON (per R5)
-	if err := t.backend.saveStashToJSON(stash, now); err != nil {
-		return "", fmt.Errorf("persist stash to JSON: %w", err)
+	// Persist to JSONL (per prd-configuration-directories R6)
+	if err := t.backend.saveStashToJSONL(stash, now); err != nil {
+		return "", fmt.Errorf("persist stash to JSONL: %w", err)
 	}
 
 	return id, nil
