@@ -24,7 +24,7 @@ Crumbs solves this by providing storage with first-class support for trails. We 
 
 **Cupboard** is the storage system that holds all crumbs, trails, and stashes.
 
-When you **add a crumb**, you create a work item (via `Crumbs().Add()`). When you **start a trail**, you create an exploration session and can add crumbs to it (via `Trails().Start()` and `Trails().AddCrumb()`). If the trail leads nowhere, you **abandon** it and all crumbs on the trail are deleted atomically. When a trail succeeds, you **complete** it and crumbs become permanent (no longer associated with the trail).
+When you **add a crumb**, you get the crumbs table from the cupboard and call Set with an empty ID to create a new entity (via `cupboard.GetTable("crumbs").Set("", crumb)`). When you **start a trail**, you create a trail entity the same way (via `cupboard.GetTable("trails").Set("", trail)`). Crumbs are linked to trails via the links table. If the trail leads nowhere, you **abandon** it (via `trail.Abandon()`) and all crumbs on the trail are deleted atomically. When a trail succeeds, you **complete** it (via `trail.Complete()`) and crumbs become permanent (no longer associated with the trail).
 
 The storage system supports multiple backends (local JSON files, Dolt for version control, DynamoDB for cloud scale) with a pluggable architecture. All identifiers use UUID v7 for time-ordered, sortable IDs. Properties are first-class entities with extensible schemas—you define new properties at runtime. Metadata tables (comments, attachments, logs) can be added without changing the core schema.
 
