@@ -14,7 +14,7 @@ Current task storage systems lack support for this exploratory workflow. They co
 
 Crumbs solves this by providing storage with first-class support for trails. We use the breadcrumb metaphor (Hansel and Gretel) because it naturally captures how exploratory work flows.
 
-**Crumbs** are individual work items. You drop crumbs as you explore an implementation. Each crumb can depend on other crumbs, forming a directed acyclic graph (DAG) of the workflow.
+**Crumbs** are individual work items. You drop crumbs as you explore an implementation. Each crumb can depend on other crumbs, forming a directed acyclic graph (DAG) of the workflow. Crumbs have terminal states: **pebble** (completed successfully—permanent and enduring, like the pebbles Hansel used to find his way home) or **dust** (failed or abandoned—swept away, like the bread crumbs eaten by birds).
 
 **Trails** are exploration sessions --  DAG subgraphs of the workflow -- that agents create while exploring an approach. Each trail is a DAG: crumbs within the trail have explicit dependencies on each other, forming the graph structure. You can drop new crumbs on a trail at any time and specify their dependencies. Trails can also branch: you can deviate (start a new trail that branches from a crumb on the current trail), dead-end (the approach fails and you abandon the entire trail DAG), or merge back (complete the trail successfully and the entire DAG becomes part of the permanent record). A path is a special case where the trail is linear (each crumb has at most one dependency).
 
