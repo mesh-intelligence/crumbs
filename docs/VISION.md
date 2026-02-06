@@ -46,7 +46,7 @@ Developers integrate the Go library quickly. The API is synchronous and type-saf
 
 ### Agent Workflow
 
-Agents create trails for exploration, drop crumbs as they work, and mark trails as abandoned or completed. Trail state changes are recorded; cleanup and merging semantics are handled by the backend or coordination layer. Trail-based exploration feels natural for any agent that needs to try approaches, backtrack from dead ends, and commit successful paths.
+Agents create trails for exploration, drop crumbs as they work, and mark trails as abandoned or completed. Completing a trail merges its crumbs into the permanent record; abandoning a trail deletes its crumbs. Trail-based exploration feels natural for any agent that needs to try approaches, backtrack from dead ends, and commit successful paths.
 
 ## What This Is NOT
 

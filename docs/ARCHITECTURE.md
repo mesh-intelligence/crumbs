@@ -47,9 +47,9 @@ Crumbs have a lifecycle driven by state transitions and trail operations. State 
 
 **Crumb states** (prd-crumbs-interface R2): `draft` → `pending` → `ready` → `taken` → `pebble` or `dust`. Terminal states are `pebble` (completed successfully) and `dust` (failed or abandoned). Initial state on creation is `draft`. CrumbTable tracks state but does not enforce transitions—agents or coordination layers define transition rules.
 
-**Trail states** (prd-trails-interface R2): `active` → `completed` or `abandoned`. The `Trail.Complete()` and `Trail.Abandon()` entity methods update the trail's state field; cascade operations (removing belongs_to links on complete, deleting crumbs on abandon) are the responsibility of the backend or a higher-level service.
+**Trail states** (prd-trails-interface R2): `active` → `completed` or `abandoned`. The `Trail.Complete()` and `Trail.Abandon()` entity methods update the trail's state field. When persisted via `Table.Set`, the backend performs cascade operations: completing a trail removes `belongs_to` links (crumbs become permanent), abandoning a trail deletes its crumbs.
 
-**Trail structure**: Trails group crumbs via belongs_to links (prd-sqlite-backend). Crumbs within a trail can have explicit dependency relationships via the dependencies property. Trails can branch—a new trail can deviate from a crumb on an existing trail (recorded via ParentCrumbID on the Trail struct). A crumb belongs to at most one trail at a time.
+**Trail structure**: Trails group crumbs via `belongs_to` links. Crumbs can depend on other crumbs via `child_of` links, forming a DAG. Trails can branch from a crumb on another trail via `branches_from` links. A crumb belongs to at most one trail at a time.
 
 ### Coordination Pattern
 
@@ -67,7 +67,7 @@ Properties extend crumbs with custom attributes. The system enforces that every 
 - When a property is defined, it is backfilled to all existing crumbs with the type's default value (prd-properties-interface R4.9)
 - ClearProperty resets to the default value, not null (prd-crumbs-interface R12.2)
 
-**Built-in properties** (prd-properties-interface R8): Six properties are seeded on first startup—priority (categorical), type (categorical), description (text), owner (text), labels (list), dependencies (list). Applications can define additional properties at runtime.
+**Built-in properties** (prd-properties-interface R8): Five properties are seeded on first startup—priority (categorical), type (categorical), description (text), owner (text), labels (list). Applications can define additional properties at runtime. Note: crumb dependencies use `child_of` links, not a property.
 
 ### Stashes
 
@@ -189,6 +189,8 @@ Attach is idempotent (returns ErrAlreadyAttached if called twice). Detach blocks
 **Decision 8: Stashes as separate entities for shared state**. Crumbs are individual work items with properties. When multiple crumbs on a trail need to share state (resources, artifacts, coordination primitives), we use stashes—not "special crumbs" or property values. Stashes are versioned with full history, supporting auditability and debugging. Alternative: encoding shared state in crumb properties conflates task attributes with coordination state; using external storage loses the trail-scoped lifecycle.
 
 **Decision 9: ORM-style pattern with uniform Table interface**. We use a single Table interface (Get, Set, Delete, Fetch) for all entity types rather than entity-specific interfaces (CrumbTable, TrailTable, etc.). `Cupboard.GetTable(name)` returns the same Table interface regardless of entity type; Get and Fetch return entity objects that callers type-assert. Entity methods modify structs in memory; callers persist via `Table.Set`. Benefits: consistent API across all entities, simpler backend implementation (one interface to implement per table), clear separation between storage operations and domain logic. Entity-specific behavior lives in entity methods, not in specialized table interfaces. Alternative: entity-specific interfaces (CrumbTable with Add, Archive, Purge; TrailTable with Start, Complete, Abandon) create a larger API surface, duplicate CRUD patterns, and mix storage concerns with domain logic.
+
+**Decision 10: Links table for all relationships**. All entity relationships use the links table with typed edges. Link types: `belongs_to` (crumb→trail membership), `child_of` (crumb→crumb dependencies), `branches_from` (trail→crumb branch point), `scoped_to` (stash→trail scope). Benefits: one consistent pattern for all relationships, enables graph queries and traversal, no special cases. Alternative: direct fields (e.g., `Trail.ParentCrumbID`, `Stash.TrailID`) are simpler for 1:optional relationships but create inconsistency and require different query patterns.
 
 ## Technology Choices
 
