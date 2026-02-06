@@ -70,7 +70,7 @@ This PRD defines the Crumb entity: the struct fields, entity methods for state m
 crumb := &Crumb{
     Name: "task name",
 }
-err := table.Set("", crumb)
+id, err := table.Set("", crumb)
 ```
 
 3.2. When Table.Set is called with an empty ID, the backend must:
@@ -121,7 +121,7 @@ func (c *Crumb) Dust() error
 
 ```go
 crumb.Pebble()
-err := table.Set(crumb.CrumbID, crumb)
+_, err := table.Set(crumb.CrumbID, crumb)
 ```
 
 ### R5: Property Methods
@@ -175,7 +175,7 @@ func (c *Crumb) ClearProperty(propertyID string) error
 
 ```go
 crumb.SetProperty("priority", int64(3))
-err := table.Set(crumb.CrumbID, crumb)
+_, err := table.Set(crumb.CrumbID, crumb)
 ```
 
 5.7. Property methods that require property definition lookup (SetProperty validation, ClearProperty default lookup) need access to the properties table. Implementations may:
@@ -211,7 +211,7 @@ entity, _ := table.Get(id)
 crumb := entity.(*Crumb)
 crumb.Name = "new name"
 crumb.UpdatedAt = time.Now()
-err := table.Set(id, crumb)
+_, err := table.Set(id, crumb)
 ```
 
 7.2. Direct field modification (e.g., changing Name) does not automatically update UpdatedAt. The caller must update UpdatedAt manually when modifying fields directly.
@@ -228,7 +228,7 @@ err := table.Set(id, crumb)
 entity, _ := table.Get(id)
 crumb := entity.(*Crumb)
 crumb.Dust()
-table.Set(id, crumb)
+_, _ = table.Set(id, crumb)
 ```
 
 8.2. To hard-delete a crumb, use Table.Delete:
