@@ -4,7 +4,7 @@
 
 Crumbs is a storage system for work items with first-class support for exploratory trails. The core insight is that coding agents need backtracking: an agent drops crumbs as it explores an implementation approach, and if the approach leads nowhere, the agent abandons the entire trail without polluting the permanent task list.
 
-The system provides a Go library (`pkg/types`) for agents and a command-line tool (`crumbs` CLI) for development and personal use. The primary use case is a VS Code coding agent that uses trails to explore implementation approaches. Storage is pluggable—SQLite for local development, Dolt for version control, DynamoDB for cloud scale. All operations use UUID v7 identifiers (time-ordered, sortable). Backend selection happens via configuration at startup.
+The system provides a Go library (`pkg/types`) for agents and a command-line tool (`cupboard` CLI) for development and personal use. The primary use case is a VS Code coding agent that uses trails to explore implementation approaches. The SQLite backend is implemented; Dolt and DynamoDB backends are planned. All operations use UUID v7 identifiers (time-ordered, sortable). Backend selection happens via configuration at startup.
 
 We use an ORM-style pattern for data access. Applications call `Cupboard.GetTable(name)` to get a table accessor, then use uniform CRUD operations (Get, Set, Delete, Fetch) that work with entity objects (Crumb, Trail, Property, etc.). Entity methods modify structs in memory; callers persist changes by calling `Table.Set`. This separates storage mechanics from domain logic and keeps the interface consistent across all entity types.
 
@@ -52,13 +52,13 @@ Crumbs have a lifecycle driven by state transitions and trail operations. State 
 
 **Crumb states** (prd-crumbs-interface R2): `draft` → `pending` → `ready` → `taken` → `pebble` or `dust`. Terminal states are `pebble` (completed successfully) and `dust` (failed or abandoned). Initial state on creation is `draft`. CrumbTable tracks state but does not enforce transitions—agents or coordination layers define transition rules.
 
-**Trail states** (prd-trails-interface R2): `active` → `completed` or `abandoned`. When a trail completes, belongs_to links are removed and crumbs become permanent. When a trail is abandoned, all crumbs on the trail are deleted—the exploration failed and you backtrack.
+**Trail states** (prd-trails-interface R2): `active` → `completed` or `abandoned`. The `Trail.Complete()` and `Trail.Abandon()` entity methods update the trail's state field; cascade operations (removing belongs_to links on complete, deleting crumbs on abandon) are the responsibility of the backend or a higher-level service.
 
 **Trail structure**: Trails group crumbs via belongs_to links (prd-sqlite-backend). Crumbs within a trail can have explicit dependency relationships via the dependencies property. Trails can branch—a new trail can deviate from a crumb on an existing trail (recorded via ParentCrumbID on the Trail struct). A crumb belongs to at most one trail at a time.
 
 ### Coordination Pattern
 
-Crumbs provides storage, not coordination. Agents or coordination frameworks build claiming, timeouts, and announcements on top of the Cupboard API. We expose async read/write operations; agents add workflow semantics.
+Crumbs provides storage, not coordination. Agents or coordination frameworks build claiming, timeouts, and announcements on top of the Cupboard API. We expose synchronous read/write operations; agents add workflow semantics.
 
 ### Properties Model
 
@@ -171,9 +171,9 @@ Attach is idempotent (returns ErrAlreadyAttached if called twice). Detach blocks
 
 **Entity Types (pkg/types)**: Structs representing domain objects. Each entity has an ID field (UUID v7) and domain-specific fields. Entity methods (e.g., `Crumb.SetState`, `Crumb.Pebble`, `Trail.Complete`) modify the struct in memory; callers persist via `Table.Set`. Entity types are defined in their respective PRDs.
 
-**SQLite Backend (internal/sqlite)**: Primary backend for local development. JSON files are the source of truth; SQLite (modernc.org/sqlite, pure Go) serves as a query cache. On startup, JSON is loaded into SQLite. Writes persist to JSON first, then update SQLite. Implements the Cupboard and Table interfaces (prd-sqlite-backend). Hydrates table rows into entity objects on Get/Fetch, and dehydrates entity objects to rows on Set.
+**SQLite Backend (internal/sqlite)**: Primary backend for local development. JSONL files are the source of truth; SQLite (modernc.org/sqlite, pure Go) serves as a query cache. On startup, JSONL is loaded into SQLite. Writes persist to JSONL first, then update SQLite. Implements the Cupboard and Table interfaces (prd-sqlite-backend). Hydrates table rows into entity objects on Get/Fetch, and dehydrates entity objects to rows on Set.
 
-**CLI (cmd/crumbs)**: Command-line tool for development and personal use. Commands map to Cupboard operations. Config file selects backend.
+**CLI (cmd/cupboard)**: Command-line tool for development and personal use. Commands map to Cupboard operations. Config file selects backend.
 
 **Future Backends**: Dolt backend (SQL with version control) and DynamoDB backend (serverless NoSQL) are planned but not yet implemented. Each backend implements the full Cupboard interface (prd-cupboard-core).
 
@@ -187,9 +187,9 @@ Attach is idempotent (returns ErrAlreadyAttached if called twice). Detach blocks
 
 **Decision 4: Pluggable backends with full interface**. Each backend implements the entire Cupboard interface. This allows backend-specific optimizations (Dolt version history, DynamoDB single-table design) without leaking details into the API. Alternative: a generic SQL backend with schema generation is less flexible and cannot leverage backend-specific features.
 
-**Decision 5: Asynchronous API**. All operations return futures or use async/await patterns. This supports backends with network calls (DynamoDB) and keeps the CLI responsive. Backends may implement operations synchronously internally if local. Alternative: synchronous API is simpler but blocks on I/O and does not scale to remote backends.
+**Decision 5: Synchronous API with future async support**. Current operations are synchronous for simplicity. The architecture supports adding async patterns (goroutines, channels) when remote backends (DynamoDB) require non-blocking I/O. Alternative: starting with async adds complexity before we need it.
 
-**Decision 6: JSON as source of truth for SQLite backend**. The SQLite backend uses JSON files as the canonical data store. SQLite (modernc.org/sqlite, pure Go) serves as a query engine to reuse SQL code across backends and avoid reimplementing filtering, joins, and indexing. On startup, we load JSON into SQLite; on writes, we persist back to JSON. This gives us human-readable files, easy backup, and code reuse. Alternative: raw JSON with custom query logic duplicates work that SQL handles well; pure SQLite loses the human-readable file benefit.
+**Decision 6: JSONL as source of truth for SQLite backend**. The SQLite backend uses JSONL files (one JSON object per line) as the canonical data store. SQLite (modernc.org/sqlite, pure Go) serves as a query engine to reuse SQL code across backends and avoid reimplementing filtering, joins, and indexing. On startup, we load JSONL into SQLite; on writes, we persist back to JSONL. This gives us human-readable files, easy backup, and code reuse. Alternative: raw JSON with custom query logic duplicates work that SQL handles well; pure SQLite loses the human-readable file benefit.
 
 **Decision 7: Properties always present with type-based defaults**. Every crumb has a value for every defined property. When a property is defined, existing crumbs are backfilled with the type's default value. When a crumb is created, all properties are initialized. This eliminates null-checking complexity and ensures consistent schema across all crumbs. Alternative: allowing "not set" properties requires null handling everywhere and makes queries more complex (filtering on missing vs present values).
 
@@ -204,18 +204,17 @@ Attach is idempotent (returns ErrAlreadyAttached if called twice). Detach blocks
 | Language | Go | CLI tool and library; strong concurrency, static typing |
 | Identifiers | UUID v7 (RFC 9562) | Time-ordered, sortable, distributed-safe IDs |
 | CLI | cobra + viper | Command parsing and config management |
-| SQLite backend | modernc.org/sqlite | Local development; JSON files as source of truth, SQLite as query engine |
-| Dolt backend | go-mysql-driver + Dolt SQL | Version-controlled relational storage |
-| DynamoDB backend | AWS SDK for Go v2 | Serverless NoSQL cloud storage |
+| SQLite backend | modernc.org/sqlite | Local development; JSONL files as source of truth, SQLite as query engine |
+| Dolt backend (planned) | go-mysql-driver + Dolt SQL | Version-controlled relational storage |
+| DynamoDB backend (planned) | AWS SDK for Go v2 | Serverless NoSQL cloud storage |
 | Testing | Go testing + testify | Unit and integration tests |
-| Async | Goroutines + channels | Concurrent operations, future-like patterns |
 
 ## Project Structure
 
-```
+```text
 crumbs/
 ├── cmd/
-│   └── crumbs/              # CLI entry point
+│   └── cupboard/            # CLI entry point
 ├── pkg/
 │   └── types/               # Public API: Cupboard interface, entity types
 ├── internal/
@@ -238,9 +237,9 @@ crumbs/
 
 **pkg/types**: Public API. Applications import this package to access the Cupboard interface, Table interface, and all entity types (Crumb, Trail, Property, Category, Stash, Metadata, Link). Contains interfaces and structs only; no implementation.
 
-**internal/sqlite**: SQLite backend implementation. Implements the Cupboard and Table interfaces for all entity types. Handles entity hydration (row to struct) and dehydration (struct to row). JSON files are the source of truth; SQLite is a query cache.
+**internal/sqlite**: SQLite backend implementation. Implements the Cupboard and Table interfaces for all entity types. Handles entity hydration (row to struct) and dehydration (struct to row). JSONL files are the source of truth; SQLite is a query cache.
 
-**cmd/crumbs**: CLI tool. Parses commands, loads config, calls Attach, and invokes Table operations.
+**cmd/cupboard**: CLI tool. Parses commands, loads config, calls Attach, and invokes Table operations.
 
 ## Implementation Status
 
