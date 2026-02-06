@@ -588,11 +588,9 @@ type Table interface {
 
 1. This PRD does not define the Cupboard interface operations. Those are in prd-cupboard-core and the interface PRDs.
 
-2. This PRD does not define Dolt or DynamoDB backends.
+2. This PRD does not define cross-process locking. Single-process access is assumed.
 
-3. This PRD does not define cross-process locking. Single-process access is assumed.
-
-4. This PRD does not define backup or migration utilities.
+3. This PRD does not define backup or migration utilities.
 
 ## Acceptance Criteria
 

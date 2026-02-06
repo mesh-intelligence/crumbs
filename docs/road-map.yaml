@@ -76,19 +76,6 @@ releases:
         summary: Create trails, add crumbs, complete/abandon
         status: not_started
 
-  - version: "04.0"
-    name: Metadata and Additional Backends
-    description: Implement pluggable backend architecture with Dolt for version control.
-    done_when: The same Table interface works with both SQLite and Dolt backends. Dolt provides version-controlled task tracking.
-    deliverables:
-      - Metadata entity and schema registration
-      - Dolt backend with version control (commit, branch, checkout, merge)
-      - Backend abstraction validated with multiple implementations
-    use_cases:
-      - id: rel04.0-uc001-dolt-backend
-        summary: Dolt backend with commits, branches, merge
-        status: not_started
-
   - version: "99.0"
     name: Unscheduled
     description: Use cases not yet assigned to a release. These will be scheduled as the roadmap evolves.

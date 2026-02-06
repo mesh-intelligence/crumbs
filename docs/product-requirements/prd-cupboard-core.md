@@ -23,29 +23,12 @@ This PRD defines the cupboard lifecycle interface: configuration, table access, 
 
 | Field | Type | Description |
 |-------|------|-------------|
-| Backend | string | Backend type: "sqlite", "dolt", "dynamodb" |
-| DataDir | string | Directory for local backends (sqlite, dolt); ignored for cloud backends |
-| DoltConfig | *DoltConfig | Dolt-specific settings (connection string, branch); nil if not using Dolt |
-| DynamoDBConfig | *DynamoDBConfig | DynamoDB-specific settings (table name, region); nil if not using DynamoDB |
+| Backend | string | Backend type: "sqlite" |
+| DataDir | string | Directory for the SQLite backend |
 
-1.2. DoltConfig must include:
+1.2. Config validation must fail if Backend is empty or unrecognized
 
-| Field | Type | Description |
-|-------|------|-------------|
-| DSN | string | Data source name (connection string) |
-| Branch | string | Git branch for versioning; defaults to "main" |
-
-1.3. DynamoDBConfig must include:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| TableName | string | DynamoDB table name |
-| Region | string | AWS region |
-| Endpoint | string | Optional endpoint override for local testing |
-
-1.4. Config validation must fail if Backend is empty or unrecognized
-
-1.5. Config validation must fail if required backend-specific config is nil (e.g., DoltConfig nil when Backend is "dolt")
+1.3. Config validation must fail if DataDir is empty when Backend is "sqlite"
 
 ### R2: Cupboard Interface
 
@@ -123,7 +106,7 @@ func (c *Cupboard) Attach(cfg Config) error
 
 4.2. Attach must validate the config before initializing the backend
 
-4.3. Attach must return an error if backend initialization fails (e.g., cannot connect to Dolt, cannot access DynamoDB table)
+4.3. Attach must return an error if backend initialization fails (e.g., cannot create DataDir, cannot initialize SQLite)
 
 4.4. Attach must be idempotent; calling Attach on an already-attached cupboard must return ErrAlreadyAttached
 
@@ -198,7 +181,7 @@ var ErrNotInTrail = errors.New("crumb does not belong to the trail")
 
 1. This PRD does not define entity-specific schemas or operations. Entity types are defined in their respective interface PRDs (prd-crumbs-interface, prd-trails-interface, etc.).
 
-2. This PRD does not define backend-specific behavior (e.g., Dolt versioning, DynamoDB single-table design). Backends may add optional methods beyond the interface.
+2. This PRD does not define backend-specific behavior. Backends may add optional methods beyond the interface.
 
 3. This PRD does not define HTTP/RPC wrappers around the Cupboard interface. Applications define their own APIs.
 
@@ -208,8 +191,7 @@ var ErrNotInTrail = errors.New("crumb does not belong to the trail")
 
 ## Acceptance Criteria
 
-- [ ] Config struct defined with Backend, DataDir, DoltConfig, DynamoDBConfig fields
-- [ ] DoltConfig and DynamoDBConfig structs defined with required fields
+- [ ] Config struct defined with Backend and DataDir fields
 - [ ] Cupboard interface defined with GetTable, Attach, Detach methods
 - [ ] Table interface defined with Get, Set (returning string, error), Delete, Fetch methods
 - [ ] Standard table names documented in a table
@@ -223,7 +205,6 @@ var ErrNotInTrail = errors.New("crumb does not belong to the trail")
 ## Constraints
 
 - Config struct must be serializable to JSON/YAML for file-based configuration
-- Backend-specific configs use pointer types to distinguish "not configured" from "configured with defaults"
 - All standard error types must work with errors.Is for Go 1.13+ error wrapping
 - Table.Get and Table.Fetch return any type; callers must use type assertions to access entity fields
 

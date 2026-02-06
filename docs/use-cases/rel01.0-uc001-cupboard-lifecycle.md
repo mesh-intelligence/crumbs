@@ -10,7 +10,7 @@ The actor is a developer integrating the Crumbs library into their application. 
 
 ## Flow
 
-1. **Create configuration**: Construct a Config struct specifying Backend as "sqlite" and DataDir as the path to the data directory. Leave DoltConfig and DynamoDBConfig nil since we use SQLite.
+1. **Create configuration**: Construct a Config struct specifying Backend as "sqlite" and DataDir as the path to the data directory.
 
 2. **Validate configuration**: The application may optionally validate the Config before calling Attach. Invalid configurations (empty Backend, unrecognized Backend, missing required backend-specific config) will fail at Attach time with a descriptive error.
 
@@ -106,12 +106,8 @@ if errors.Is(err, ErrCupboardDetached) {
 
 This use case does not cover:
 
-- Dolt backend configuration (DoltConfig with DSN and Branch)
-- DynamoDB backend configuration (DynamoDBConfig with TableName and Region)
-- Multi-backend switching at runtime
 - Connection pooling or retry policies
 - File-based configuration loading (JSON/YAML parsing)
-- Backend-specific features (Dolt versioning, DynamoDB provisioned capacity)
 
 ## Dependencies
 
