@@ -17,9 +17,8 @@ func TestCrumb_SetState(t *testing.T) {
 		{"valid pending", StatePending, nil, StatePending},
 		{"valid ready", StateReady, nil, StateReady},
 		{"valid taken", StateTaken, nil, StateTaken},
-		{"valid completed", StateCompleted, nil, StateCompleted},
-		{"valid failed", StateFailed, nil, StateFailed},
-		{"valid archived", StateArchived, nil, StateArchived},
+		{"valid pebble", StatePebble, nil, StatePebble},
+		{"valid dust", StateDust, nil, StateDust},
 		{"invalid state", "invalid", ErrInvalidState, StateDraft},
 		{"empty state", "", ErrInvalidState, StateDraft},
 	}
@@ -55,20 +54,19 @@ func TestCrumb_SetState_Idempotent(t *testing.T) {
 	}
 }
 
-func TestCrumb_Complete(t *testing.T) {
+func TestCrumb_Pebble(t *testing.T) {
 	tests := []struct {
 		name         string
 		initialState string
 		wantErr      error
 		wantState    string
 	}{
-		{"from taken", StateTaken, nil, StateCompleted},
+		{"from taken", StateTaken, nil, StatePebble},
 		{"from draft", StateDraft, ErrInvalidTransition, StateDraft},
 		{"from pending", StatePending, ErrInvalidTransition, StatePending},
 		{"from ready", StateReady, ErrInvalidTransition, StateReady},
-		{"from completed", StateCompleted, ErrInvalidTransition, StateCompleted},
-		{"from failed", StateFailed, ErrInvalidTransition, StateFailed},
-		{"from archived", StateArchived, ErrInvalidTransition, StateArchived},
+		{"from pebble", StatePebble, ErrInvalidTransition, StatePebble},
+		{"from dust", StateDust, ErrInvalidTransition, StateDust},
 	}
 
 	for _, tt := range tests {
@@ -76,75 +74,39 @@ func TestCrumb_Complete(t *testing.T) {
 			c := &Crumb{State: tt.initialState}
 			before := c.UpdatedAt
 
-			err := c.Complete()
+			err := c.Pebble()
 
 			if !errors.Is(err, tt.wantErr) {
-				t.Errorf("Complete() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Pebble() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if c.State != tt.wantState {
-				t.Errorf("Complete() state = %v, want %v", c.State, tt.wantState)
+				t.Errorf("Pebble() state = %v, want %v", c.State, tt.wantState)
 			}
 			if err == nil && !c.UpdatedAt.After(before) {
-				t.Error("Complete() should update UpdatedAt")
+				t.Error("Pebble() should update UpdatedAt")
 			}
 		})
 	}
 }
 
-func TestCrumb_Archive(t *testing.T) {
-	states := []string{StateDraft, StatePending, StateReady, StateTaken, StateCompleted, StateFailed, StateArchived}
+func TestCrumb_Dust(t *testing.T) {
+	states := []string{StateDraft, StatePending, StateReady, StateTaken, StatePebble, StateDust}
 
 	for _, state := range states {
 		t.Run("from "+state, func(t *testing.T) {
 			c := &Crumb{State: state}
 			before := c.UpdatedAt
 
-			err := c.Archive()
+			err := c.Dust()
 
 			if err != nil {
-				t.Errorf("Archive() should succeed from any state, got %v", err)
+				t.Errorf("Dust() should succeed from any state, got %v", err)
 			}
-			if c.State != StateArchived {
-				t.Errorf("Archive() state = %v, want %v", c.State, StateArchived)
+			if c.State != StateDust {
+				t.Errorf("Dust() state = %v, want %v", c.State, StateDust)
 			}
 			if !c.UpdatedAt.After(before) {
-				t.Error("Archive() should update UpdatedAt")
-			}
-		})
-	}
-}
-
-func TestCrumb_Fail(t *testing.T) {
-	tests := []struct {
-		name         string
-		initialState string
-		wantErr      error
-		wantState    string
-	}{
-		{"from taken", StateTaken, nil, StateFailed},
-		{"from draft", StateDraft, ErrInvalidTransition, StateDraft},
-		{"from pending", StatePending, ErrInvalidTransition, StatePending},
-		{"from ready", StateReady, ErrInvalidTransition, StateReady},
-		{"from completed", StateCompleted, ErrInvalidTransition, StateCompleted},
-		{"from failed", StateFailed, ErrInvalidTransition, StateFailed},
-		{"from archived", StateArchived, ErrInvalidTransition, StateArchived},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := &Crumb{State: tt.initialState}
-			before := c.UpdatedAt
-
-			err := c.Fail()
-
-			if !errors.Is(err, tt.wantErr) {
-				t.Errorf("Fail() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if c.State != tt.wantState {
-				t.Errorf("Fail() state = %v, want %v", c.State, tt.wantState)
-			}
-			if err == nil && !c.UpdatedAt.After(before) {
-				t.Error("Fail() should update UpdatedAt")
+				t.Error("Dust() should update UpdatedAt")
 			}
 		})
 	}

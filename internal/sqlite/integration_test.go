@@ -341,31 +341,31 @@ func TestUC001_CrumbStateMethods(t *testing.T) {
 	}
 	table.Set(id, crumb)
 
-	// Test Complete (taken -> completed)
-	err = crumb.Complete()
+	// Test Pebble (taken -> pebble)
+	err = crumb.Pebble()
 	if err != nil {
-		t.Fatalf("Complete() failed: %v", err)
+		t.Fatalf("Pebble() failed: %v", err)
 	}
-	if crumb.State != types.StateCompleted {
-		t.Errorf("Expected state completed, got %q", crumb.State)
+	if crumb.State != types.StatePebble {
+		t.Errorf("Expected state pebble, got %q", crumb.State)
 	}
 	table.Set(id, crumb)
 
-	// Test Archive (can be called from any state)
-	err = crumb.Archive()
+	// Test Dust (can be called from any state)
+	err = crumb.Dust()
 	if err != nil {
-		t.Fatalf("Archive() failed: %v", err)
+		t.Fatalf("Dust() failed: %v", err)
 	}
-	if crumb.State != types.StateArchived {
-		t.Errorf("Expected state archived, got %q", crumb.State)
+	if crumb.State != types.StateDust {
+		t.Errorf("Expected state dust, got %q", crumb.State)
 	}
 	table.Set(id, crumb)
 
 	// Final verification
 	entity, _ = table.Get(id)
 	final := entity.(*types.Crumb)
-	if final.State != types.StateArchived {
-		t.Errorf("Final persisted state mismatch: expected archived, got %q", final.State)
+	if final.State != types.StateDust {
+		t.Errorf("Final persisted state mismatch: expected dust, got %q", final.State)
 	}
 }
 
@@ -377,19 +377,20 @@ func TestUC001_InvalidStateTransitions(t *testing.T) {
 		State: types.StateDraft,
 	}
 
-	// Complete requires state=taken
-	err := crumb.Complete()
+	// Pebble requires state=taken
+	err := crumb.Pebble()
 	if err != types.ErrInvalidTransition {
-		t.Errorf("Complete from draft expected ErrInvalidTransition, got %v", err)
+		t.Errorf("Pebble from draft expected ErrInvalidTransition, got %v", err)
 	}
 
-	// Fail requires state=taken
-	err = crumb.Fail()
-	if err != types.ErrInvalidTransition {
-		t.Errorf("Fail from draft expected ErrInvalidTransition, got %v", err)
+	// Dust can be called from any state, so it should succeed
+	err = crumb.Dust()
+	if err != nil {
+		t.Errorf("Dust from draft expected nil, got %v", err)
 	}
 
 	// SetState with invalid state
+	crumb.State = types.StateDraft // reset for next test
 	err = crumb.SetState("invalid_state")
 	if err != types.ErrInvalidState {
 		t.Errorf("SetState(invalid) expected ErrInvalidState, got %v", err)
@@ -503,7 +504,7 @@ func TestUC001_FetchWithMultipleFilters(t *testing.T) {
 		{Name: "Draft 2", State: types.StateDraft},
 		{Name: "Ready 1", State: types.StateReady},
 		{Name: "Taken 1", State: types.StateTaken},
-		{Name: "Archived 1", State: types.StateArchived},
+		{Name: "Dust 1", State: types.StateDust},
 	}
 
 	for _, c := range crumbs {
@@ -540,20 +541,20 @@ func TestUC001_FetchWithMultipleFilters(t *testing.T) {
 		t.Errorf("Fetch ready expected 1 crumb, got %d", len(ready))
 	}
 
-	// Fetch archived only
-	archived, err := table.Fetch(map[string]any{"State": types.StateArchived})
+	// Fetch dust only
+	dust, err := table.Fetch(map[string]any{"State": types.StateDust})
 	if err != nil {
-		t.Fatalf("Fetch archived failed: %v", err)
+		t.Fatalf("Fetch dust failed: %v", err)
 	}
-	if len(archived) != 1 {
-		t.Errorf("Fetch archived expected 1 crumb, got %d", len(archived))
+	if len(dust) != 1 {
+		t.Errorf("Fetch dust expected 1 crumb, got %d", len(dust))
 	}
 
-	// Verify archived crumb is not in draft results
+	// Verify dust crumb is not in draft results
 	for _, e := range draft {
 		c := e.(*types.Crumb)
-		if c.State == types.StateArchived {
-			t.Error("Archived crumb should not appear in draft filter results")
+		if c.State == types.StateDust {
+			t.Error("Dust crumb should not appear in draft filter results")
 		}
 	}
 }
@@ -760,12 +761,12 @@ func TestUC001_FullUseCaseFlow(t *testing.T) {
 		t.Fatalf("Step 7 (Persist property): %v", err)
 	}
 
-	// 8. Archive second crumb
-	if err := crumb2.Archive(); err != nil {
-		t.Fatalf("Step 8 (Archive): %v", err)
+	// 8. Dust second crumb (mark as failed/abandoned)
+	if err := crumb2.Dust(); err != nil {
+		t.Fatalf("Step 8 (Dust): %v", err)
 	}
 	if _, err := crumbTable.Set(id2, crumb2); err != nil {
-		t.Fatalf("Step 8 (Persist archive): %v", err)
+		t.Fatalf("Step 8 (Persist dust): %v", err)
 	}
 
 	// 9. Fetch with filter (only ready crumbs)

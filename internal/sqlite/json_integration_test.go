@@ -500,7 +500,7 @@ func TestJSON_DataLoadingOnRestart(t *testing.T) {
 	// Create multiple crumbs
 	crumb1 := &types.Crumb{Name: "Crumb 1", State: types.StateDraft}
 	crumb2 := &types.Crumb{Name: "Crumb 2", State: types.StateReady}
-	crumb3 := &types.Crumb{Name: "Crumb 3", State: types.StateCompleted}
+	crumb3 := &types.Crumb{Name: "Crumb 3", State: types.StatePebble}
 	id1, _ := crumbTable.Set("", crumb1)
 	id2, _ := crumbTable.Set("", crumb2)
 	_, _ = crumbTable.Set("", crumb3) // id3 not used but needed for count

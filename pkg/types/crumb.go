@@ -10,14 +10,14 @@ import (
 )
 
 // Crumb state values.
+// Terminal states: pebble (success) and dust (failed/abandoned).
 const (
-	StateDraft     = "draft"
-	StatePending   = "pending"
-	StateReady     = "ready"
-	StateTaken     = "taken"
-	StateCompleted = "completed"
-	StateFailed    = "failed"
-	StateArchived  = "archived"
+	StateDraft   = "draft"
+	StatePending = "pending"
+	StateReady   = "ready"
+	StateTaken   = "taken"
+	StatePebble  = "pebble" // completed successfully (permanent, enduring)
+	StateDust    = "dust"   // failed or abandoned (swept away)
 )
 
 // Crumb represents a work item.
@@ -28,7 +28,7 @@ type Crumb struct {
 	// Name is a human-readable name (required, non-empty).
 	Name string
 
-	// State is the crumb state (draft, pending, ready, taken, completed, failed, archived).
+	// State is the crumb state (draft, pending, ready, taken, pebble, dust).
 	State string
 
 	// CreatedAt is the timestamp of creation.
@@ -44,7 +44,7 @@ type Crumb struct {
 // validCrumbStates lists all valid crumb state values.
 var validCrumbStates = []string{
 	StateDraft, StatePending, StateReady, StateTaken,
-	StateCompleted, StateFailed, StateArchived,
+	StatePebble, StateDust,
 }
 
 // SetState transitions the crumb to the specified state.
@@ -59,35 +59,23 @@ func (c *Crumb) SetState(state string) error {
 	return nil
 }
 
-// Complete transitions the crumb to the completed state.
+// Pebble transitions the crumb to the pebble state (completed successfully).
 // Returns ErrInvalidTransition if current state is not taken.
 // Updates UpdatedAt. Caller must save via Table.Set.
-func (c *Crumb) Complete() error {
+func (c *Crumb) Pebble() error {
 	if c.State != StateTaken {
 		return ErrInvalidTransition
 	}
-	c.State = StateCompleted
+	c.State = StatePebble
 	c.UpdatedAt = time.Now()
 	return nil
 }
 
-// Archive transitions the crumb to the archived state (soft delete).
+// Dust transitions the crumb to the dust state (failed or abandoned).
 // Can be called from any state. Idempotent.
 // Updates UpdatedAt. Caller must save via Table.Set.
-func (c *Crumb) Archive() error {
-	c.State = StateArchived
-	c.UpdatedAt = time.Now()
-	return nil
-}
-
-// Fail transitions the crumb to the failed state.
-// Returns ErrInvalidTransition if current state is not taken.
-// Updates UpdatedAt. Caller must save via Table.Set.
-func (c *Crumb) Fail() error {
-	if c.State != StateTaken {
-		return ErrInvalidTransition
-	}
-	c.State = StateFailed
+func (c *Crumb) Dust() error {
+	c.State = StateDust
 	c.UpdatedAt = time.Now()
 	return nil
 }

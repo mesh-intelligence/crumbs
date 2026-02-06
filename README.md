@@ -70,14 +70,17 @@ Tables: `crumbs`, `trails`, `links`, `properties`, `metadata`, `stashes`
 
 ## Concepts
 
-| Concept      | Description                                                                        |
-| ------------ | ---------------------------------------------------------------------------------- |
-| **Crumb**    | A work item with states: draft, pending, ready, taken, completed, failed, archived |
-| **Trail**    | An exploration session with states: active, completed, abandoned                   |
-| **Link**     | A relationship between entities (belongs_to, child_of)                             |
-| **Stash**    | Shared state scoped to a trail or global                                           |
-| **Property** | Custom attributes that extend crumbs                                               |
-| **Cupboard** | The storage backend that holds everything                                          |
+| Concept      | Description                                                            |
+| ------------ | ---------------------------------------------------------------------- |
+| **Crumb**    | A work item with states: draft, pending, ready, taken, pebble, dust    |
+| **Pebble**   | A completed crumb (permanent, enduring - like pebbles in the story)    |
+| **Dust**     | A failed or abandoned crumb (swept away - like crumbs eaten by birds)  |
+| **Trail**    | An exploration session with states: active, completed, abandoned       |
+| **Link**     | A relationship between entities (belongs_to, child_of)                 |
+| **Stash**    | Shared state scoped to a trail or global                               |
+| **Property** | Custom attributes that extend crumbs                                   |
+| **Cupboard** | The storage backend that holds everything                              |
+| **Cobbler**  | Agent orchestrator (like elves that work while you sleep)              |
 
 ## Project Structure
 

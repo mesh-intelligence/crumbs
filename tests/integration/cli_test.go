@@ -108,7 +108,7 @@ func Test2_CreateCrumbs(t *testing.T) {
 	}
 }
 
-// Test3_CrumbStateTransitions verifies state transitions (draft -> ready -> taken -> completed).
+// Test3_CrumbStateTransitions verifies state transitions (draft -> ready -> taken -> pebble).
 func Test3_CrumbStateTransitions(t *testing.T) {
 	env := NewTestEnv(t)
 	env.MustRunCupboard("init")
@@ -134,12 +134,12 @@ func Test3_CrumbStateTransitions(t *testing.T) {
 		t.Errorf("expected state taken, got %q", crumb.State)
 	}
 
-	// Transition to completed
-	env.MustRunCupboard("set", "crumbs", crumbID, `{"CrumbID":"`+crumbID+`","Name":"Implement feature X","State":"completed"}`)
+	// Transition to pebble (completed successfully)
+	env.MustRunCupboard("set", "crumbs", crumbID, `{"CrumbID":"`+crumbID+`","Name":"Implement feature X","State":"pebble"}`)
 	getResult = env.MustRunCupboard("get", "crumbs", crumbID)
 	crumb = ParseJSON[Crumb](t, getResult.Stdout)
-	if crumb.State != "completed" {
-		t.Errorf("expected state completed, got %q", crumb.State)
+	if crumb.State != "pebble" {
+		t.Errorf("expected state pebble, got %q", crumb.State)
 	}
 }
 
@@ -155,9 +155,9 @@ func Test4_QueryCrumbsWithFilters(t *testing.T) {
 	env.MustRunCupboard("set", "crumbs", "", `{"Name":"Crumb 2","State":"draft"}`)
 	env.MustRunCupboard("set", "crumbs", "", `{"Name":"Crumb 3","State":"draft"}`)
 
-	// Transition crumb1 to completed
+	// Transition crumb1 to pebble
 	env.MustRunCupboard("set", "crumbs", crumb1.CrumbID,
-		`{"CrumbID":"`+crumb1.CrumbID+`","Name":"Crumb 1","State":"completed"}`)
+		`{"CrumbID":"`+crumb1.CrumbID+`","Name":"Crumb 1","State":"pebble"}`)
 
 	// Query draft crumbs (should be 2)
 	draftResult := env.MustRunCupboard("list", "crumbs", "State=draft")
@@ -166,11 +166,11 @@ func Test4_QueryCrumbsWithFilters(t *testing.T) {
 		t.Errorf("expected 2 draft crumbs, got %d", len(draftCrumbs))
 	}
 
-	// Query completed crumbs (should be 1)
-	completedResult := env.MustRunCupboard("list", "crumbs", "State=completed")
-	completedCrumbs := ParseJSON[[]Crumb](t, completedResult.Stdout)
-	if len(completedCrumbs) != 1 {
-		t.Errorf("expected 1 completed crumb, got %d", len(completedCrumbs))
+	// Query pebble crumbs (should be 1)
+	pebbleResult := env.MustRunCupboard("list", "crumbs", "State=pebble")
+	pebbleCrumbs := ParseJSON[[]Crumb](t, pebbleResult.Stdout)
+	if len(pebbleCrumbs) != 1 {
+		t.Errorf("expected 1 pebble crumb, got %d", len(pebbleCrumbs))
 	}
 
 	// Query all crumbs (should be 3)
@@ -303,25 +303,25 @@ func Test9_ArchiveCrumb(t *testing.T) {
 	crumb1Result := env.MustRunCupboard("set", "crumbs", "", `{"Name":"Crumb to keep","State":"draft"}`)
 	ParseJSON[Crumb](t, crumb1Result.Stdout)
 
-	crumb2Result := env.MustRunCupboard("set", "crumbs", "", `{"Name":"Crumb to archive","State":"draft"}`)
+	crumb2Result := env.MustRunCupboard("set", "crumbs", "", `{"Name":"Crumb to dust","State":"draft"}`)
 	crumb2 := ParseJSON[Crumb](t, crumb2Result.Stdout)
 
-	// Archive crumb2
+	// Dust crumb2 (mark as failed/abandoned)
 	env.MustRunCupboard("set", "crumbs", crumb2.CrumbID,
-		`{"CrumbID":"`+crumb2.CrumbID+`","Name":"Crumb to archive","State":"archived"}`)
+		`{"CrumbID":"`+crumb2.CrumbID+`","Name":"Crumb to dust","State":"dust"}`)
 
 	// Verify state
 	getResult := env.MustRunCupboard("get", "crumbs", crumb2.CrumbID)
 	crumb2 = ParseJSON[Crumb](t, getResult.Stdout)
-	if crumb2.State != "archived" {
-		t.Errorf("expected crumb state archived, got %q", crumb2.State)
+	if crumb2.State != "dust" {
+		t.Errorf("expected crumb state dust, got %q", crumb2.State)
 	}
 
-	// Verify archived crumb not in draft list
+	// Verify dust crumb not in draft list
 	draftResult := env.MustRunCupboard("list", "crumbs", "State=draft")
 	draftCrumbs := ParseJSON[[]Crumb](t, draftResult.Stdout)
 	if len(draftCrumbs) != 1 {
-		t.Errorf("expected 1 draft crumb after archive, got %d", len(draftCrumbs))
+		t.Errorf("expected 1 draft crumb after dust, got %d", len(draftCrumbs))
 	}
 }
 
@@ -403,9 +403,9 @@ func Test11_FullWorkflowValidation(t *testing.T) {
 	crumb3Result := env.MustRunCupboard("set", "crumbs", "", `{"Name":"Try approach A","State":"draft"}`)
 	crumb3 := ParseJSON[Crumb](t, crumb3Result.Stdout)
 
-	// Transition crumb1 through states to completed
+	// Transition crumb1 through states to pebble (completed successfully)
 	env.MustRunCupboard("set", "crumbs", crumb1.CrumbID,
-		`{"CrumbID":"`+crumb1.CrumbID+`","Name":"Implement feature X","State":"completed"}`)
+		`{"CrumbID":"`+crumb1.CrumbID+`","Name":"Implement feature X","State":"pebble"}`)
 
 	// Create 2 trails
 	trail1Result := env.MustRunCupboard("set", "trails", "", `{"State":"active"}`)
@@ -426,9 +426,9 @@ func Test11_FullWorkflowValidation(t *testing.T) {
 	env.MustRunCupboard("set", "trails", trail2.TrailID,
 		`{"TrailID":"`+trail2.TrailID+`","State":"abandoned"}`)
 
-	// Archive crumb3 (from abandoned trail)
+	// Dust crumb3 (from abandoned trail - mark as failed/abandoned)
 	env.MustRunCupboard("set", "crumbs", crumb3.CrumbID,
-		`{"CrumbID":"`+crumb3.CrumbID+`","Name":"Try approach A","State":"archived"}`)
+		`{"CrumbID":"`+crumb3.CrumbID+`","Name":"Try approach A","State":"dust"}`)
 
 	// Final validation - counts
 	allCrumbs := ParseJSON[[]Crumb](t, env.MustRunCupboard("list", "crumbs").Stdout)
@@ -446,17 +446,17 @@ func Test11_FullWorkflowValidation(t *testing.T) {
 	}
 
 	// State counts
-	completedCrumbs := ParseJSON[[]Crumb](t, env.MustRunCupboard("list", "crumbs", "State=completed").Stdout)
-	archivedCrumbs := ParseJSON[[]Crumb](t, env.MustRunCupboard("list", "crumbs", "State=archived").Stdout)
+	pebbleCrumbs := ParseJSON[[]Crumb](t, env.MustRunCupboard("list", "crumbs", "State=pebble").Stdout)
+	dustCrumbs := ParseJSON[[]Crumb](t, env.MustRunCupboard("list", "crumbs", "State=dust").Stdout)
 	draftCrumbs := ParseJSON[[]Crumb](t, env.MustRunCupboard("list", "crumbs", "State=draft").Stdout)
 	completedTrails := ParseJSON[[]Trail](t, env.MustRunCupboard("list", "trails", "State=completed").Stdout)
 	abandonedTrails := ParseJSON[[]Trail](t, env.MustRunCupboard("list", "trails", "State=abandoned").Stdout)
 
-	if len(completedCrumbs) != 1 {
-		t.Errorf("expected 1 completed crumb, got %d", len(completedCrumbs))
+	if len(pebbleCrumbs) != 1 {
+		t.Errorf("expected 1 pebble crumb, got %d", len(pebbleCrumbs))
 	}
-	if len(archivedCrumbs) != 1 {
-		t.Errorf("expected 1 archived crumb, got %d", len(archivedCrumbs))
+	if len(dustCrumbs) != 1 {
+		t.Errorf("expected 1 dust crumb, got %d", len(dustCrumbs))
 	}
 	if len(draftCrumbs) != 1 {
 		t.Errorf("expected 1 draft crumb, got %d", len(draftCrumbs))
