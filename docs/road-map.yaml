@@ -10,6 +10,12 @@ prioritization_rules:
   - Minor releases (X.1, X.2) add to completed releases
   - Unscheduled (99.0) only when all scheduled releases complete
 
+updating_rules:
+  - Update use case status when completed
+  - Assign new use cases to existing release if scope fits
+  - Create minor release (e.g., 01.1) for additions to completed release
+  - Add to 99.0 if not yet scheduled
+
 releases:
   - version: "00.0"
     name: Cross-Release Milestones
