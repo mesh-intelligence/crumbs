@@ -50,7 +50,7 @@ package "Future Backends" {
 
 Crumbs have a lifecycle driven by state transitions and trail operations. State is a core field on the Crumb struct, not a property (see prd-crumbs-interface R1, R2).
 
-**Crumb states** (prd-crumbs-interface R2): `draft` → `pending` → `ready` → `taken` → `completed` or `failed` → `archived`. Initial state on creation is `draft`. CrumbTable tracks state but does not enforce transitions—agents or coordination layers define transition rules.
+**Crumb states** (prd-crumbs-interface R2): `draft` → `pending` → `ready` → `taken` → `pebble` or `dust`. Terminal states are `pebble` (completed successfully) and `dust` (failed or abandoned). Initial state on creation is `draft`. CrumbTable tracks state but does not enforce transitions—agents or coordination layers define transition rules.
 
 **Trail states** (prd-trails-interface R2): `active` → `completed` or `abandoned`. When a trail completes, belongs_to links are removed and crumbs become permanent. When a trail is abandoned, all crumbs on the trail are deleted—the exploration failed and you backtrack.
 
@@ -115,7 +115,7 @@ All entity types use this same interface. Get and Fetch return `any`; callers ty
 
 ### Entity Types
 
-Entities are plain structs with fields. Entity methods (SetState, Complete, etc.) modify the struct in memory; callers must call `Table.Set` to persist changes. This separates data access from business logic.
+Entities are plain structs with fields. Entity methods (SetState, Pebble, Dust, etc.) modify the struct in memory; callers must call `Table.Set` to persist changes. This separates data access from business logic.
 
 | Entity | Description | Key fields | PRD |
 |--------|-------------|------------|-----|
@@ -169,7 +169,7 @@ Attach is idempotent (returns ErrAlreadyAttached if called twice). Detach blocks
 
 **Cupboard API (pkg/types)**: Public types and interfaces. Applications import this package to use the Cupboard interface, Table interface, and entity types (Crumb, Trail, Property, Category, Stash, Metadata, Link). The Cupboard interface provides `GetTable(name)` which returns a uniform Table interface for any entity type (prd-cupboard-core R2, R3).
 
-**Entity Types (pkg/types)**: Structs representing domain objects. Each entity has an ID field (UUID v7) and domain-specific fields. Entity methods (e.g., `Crumb.SetState`, `Trail.Complete`) modify the struct in memory; callers persist via `Table.Set`. Entity types are defined in their respective PRDs.
+**Entity Types (pkg/types)**: Structs representing domain objects. Each entity has an ID field (UUID v7) and domain-specific fields. Entity methods (e.g., `Crumb.SetState`, `Crumb.Pebble`, `Trail.Complete`) modify the struct in memory; callers persist via `Table.Set`. Entity types are defined in their respective PRDs.
 
 **SQLite Backend (internal/sqlite)**: Primary backend for local development. JSON files are the source of truth; SQLite (modernc.org/sqlite, pure Go) serves as a query cache. On startup, JSON is loaded into SQLite. Writes persist to JSON first, then update SQLite. Implements the Cupboard and Table interfaces (prd-sqlite-backend). Hydrates table rows into entity objects on Get/Fetch, and dehydrates entity objects to rows on Set.
 
