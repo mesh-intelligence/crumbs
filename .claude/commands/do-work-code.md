@@ -62,7 +62,7 @@ When you close the **last issue in an epic** (all child tasks complete), perform
 7. **Evaluate use case completion**:
    - Identify which use case(s) this epic contributes to
    - Review success criteria in `docs/use-cases/`
-   - If all criteria are met, update ROADMAP.md to mark the use case status as "Complete"
+   - If all criteria are met, update road-map.yaml to mark the use case status as "Complete"
    - If not complete, note what remains and ensure follow-up tasks exist
 8. **Summarize epic completion**: run `./scripts/stats.sh` and report:
    - What was built (components, features)

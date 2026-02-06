@@ -244,7 +244,7 @@ crumbs/
 
 ## Implementation Status
 
-We are currently in release 01.0 (core storage with SQLite backend). See ROADMAP.md for the full release schedule, use case status, and prioritization rules.
+We are currently in release 01.0 (core storage with SQLite backend). See road-map.yaml for the full release schedule, use case status, and prioritization rules.
 
 Success criteria (from VISION): operations complete with low latency, agents integrate the library quickly, trail workflows feel natural for coding agents exploring implementation approaches.
 
@@ -253,7 +253,7 @@ Success criteria (from VISION): operations complete with low latency, agents int
 | Document | Purpose |
 |----------|---------|
 | VISION.md | What we are building and why; success criteria and boundaries |
-| ROADMAP.md | Release schedule, use cases, prioritization rules |
+| road-map.yaml | Release schedule, use cases, prioritization rules |
 | prd-cupboard-core.md | Cupboard interface, configuration, lifecycle |
 | prd-sqlite-backend.md | SQLite backend internals, JSON↔SQLite sync, graph model |
 | prd-crumbs-interface.md | Crumb entity, state transitions, property methods |

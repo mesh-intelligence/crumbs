@@ -63,7 +63,7 @@ When you close the **last issue in an epic** (all child tasks complete):
 3. **Evaluate use case completion**:
    - Identify which use case(s) this epic contributes to
    - Review success criteria in `docs/use-cases/`
-   - If all criteria are met, update ROADMAP.md to mark the use case status as "Complete"
+   - If all criteria are met, update road-map.yaml to mark the use case status as "Complete"
    - If not complete, note what remains and ensure follow-up tasks exist
 4. **File follow-up issues** for any gaps discovered
 5. **Summarize epic completion**: run `./scripts/stats.sh` and report what was built and use case status
@@ -72,6 +72,6 @@ IMPORTANT:
 - Never edit `.beads/` by hand; use `bd` only.
 - Always commit `.beads/issues.jsonl` with your doc changes.
 - Track token usage and lines of code for every issue closed.
-- **Update ROADMAP.md** when use cases are completed.
+- **Update road-map.yaml** when use cases are completed.
 
 Show what you completed and what's next. When summarizing, run `./scripts/stats.sh` and include its output.

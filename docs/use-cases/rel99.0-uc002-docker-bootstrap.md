@@ -23,9 +23,9 @@ The actor is a coding agent (Claude) running inside a Docker container with Go, 
 
 ### Phase 2: Generate Release 01.0
 
-4. **Read documentation**: Agent reads VISION.md, ARCHITECTURE.md, ROADMAP.md, PRDs, and use cases from the mounted docs directory.
+4. **Read documentation**: Agent reads VISION.md, ARCHITECTURE.md, road-map.yaml, PRDs, and use cases from the mounted docs directory.
 
-5. **Create work items**: Using beads, create epics and issues for release 01.0 based on ROADMAP.md:
+5. **Create work items**: Using beads, create epics and issues for release 01.0 based on road-map.yaml:
    ```bash
    bd create --title "Release 01.0: Core Storage" --epic
    bd create --title "Implement Cupboard interface" --parent <epic-id>
@@ -59,7 +59,7 @@ The actor is a coding agent (Claude) running inside a Docker container with Go, 
     ```bash
     ./crumbs add "Implement PropertyTable.Define"
     ./crumbs add "Implement property backfill"
-    # ... additional items from ROADMAP.md
+    # ... additional items from road-map.yaml
     ```
 
 11. **Retire beads**: Stop using beads for new work in this container. Beads data remains for history but new tracking uses crumbs.

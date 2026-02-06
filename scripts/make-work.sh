@@ -216,7 +216,7 @@ build_prompt() {
   cat <<'PROMPT_START'
 # Make Work
 
-Read VISION.md, ARCHITECTURE.md, ROADMAP.md, docs/product-requirements/README.md, and docs/use-cases/README.md if they exist.
+Read VISION.md, ARCHITECTURE.md, road-map.yaml, docs/product-requirements/README.md, and docs/use-cases/README.md if they exist.
 
 ## Existing Work
 
@@ -239,14 +239,14 @@ Summarize:
 1. What problem this project solves
 2. The high-level architecture (major components and how they fit together)
 3. The current state of implementation (what's done, what's in progress)
-4. **Current release**: Which release we are working on and which use cases remain (check ROADMAP.md)
+4. **Current release**: Which release we are working on and which use cases remain (check road-map.yaml)
 5. Current repo size: run \`./scripts/stats.sh\` and include its output (Go production/test LOC, doc words)
 
 Based on this, propose next steps using **release priority**:
 
-1. **Focus on earliest incomplete release**: Prioritize completing use cases from the current release in ROADMAP.md
+1. **Focus on earliest incomplete release**: Prioritize completing use cases from the current release in road-map.yaml
 2. **Early preview allowed**: Later use cases can be partially implemented if they share functionality with the current release
-3. **Assign issues to releases**: Each issue should map to a use case in ROADMAP.md; if uncertain, use release 99.0 (unscheduled)
+3. **Assign issues to releases**: Each issue should map to a use case in road-map.yaml; if uncertain, use release 99.0 (unscheduled)
 4. If epics exist: suggest new issues to add to existing epics, or identify what to work on next
 5. If no epics exist: suggest epics to create and initial issues for each
 6. Identify dependencies - what should be built first and why?

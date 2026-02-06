@@ -41,7 +41,7 @@ A **use case** describes a concrete usage of the architecture. It specifies a **
 
 ### Release Numbering
 
-See ROADMAP.md for the authoritative release schedule and use case status. Summary:
+See road-map.yaml for the authoritative release schedule and use case status. Summary:
 
 | Release | Focus |
 |---------|-------|
