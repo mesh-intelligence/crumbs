@@ -88,7 +88,7 @@ type Cupboard interface {
 ```go
 type Table interface {
     Get(id string) (any, error)
-    Set(id string, data any) error
+    Set(id string, data any) (string, error)
     Delete(id string) error
     Fetch(filter map[string]any) ([]any, error)
 }
@@ -96,7 +96,7 @@ type Table interface {
 
 3.2. Get retrieves an entity by its ID and returns the entity object or ErrNotFound
 
-3.3. Set persists an entity object. If the entity has an ID field set, it updates the existing entity; if ID is empty or zero, it generates a new ID and creates the entity
+3.3. Set persists an entity object. If the id parameter is empty, generates a new UUID v7 and creates the entity. If the id parameter is provided, updates the existing entity or creates it if not found. Returns the actual ID (generated or provided) and any error
 
 3.4. Delete removes an entity by ID. It must return ErrNotFound if the entity does not exist
 
@@ -151,22 +151,46 @@ var ErrCupboardDetached = errors.New("cupboard is detached")
 
 ### R7: Standard Error Types
 
-7.1. The following sentinel errors must be defined:
+7.1. Cupboard lifecycle errors (defined in cupboard.go):
 
 ```go
 var ErrCupboardDetached = errors.New("cupboard is detached")
 var ErrAlreadyAttached = errors.New("cupboard is already attached")
 var ErrTableNotFound = errors.New("table not found")
-var ErrNotFound = errors.New("entity not found")
 ```
 
-7.2. Backends may define additional backend-specific errors but must use these standard errors where applicable
+7.2. Table operation errors (defined in table.go):
+
+```go
+var ErrNotFound = errors.New("entity not found")
+var ErrInvalidID = errors.New("invalid entity ID")
+var ErrInvalidData = errors.New("invalid entity data")
+```
+
+7.3. Entity method errors (defined in table.go):
+
+```go
+var ErrInvalidState = errors.New("invalid state value")
+var ErrInvalidTransition = errors.New("invalid state transition")
+var ErrInvalidName = errors.New("invalid name")
+var ErrPropertyNotFound = errors.New("property not found")
+var ErrTypeMismatch = errors.New("type mismatch")
+var ErrInvalidCategory = errors.New("invalid category")
+var ErrInvalidStashType = errors.New("invalid stash type or operation")
+var ErrLockHeld = errors.New("lock is held")
+var ErrNotLockHolder = errors.New("caller is not the lock holder")
+var ErrInvalidHolder = errors.New("holder cannot be empty")
+var ErrAlreadyInTrail = errors.New("crumb already belongs to a trail")
+var ErrNotInTrail = errors.New("crumb does not belong to the trail")
+```
+
+7.4. Backends may define additional backend-specific errors but must use these standard errors where applicable
 
 ### R8: Entity ID Generation
 
 8.1. All entity IDs must be UUID v7 (time-ordered UUIDs per RFC 9562)
 
-8.2. Backends generate UUIDs when Set is called with an entity that has no ID or an empty ID field
+8.2. Backends generate UUIDs when Set is called with an empty id parameter
 
 8.3. UUID v7 provides sortability by creation time without separate timestamp columns
 
@@ -187,11 +211,11 @@ var ErrNotFound = errors.New("entity not found")
 - [ ] Config struct defined with Backend, DataDir, DoltConfig, DynamoDBConfig fields
 - [ ] DoltConfig and DynamoDBConfig structs defined with required fields
 - [ ] Cupboard interface defined with GetTable, Attach, Detach methods
-- [ ] Table interface defined with Get, Set, Delete, Fetch methods
+- [ ] Table interface defined with Get, Set (returning string, error), Delete, Fetch methods
 - [ ] Standard table names documented in a table
 - [ ] Attach method behavior documented (idempotent, validates config)
 - [ ] Detach method behavior documented (idempotent, blocks until complete)
-- [ ] Standard error types defined (ErrCupboardDetached, ErrAlreadyAttached, ErrTableNotFound, ErrNotFound)
+- [ ] Standard error types defined: cupboard lifecycle errors, table operation errors, and entity method errors
 - [ ] UUID v7 requirement for entity IDs documented
 - [ ] All requirements numbered and specific
 - [ ] File saved at docs/product-requirements/prd-cupboard-core.md
