@@ -2,7 +2,7 @@
 
 ## Summary
 
-A developer creates a trail to explore an implementation approach, adds crumbs to the trail, and either completes or abandons the trail. This tracer bullet validates the trail lifecycle and the atomic cleanup behavior when abandoning exploratory work.
+A developer creates a trail to explore an implementation approach, adds crumbs to the trail via belongs_to links, and either completes or abandons the trail. This tracer bullet validates the trail lifecycle and the atomic cleanup behavior when abandoning exploratory work.
 
 ## Actor and Trigger
 
@@ -10,43 +10,129 @@ The actor is a coding agent or developer exploring alternative implementation ap
 
 ## Flow
 
-1. **Open cupboard**: Call `OpenCupboard` with a SQLite backend. Ensure the cupboard is attached and tables are accessible.
+1. **Create cupboard and get tables**: Construct a Cupboard and call `Attach(config)`. Get the trails, crumbs, and links tables.
 
-2. **Create a parent crumb (optional)**: Call `Crumbs().Add("Implement caching layer")` to create a task that the trail will explore approaches for. This is optional; trails can exist without a parent.
+```go
+cupboard := NewCupboard()
+cupboard.Attach(config)
+trailsTable, _ := cupboard.GetTable("trails")
+crumbsTable, _ := cupboard.GetTable("crumbs")
+linksTable, _ := cupboard.GetTable("links")
+```
 
-3. **Create a trail**: Call `Trails().Add(parentCrumbID)` or `Trails().Add(nil)` to create a new trail. The trail starts in "active" state.
+2. **Create a parent crumb (optional)**: Create a task that the trail will explore approaches for. This is optional; trails can exist without a parent.
 
-4. **Verify trail state**: Call `Trails().Get(trailID)`. Confirm the trail exists with state "active" and the correct parent (or nil).
+```go
+parentCrumb := &Crumb{Name: "Implement caching layer"}
+parentID, _ := crumbsTable.Set("", parentCrumb)
+```
 
-5. **Add exploration crumbs**: Create crumbs for the exploration:
-   - Call `Crumbs().Add("Try approach A: in-memory cache")`
-   - Call `Trails().AddCrumb(trailID, crumbID)` to associate the crumb with the trail
+3. **Create a trail**: Construct a Trail and call `trailsTable.Set("", trail)`. The trail starts in "active" state.
 
-6. **Add more crumbs to trail**: Repeat step 5 for additional exploration:
-   - `Crumbs().Add("Try approach B: Redis cache")`
-   - `Trails().AddCrumb(trailID, crumbID)`
+```go
+trail := &Trail{ParentCrumbID: &parentID}
+trailID, _ := trailsTable.Set("", trail)
+```
 
-7. **List crumbs on trail**: Call `Trails().GetCrumbs(trailID)`. Verify both exploration crumbs are returned.
+4. **Verify trail state**: Retrieve the trail and confirm it exists with state "active" and the correct parent.
 
-8. **Remove a crumb from trail**: Call `Trails().RemoveCrumb(trailID, crumbID)` to remove approach B. The crumb is removed from the trail but not deleted.
+```go
+entity, _ := trailsTable.Get(trailID)
+trail := entity.(*Trail)
+// trail.State should be "active"
+// trail.ParentCrumbID should point to parentID
+```
 
-9. **Abandon the trail**: Call `Trails().Abandon(trailID)`. The operation:
-   - Changes trail state to "abandoned"
-   - Deletes all crumbs that belong exclusively to this trail
+5. **Add exploration crumbs**: Create crumbs for the exploration and associate them with the trail via belongs_to links.
+
+```go
+crumbA := &Crumb{Name: "Try approach A: in-memory cache"}
+crumbAID, _ := crumbsTable.Set("", crumbA)
+
+// Associate crumb with trail via belongs_to link
+linkA := &Link{LinkType: "belongs_to", FromID: crumbAID, ToID: trailID}
+linksTable.Set("", linkA)
+```
+
+6. **Add more crumbs to trail**: Repeat step 5 for additional exploration.
+
+```go
+crumbB := &Crumb{Name: "Try approach B: Redis cache"}
+crumbBID, _ := crumbsTable.Set("", crumbB)
+
+linkB := &Link{LinkType: "belongs_to", FromID: crumbBID, ToID: trailID}
+linksTable.Set("", linkB)
+```
+
+7. **List crumbs on trail**: Query the crumbs table with a trail_id filter to get crumbs belonging to this trail.
+
+```go
+filter := map[string]any{"trail_id": trailID}
+entities, _ := crumbsTable.Fetch(filter)
+// Should return both exploration crumbs
+```
+
+8. **Remove a crumb from trail**: Delete the belongs_to link to disassociate the crumb without deleting it.
+
+```go
+// Find the link for crumbB and delete it
+linksTable.Delete(linkBID)
+// crumbB is now no longer on the trail but still exists
+```
+
+9. **Abandon the trail**: Call the Abandon entity method, then persist with Table.Set. When persisted, the backend:
+   - Deletes all crumbs that belong to this trail (via belongs_to links)
    - Leaves crumbs that were removed (step 8) intact
 
-10. **Verify cleanup**: Call `Crumbs().Get()` for the deleted crumb IDs. Verify they return ErrNotFound. The removed crumb (approach B) should still exist.
+```go
+entity, _ := trailsTable.Get(trailID)
+trail := entity.(*Trail)
+trail.Abandon()                         // updates state in memory
+trailsTable.Set(trail.TrailID, trail)   // backend cascades: deletes crumbA
+```
 
-11. **Create another trail and complete it**: Create a new trail, add crumbs, then call `Trails().Complete(trailID)`. The operation:
-    - Changes trail state to "completed"
+10. **Verify cleanup**: Query for the deleted crumb. Verify it returns ErrNotFound. The removed crumb (approach B) should still exist.
+
+```go
+_, err := crumbsTable.Get(crumbAID)  // should be ErrNotFound
+_, err = crumbsTable.Get(crumbBID)   // should succeed (was removed before abandon)
+```
+
+11. **Create another trail and complete it**: Create a new trail, add crumbs, then complete it using the Complete entity method and Table.Set. When persisted, the backend:
     - Removes belongs_to links (crumbs become permanent)
     - Crumbs remain in the database
 
-12. **Verify completion**: Crumbs from the completed trail should still exist and be queryable via `Crumbs().Fetch()`.
+```go
+trail2 := &Trail{}
+trail2ID, _ := trailsTable.Set("", trail2)
 
-13. **Filter crumbs by trail**: Call `Crumbs().Fetch({"trail_id": trailID})`. Verify only crumbs associated with that trail are returned.
+crumbC := &Crumb{Name: "Successful approach"}
+crumbCID, _ := crumbsTable.Set("", crumbC)
+linkC := &Link{LinkType: "belongs_to", FromID: crumbCID, ToID: trail2ID}
+linksTable.Set("", linkC)
 
-14. **Close the cupboard**: Call `Close()`.
+entity, _ := trailsTable.Get(trail2ID)
+trail2 := entity.(*Trail)
+trail2.Complete()                         // updates state in memory
+trailsTable.Set(trail2.TrailID, trail2)   // backend cascades: removes links
+```
+
+12. **Verify completion**: Crumbs from the completed trail should still exist and be queryable.
+
+```go
+entity, _ := crumbsTable.Get(crumbCID)  // should succeed
+crumbC := entity.(*Crumb)               // crumb is now permanent
+```
+
+13. **Filter crumbs by trail**: After completion, crumbs no longer have belongs_to links, so trail_id filter returns empty.
+
+```go
+filter := map[string]any{"trail_id": trail2ID}
+entities, _ := crumbsTable.Fetch(filter)
+// Should return empty slice (links were removed on complete)
+```
+
+14. **Detach the cupboard**: Call `cupboard.Detach()`.
 
 ## Architecture Touchpoints
 
@@ -54,32 +140,34 @@ This use case exercises the following interfaces and components:
 
 | Interface | Operations Used |
 |-----------|-----------------|
-| Cupboard | OpenCupboard, Close |
-| CrumbTable | Add, Get, Fetch (with trail filter) |
-| TrailTable | Add, Get, AddCrumb, RemoveCrumb, GetCrumbs, Complete, Abandon |
+| Cupboard | Attach, Detach, GetTable |
+| Table (crumbs) | Get, Set, Delete, Fetch (with trail_id filter) |
+| Table (trails) | Get, Set |
+| Table (links) | Get, Set, Delete, Fetch |
+| Trail entity | Complete, Abandon |
 
 We validate:
 
-- Trail creation with optional parent crumb (prd-trails-interface R1, R2)
-- Adding and removing crumbs from trails (prd-trails-interface R3, R4)
-- Trail completion makes crumbs permanent (prd-trails-interface R5)
+- Trail creation via Table.Set (prd-trails-interface R3)
+- Crumb-trail membership via belongs_to links (prd-trails-interface R7)
+- Trail completion makes crumbs permanent by removing links (prd-trails-interface R5)
 - Trail abandonment deletes associated crumbs atomically (prd-trails-interface R6)
-- Trail filtering in Fetch (prd-crumbs-interface R8)
-- belongs_to link management (prd-links-interface)
+- Trail_id filter in crumbs Fetch (prd-crumbs-interface R9)
+- belongs_to link management (prd-sqlite-backend)
 
 ## Success Criteria
 
 The demo succeeds when:
 
-- [ ] Trails().Add() creates a trail in "active" state
-- [ ] Trails().AddCrumb() associates a crumb with the trail
-- [ ] Trails().GetCrumbs() returns all crumbs on the trail
-- [ ] Trails().RemoveCrumb() disassociates without deleting the crumb
-- [ ] Trails().Abandon() deletes trail's crumbs atomically
-- [ ] Removed crumbs survive trail abandonment
-- [ ] Trails().Complete() makes crumbs permanent (removes belongs_to)
+- [ ] Trail created via Table.Set starts in "active" state
+- [ ] belongs_to links associate crumbs with trails
+- [ ] Fetch with trail_id filter returns crumbs on that trail
+- [ ] Deleting belongs_to link disassociates without deleting the crumb
+- [ ] trail.Abandon() then Table.Set deletes trail's crumbs atomically
+- [ ] Crumbs removed from trail before abandon survive
+- [ ] trail.Complete() then Table.Set removes belongs_to links
 - [ ] Completed trail's crumbs remain queryable
-- [ ] Fetch with trail_id filter returns only that trail's crumbs
+- [ ] Trail state is "completed" or "abandoned" after respective operations
 - [ ] No orphan crumbs or links after abandonment
 
 Observable demo script:
@@ -108,7 +196,7 @@ This use case does not cover:
 - rel01.0-uc001 (Cupboard lifecycle) must pass
 - rel01.0-uc003 (Core CRUD) must pass
 - prd-trails-interface must be implemented
-- prd-links-interface (belongs_to) must be implemented
+- prd-sqlite-backend (links table) must be implemented
 
 ## Risks and Mitigations
 

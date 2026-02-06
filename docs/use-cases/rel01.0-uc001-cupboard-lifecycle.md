@@ -20,7 +20,7 @@ The actor is a developer integrating the Crumbs library into their application. 
 
 5. **Handle attach errors**: If Attach fails (invalid config, I/O error, database corruption), log the error and exit or retry with corrected configuration. If Attach is called on an already-attached cupboard, it returns ErrAlreadyAttached.
 
-6. **Access tables**: Call `GetTable("crumbs")` to obtain the CrumbTable. Call `GetTable("properties")` for PropertyTable. Each GetTable call returns a Table interface ready for Get, Set, Delete, and Fetch operations. Calling GetTable with an unknown name returns ErrTableNotFound.
+6. **Access tables**: Call `GetTable("crumbs")` to obtain a Table for crumbs. Call `GetTable("properties")` for a Table for properties. Each GetTable call returns a Table interface ready for Get, Set, Delete, and Fetch operations. Calling GetTable with an unknown name returns ErrTableNotFound.
 
 7. **Verify connection**: Perform a simple operation to confirm the backend is working. For example, call `Fetch(map[string]any{})` on the crumbs table to list all crumbs (initially empty). A successful response confirms the connection.
 

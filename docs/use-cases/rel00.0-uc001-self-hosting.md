@@ -90,24 +90,30 @@ trail := &Trail{ParentCrumbID: nil}
 trailsTable.Set("", trail)  // trail created in active state
 ```
 
-10. **Add exploration crumbs**: Create crumbs and add them to the trail:
+10. **Add exploration crumbs**: Create crumbs and associate them with the trail via belongs_to links:
 
 ```go
 crumb := &Crumb{Name: "Try approach A"}
 crumbsTable.Set("", crumb)
-trail.AddCrumb(cupboard, crumb.CrumbID)
+
+// Associate crumb with trail via links table
+linksTable, _ := cupboard.GetTable("links")
+link := &Link{LinkType: "belongs_to", FromID: crumb.CrumbID, ToID: trail.TrailID}
+linksTable.Set("", link)
 ```
 
-11. **Abandon failed approaches**: If the approach fails, abandon the trail. All crumbs on the trail are deleted atomically:
+11. **Abandon failed approaches**: If the approach fails, abandon the trail. When persisted, the backend deletes all crumbs on the trail atomically:
 
 ```go
-trail.Abandon(cupboard)  // deletes all crumbs, marks trail abandoned
+trail.Abandon()                          // updates state in memory
+trailsTable.Set(trail.TrailID, trail)    // backend cascades: deletes crumbs
 ```
 
-12. **Complete successful approaches**: If the approach succeeds, complete the trail. Crumbs become permanent (belongs_to links removed):
+12. **Complete successful approaches**: If the approach succeeds, complete the trail. When persisted, crumbs become permanent (belongs_to links removed):
 
 ```go
-trail.Complete(cupboard)  // crumbs become permanent, trail marked completed
+trail.Complete()                         // updates state in memory
+trailsTable.Set(trail.TrailID, trail)    // backend cascades: removes links
 ```
 
 ### Phase 4: Shared State (after Stash entity)
@@ -127,7 +133,8 @@ trail.Complete(cupboard)  // crumbs become permanent, trail marked completed
 | Table (trails) | Get, Set, Delete, Fetch |
 | Table (stashes) | Get, Set, Delete, Fetch |
 | Crumb entity | SetState, Pebble, Dust, SetProperty, GetProperty |
-| Trail entity | AddCrumb, RemoveCrumb, GetCrumbs, Complete, Abandon |
+| Trail entity | Complete, Abandon |
+| Table (links) | Get, Set, Delete, Fetch |
 
 ## Success Criteria
 
@@ -136,7 +143,8 @@ The use case succeeds when:
 - [ ] Cupboard attaches to SQLite backend (`.crumbs/` directory)
 - [ ] All development work tracked via crumbs (not beads)
 - [ ] Agent can create, update, and query crumbs via Table interface
-- [ ] Agent uses Trail entity methods to explore implementation approaches
+- [ ] Agent uses Trail entity methods (Complete, Abandon) to manage exploration sessions
+- [ ] Crumb-trail membership managed via links table (belongs_to)
 - [ ] Abandoned trails delete crumbs atomically (no orphan crumbs)
 - [ ] Completed trails make crumbs permanent (remove belongs_to links)
 - [ ] System remains stable under self-hosting load
@@ -163,13 +171,17 @@ crumbsTable.Set(crumb.CrumbID, crumb)
 
 // Phase 3: Explore with trails
 trailsTable, _ := cupboard.GetTable("trails")
+linksTable, _ := cupboard.GetTable("links")
 trail := &Trail{}
 trailsTable.Set("", trail)
 exploreCrumb := &Crumb{Name: "Try optimistic locking"}
 crumbsTable.Set("", exploreCrumb)
-trail.AddCrumb(cupboard, exploreCrumb.CrumbID)
+// Associate crumb with trail via belongs_to link
+link := &Link{LinkType: "belongs_to", FromID: exploreCrumb.CrumbID, ToID: trail.TrailID}
+linksTable.Set("", link)
 // ... approach fails ...
-trail.Abandon(cupboard)  // deletes exploreCrumb atomically
+trail.Abandon()                        // updates state in memory
+trailsTable.Set(trail.TrailID, trail)  // backend cascades: deletes exploreCrumb
 
 // Phase 4: Share state (via stashes table)
 stashesTable, _ := cupboard.GetTable("stashes")

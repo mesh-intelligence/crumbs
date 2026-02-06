@@ -57,8 +57,8 @@ The actor is a coding agent (Claude) running inside a Docker container with Go, 
 
 10. **Import remaining work**: Create crumbs for release 02.0+ work items:
     ```bash
-    ./crumbs add "Implement PropertyTable.Define"
-    ./crumbs add "Implement property backfill"
+    ./crumbs add "Implement Property entity and Table operations"
+    ./crumbs add "Implement property backfill on creation"
     # ... additional items from road-map.yaml
     ```
 
