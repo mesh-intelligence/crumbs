@@ -291,7 +291,7 @@ CREATE INDEX idx_stash_history_version ON stash_history(stash_id, version);
 
 5.2. JSONL persistence must be atomic: write to temp file, fsync, then rename. This prevents corrupt files on crash.
 
-5.3. Write operations must persist immediately (no batching). This ensures JSONL files are always current.
+5.3. By default, write operations persist immediately (no batching). This ensures JSONL files are always current. The sync strategy is configurable via SQLiteConfig; see R16 for options.
 
 5.4. If JSONL persistence fails after SQLite commit, the operation must return an error. The next Attach will reload from JSONL (the source of truth), so SQLite and JSONL will reconcile.
 
@@ -590,6 +590,39 @@ type Table interface {
 
 15.8. After SQLite persistence, the entity must be written to the corresponding JSONL file following the atomic write pattern (R5.2).
 
+### R16: JSONL Sync Strategy
+
+16.1. The SQLite backend supports configurable sync strategies via SQLiteConfig.SyncStrategy:
+
+| Strategy | Behavior | Use case |
+|----------|----------|----------|
+| immediate | Sync every write to JSONL immediately | Default; safest, ensures JSONL is always current |
+| on_close | Defer all JSONL writes until Detach | High-throughput batch processing; accepts data loss risk on crash |
+| batch | Batch writes by count or time interval | Balance between performance and durability |
+
+16.2. When SyncStrategy is empty or "immediate", the backend writes to JSONL after every SQLite commit (current behavior per R5.3). This is the default.
+
+16.3. When SyncStrategy is "on_close", the backend defers JSONL writes. SQLite remains the write cache during the session. On Detach, all pending changes are flushed to JSONL files before closing. On crash, unwritten changes are lost; the next Attach loads from the (stale) JSONL files.
+
+16.4. When SyncStrategy is "batch", the backend queues writes and flushes to JSONL when either condition is met:
+
+- BatchSize writes have accumulated (default: 100)
+- BatchInterval seconds have elapsed since the last flush (default: 5 seconds)
+
+16.5. Batch mode configuration:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| SyncStrategy | string | "immediate" | Sync strategy: "immediate", "on_close", or "batch" |
+| BatchSize | int | 100 | Number of writes before flushing (batch mode only) |
+| BatchInterval | int | 5 | Seconds between flushes (batch mode only) |
+
+16.6. For batch mode, at least one of BatchSize or BatchInterval must be positive. If both are zero, validation fails.
+
+16.7. Atomic write semantics (R5.2) apply regardless of sync strategy. When flushing, each JSONL file is written atomically (temp file, fsync, rename).
+
+16.8. The sync strategy does not affect SQLite durability. SQLite transactions commit synchronously regardless of JSONL sync strategy.
+
 ## Non-Goals
 
 1. This PRD does not define the Cupboard interface operations. Those are in prd-cupboard-core and the interface PRDs.
@@ -615,6 +648,7 @@ type Table interface {
 - [ ] Table interface implementation specified (R13)
 - [ ] Entity hydration pattern documented (R14)
 - [ ] Entity persistence pattern documented (R15)
+- [ ] JSONL sync strategy options documented (R16)
 - [ ] File saved at docs/product-requirements/prd-sqlite-backend.md
 
 ## Constraints
