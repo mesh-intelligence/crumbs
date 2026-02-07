@@ -5,7 +5,7 @@ When implementing code (e.g. via the **do-work** command), code must correspond 
 ## Before Implementing
 
 1. **Identify related docs** from the issue, component, or area you are changing:
-   - **PRDs**: `docs/product-requirements/prd-*.md`
+   - **PRDs**: `docs/product-requirements/prd-*.yaml`
    - **Architecture**: `docs/ARCHITECTURE.md` (components, interfaces, protocols)
    - **Use cases**: `docs/use-cases/rel*-uc*-*.md`
    - **Test suites**: `docs/test-suites/test*.yaml`
@@ -66,7 +66,7 @@ When **do-work** is invoked:
 | Doc | Path | Use |
 |-----|------|-----|
 | Architecture | `docs/ARCHITECTURE.md` | Components, interfaces, protocols |
-| PRDs | `docs/product-requirements/prd-*.md` | Requirements, operations, data structures |
+| PRDs | `docs/product-requirements/prd-*.yaml` | Requirements, operations, data structures |
 | Use cases | `docs/use-cases/rel*-uc*-*.md` | Tracer-bullet flows, demo criteria |
 | Test suites | `docs/test-suites/test*.yaml` | Test cases with inputs and expected outputs |
 | Engineering guidelines | `docs/engineering/eng*.md` | Conventions and practices |

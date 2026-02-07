@@ -23,14 +23,14 @@ Documentation issues produce markdown (and optionally diagrams) under `docs/`. T
 | Deliverable type | Output location | Format rule | When to use |
 | ----------------- | ---------------- | ----------- | ------------ |
 | **ARCHITECTURE / docs** | `docs/ARCHITECTURE.md` or specific doc | documentation-standards | Updating system overview, components, diagrams, design decisions |
-| **PRD** | `docs/product-requirements/prd-[feature-name].md` | prd-format | New or updated product requirements; numbered requirements, Problem/Goals/Non-Goals |
+| **PRD** | `docs/product-requirements/prd-[feature-name].yaml` | prd-format | New or updated product requirements; numbered requirements, Problem/Goals/Non-Goals |
 | **Use case** | `docs/use-cases/rel[NN].[N]-uc[NNN]-[short-name].md` | use-case-format | Tracer-bullet flows, actor/trigger, demo criteria |
 | **Test suite** | `docs/test-suites/test[NNN]-[short-name].yaml` | test-case-format | Test cases with inputs and expected outputs |
 | **Engineering guideline** | `docs/engineering/eng[NN]-[short-name].md` | engineering-guideline-format | Conventions and practices |
 
 ### What to Put in the Issue
 
-- **File or directory path** – e.g. `docs/product-requirements/prd-feature-name.md`, `docs/use-cases/uc-scenario-name.md`
+- **File or directory path** – e.g. `docs/product-requirements/prd-feature-name.yaml`, `docs/use-cases/uc-scenario-name.md`
 - **Required sections** – List the sections from the format rule (e.g. for PRD: Problem, Goals, Requirements, Non-Goals, Acceptance Criteria)
 - **Scope or content hints** – Bullet points or short paragraphs for Problem, Goals, main requirements, and non-goals so the agent does not have to infer them
 - **Reference to format rule** – e.g. "Follow .claude/rules/prd-format.md" or "per prd-format rule"
@@ -41,10 +41,10 @@ Example (PRD issue):
 ```markdown
 ## Required Reading
 - docs/ARCHITECTURE.md § System Components
-- docs/product-requirements/prd-cupboard-core.md (interface contract)
+- docs/product-requirements/prd-cupboard-core.yaml (interface contract)
 
 ## Files to Create/Modify
-- docs/product-requirements/prd-feature-name.md (create)
+- docs/product-requirements/prd-feature-name.yaml (create)
 
 ## Required Sections (per prd-format rule)
 1. Problem - ...
@@ -55,7 +55,7 @@ Example (PRD issue):
 
 ## Acceptance Criteria
 - [ ] All required sections present
-- [ ] File saved as prd-feature-name.md
+- [ ] File saved as prd-feature-name.yaml
 ```
 
 ## Code Issues
@@ -74,7 +74,7 @@ Example (code issue):
 
 ```markdown
 ## Required Reading
-- docs/product-requirements/prd-crumbs-interface.md (CrumbTable contract)
+- docs/product-requirements/prd-crumbs-interface.yaml (CrumbTable contract)
 - pkg/types/cupboard.go (existing interface)
 
 ## Files to Create/Modify
@@ -110,7 +110,7 @@ When proposing or implementing code issues, keep implementation in **internal/**
 | Issue type | Output | Key sections in issue |
 | ---------- | ------ | ---------------------- |
 | Documentation (ARCHITECTURE, general docs) | `docs/*.md`, `docs/**/*.puml` | Required Reading, Files to Create/Modify, Requirements, Acceptance Criteria; follow documentation-standards |
-| Documentation (PRD) | `docs/product-requirements/prd-*.md` | Required Reading, Files to Create/Modify, Required sections (Problem, Goals, Requirements, Non-Goals, Acceptance Criteria), Acceptance Criteria; follow prd-format |
+| Documentation (PRD) | `docs/product-requirements/prd-*.yaml` | Required Reading, Files to Create/Modify, Required sections (Problem, Goals, Requirements, Non-Goals, Acceptance Criteria), Acceptance Criteria; follow prd-format |
 | Documentation (use case) | `docs/use-cases/rel*-uc*-*.md` | Required Reading, Files to Create/Modify, Summary, Actor/trigger, Flow, Success criteria; follow use-case-format |
 | Documentation (test suite) | `docs/test-suites/test*.yaml` | Required Reading, Files to Create/Modify, traces, preconditions, test_cases with inputs/expected; follow test-case-format |
 | Documentation (engineering guideline) | `docs/engineering/eng*.md` | Required Reading, Files to Create/Modify, Introduction, Body; follow engineering-guideline-format |

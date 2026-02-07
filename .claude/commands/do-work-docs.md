@@ -7,13 +7,13 @@ Read VISION.md and ARCHITECTURE.md for context. For PRDs also scan existing `doc
 ## 1. Select a documentation task
 
 1. Run `bd ready` to see available work.
-2. **Pick a documentation issue**: one whose description specifies a **documentation** deliverable (output path under `docs/`, e.g. `docs/product-requirements/prd-*.md`, `docs/use-cases/uc-*.md`, `docs/invention-disclosures/`, or `docs/ARCHITECTURE.md`). If the issue lists "File location", "PRD location", "Output path", or "Required sections" from a doc format rule, it is a documentation task.
+2. **Pick a documentation issue**: one whose description specifies a **documentation** deliverable (output path under `docs/`, e.g. `docs/product-requirements/prd-*.yaml`, `docs/use-cases/uc-*.md`, `docs/invention-disclosures/`, or `docs/ARCHITECTURE.md`). If the issue lists "File location", "PRD location", "Output path", or "Required sections" from a doc format rule, it is a documentation task.
 3. Run `bd update <issue-id> --status in_progress` to claim it.
 
 ## 2. Before writing
 
 1. **Read the issue** and note:
-   - **Output path** (exact file or directory, e.g. `docs/product-requirements/prd-task-tracking-auditing.md`).
+   - **Output path** (exact file or directory, e.g. `docs/product-requirements/prd-task-tracking-auditing.yaml`).
    - **Format rule** (e.g. prd-format, use-case-format, patent-disclosure-format, documentation-standards) and **required sections**.
    - **Scope or content hints** (Problem, Goals, requirements bullets, non-goals, etc.).
 2. **Open the format rule** (e.g. `.claude/rules/prd-format.md`, `.claude/rules/use-case-format.md`) and follow its structure and checklist.
@@ -47,7 +47,7 @@ Read VISION.md and ARCHITECTURE.md for context. For PRDs also scan existing `doc
    bd comments add <issue-id> "tokens: <count>, loc: <lines_added>+<lines_modified>"
    bd close <issue-id>
    ```
-4. **Commit** changes and `.beads/issues.jsonl`. **Commit message must state the deliverable and path** (e.g. `Add prd-task-tracking-auditing (docs/product-requirements/prd-task-tracking-auditing.md)`):
+4. **Commit** changes and `.beads/issues.jsonl`. **Commit message must state the deliverable and path** (e.g. `Add prd-task-tracking-auditing (docs/product-requirements/prd-task-tracking-auditing.yaml)`):
    ```bash
    git add -A
    git commit -m "Add <doc name> (<output path>)"
