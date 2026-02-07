@@ -43,13 +43,15 @@ This PRD defines the Trail entity: its struct fields and entity methods for life
 
 | State | Description |
 |-------|-------------|
+| draft | Trail is being planned; crumbs not yet committed to this exploration |
+| pending | Trail is defined but waiting for a precondition before work begins |
 | active | Trail is open for work; crumbs can be added |
 | completed | Trail is finished; crumbs have been made permanent |
 | abandoned | Trail is discarded; crumbs have been deleted |
 
-2.2. Initial state on creation is active.
+2.2. Initial state on creation is draft.
 
-2.3. State transitions are one-way: active can transition to completed or abandoned, but completed and abandoned are terminal states.
+2.3. State transitions follow this lifecycle: draft → pending → active → completed or abandoned. A trail in draft state can transition to pending or directly to active. A trail in pending state transitions to active when its precondition is met. A trail in active state can transition to completed or abandoned. The completed and abandoned states are terminal.
 
 2.4. State is stored as a string, not an enum, for JSON compatibility.
 
@@ -59,7 +61,7 @@ This PRD defines the Trail entity: its struct fields and entity methods for life
 
 ```go
 trail := &Trail{
-    State:     "active",
+    State:     "draft",
     CreatedAt: time.Now(),
 }
 id, err := trailsTable.Set("", trail)  // empty ID triggers generation
@@ -67,7 +69,7 @@ id, err := trailsTable.Set("", trail)  // empty ID triggers generation
 
 3.2. The backend must generate a UUID v7 for TrailID when Set is called with an empty ID.
 
-3.3. Initial State must be "active", CreatedAt must be set to the current time, and CompletedAt must be nil.
+3.3. Initial State must be "draft", CreatedAt must be set to the current time, and CompletedAt must be nil.
 
 3.4. After Set returns, the Trail struct must have TrailID populated by the backend.
 
@@ -151,7 +153,7 @@ func (t *Trail) Abandon() error
 
 7.2. A crumb can belong to at most one trail at a time. The backend must enforce this constraint.
 
-7.3. Crumbs not on any trail (no belongs_to link) are considered permanent or "untracked."
+7.3. All crumbs must belong to a trail. A crumb without a belongs_to link is either permanent (was on a completed trail whose belongs_to links were removed) or orphaned (should be cleaned up). There is no "untracked" state—crumbs are created on trails and either become permanent when the trail completes or are deleted when the trail is abandoned.
 
 7.4. Crumb-to-trail membership is managed via the links table. Applications create belongs_to links using the Table interface for the links table.
 
@@ -223,7 +225,7 @@ linksTable.Set("", link)
 ## Acceptance Criteria
 
 - [ ] Trail struct defined with TrailID, State, CreatedAt, CompletedAt
-- [ ] State values documented (active, completed, abandoned)
+- [ ] State values documented (draft, pending, active, completed, abandoned)
 - [ ] Trail creation specified via Table.Set interface
 - [ ] Trail retrieval specified via Table.Get interface
 - [ ] Complete entity method specified with no arguments (updates State and CompletedAt)
