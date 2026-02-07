@@ -79,6 +79,13 @@ var versionCmd = &cobra.Command{
 	Short: "Print the version number",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("cupboard v0.1.0")
+		fmt.Println("module: github.com/mesh-intelligence/crumbs")
+		fmt.Println()
+		fmt.Println("Implemented use cases:")
+		fmt.Println("  rel01.0-uc001  cupboard-lifecycle")
+		fmt.Println("  rel01.0-uc002  sqlite-crud")
+		fmt.Println("  rel01.0-uc003  crud-operations")
+		fmt.Println("  rel01.0-uc004  scaffolding-validation")
 	},
 }
 
