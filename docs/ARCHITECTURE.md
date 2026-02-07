@@ -41,15 +41,19 @@ package "internal/sqlite" {
 @enduml
 ```
 
-### Lifecycle
+### Lifecycle of entities
 
 Crumbs have a lifecycle driven by state transitions and trail operations. State is a core field on the Crumb struct, not a property (see prd-crumbs-interface R1, R2).
 
 **Crumb states** (prd-crumbs-interface R2): `draft` → `pending` → `ready` → `taken` → `pebble` or `dust`. Terminal states are `pebble` (completed successfully) and `dust` (failed or abandoned). Initial state on creation is `draft`. CrumbTable tracks state but does not enforce transitions—agents or coordination layers define transition rules.
 
+<!-- TODO: trails should have a state equivalent to draft and pending-->
 **Trail states** (prd-trails-interface R2): `active` → `completed` or `abandoned`. The `Trail.Complete()` and `Trail.Abandon()` entity methods update the trail's state field. When persisted via `Table.Set`, the backend performs cascade operations: completing a trail removes `belongs_to` links (crumbs become permanent), abandoning a trail deletes its crumbs.
 
 **Trail structure**: Trails group crumbs via `belongs_to` links. Crumbs can depend on other crumbs via `child_of` links, forming a DAG. Trails can branch from a crumb on another trail via `branches_from` links. A crumb belongs to at most one trail at a time.
+<!-- TODO: Explain the semantics of relationships. Child of means that crumb is blocked until the parent crumb is pebbled. Branches from means that the trail is exploring an alternative approach starting from that crumb. Belongs to means that the crumb is part of that trail and follows the lifecycle of that trail. -->
+
+<!-- TODO: All crumbs must belong to a trail. When a trail is completed, all its crumbs are unlinked (they no longer belong to the trail and become part of the permanent record). When a trail is abandoned, all its crumbs are deleted. -->
 
 ### Coordination Pattern
 
