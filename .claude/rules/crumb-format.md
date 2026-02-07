@@ -115,7 +115,7 @@ When proposing or implementing code issues, keep implementation in **internal/**
 | Documentation (use case) | `docs/use-cases/rel*-uc*-*.yaml` | Required Reading, Files to Create/Modify, Summary, Actor/trigger, Flow, Success criteria; follow use-case-format |
 | Documentation (test suite) | `docs/test-suites/test*.yaml` | Required Reading, Files to Create/Modify, traces, preconditions, test_cases with inputs/expected; follow test-case-format |
 | Documentation (engineering guideline) | `docs/engineering/eng*.md` | Required Reading, Files to Create/Modify, Introduction, Body; follow engineering-guideline-format |
-| Documentation (specification) | `docs/SPECIFICATIONS.md` | Required Reading, Files to Create/Modify, Overview, Roadmap Summary, PRD/Use Case/Test Suite indexes, Traceability Diagram, Coverage Gaps; follow specification-format |
+| Documentation (specification) | `docs/SPECIFICATIONS.md` | Required Reading, Files to Create/Modify, Overview, Roadmap Summary, PRD/Use Case/Test Suite indexes, PRD-to-Use-Case Mapping, Traceability Diagram, Coverage Gaps; follow specification-format |
 | Code | `pkg/`, `internal/`, `cmd/` | Required Reading, Files to Create/Modify, Requirements, Design Decisions, Acceptance Criteria (tests/behavior); see Go layout above |
 
 ## When Creating or Editing Issues

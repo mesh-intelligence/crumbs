@@ -52,7 +52,29 @@ A specifications document is a human-readable summary that ties together the pro
    |------------|-------|--------|------------|
    | [test004](test-suites/test004-cupboard-lifecycle.yaml) | Cupboard lifecycle and CRUD | rel01.0-uc001, rel01.0-uc003 | 12 |
 
-6. **Traceability Diagram** -- A PlantUML diagram showing the relationships between PRDs, use cases, and test suites. Use the documentation-standards inline PlantUML format. The diagram should show which use cases trace to which PRDs (via touchpoints) and which test suites validate which use cases (via the traces field).
+6. **PRD-to-Use-Case Mapping** -- A table showing how each use case relates to each PRD it exercises. For every use case / PRD pair (derived from the touchpoints field), list why the use case needs that PRD and how much of the PRD the use case covers (e.g. "full", "partial (R1-R3 only)", "R2.1 and R5 only"). Build this table by reading each use case's touchpoints and mapping them to PRD requirement IDs.
+
+   Example
+
+   Table 5 PRD-to-Use-Case Mapping
+
+   | Use Case | PRD | Why Required | Coverage |
+   | -------- | --- | ------------ | -------- |
+   | rel01.0-uc001-cupboard-lifecycle | prd-cupboard-core | Validates Config, Attach, Detach, GetTable contract | Partial (R1, R2, R4-R7) |
+   | rel01.0-uc001-cupboard-lifecycle | prd-sqlite-backend | Exercises SQLite backend initialization | Partial (R1 only) |
+   | rel01.0-uc002-sqlite-crud | prd-cupboard-core | Uses Table interface for CRUD operations | Partial (R2, R3) |
+   | rel02.0-uc001-property-enforcement | prd-properties-interface | Validates property definition, backfill, and enforcement | Full |
+
+   Columns
+
+   | Column | Description |
+   | ------ | ----------- |
+   | Use Case | Use case ID (link to file) |
+   | PRD | PRD ID (link to file) |
+   | Why Required | One sentence explaining why this use case exercises this PRD |
+   | Coverage | How much of the PRD the use case covers: "full" if all requirements are exercised, or list the specific requirement IDs (e.g. "R1-R3", "R2.1 and R5 only") |
+
+7. **Traceability Diagram** -- A PlantUML diagram showing the relationships between PRDs, use cases, and test suites. Use the documentation-standards inline PlantUML format. The diagram should show which use cases trace to which PRDs (via touchpoints) and which test suites validate which use cases (via the traces field).
 
    Use a UML component or object diagram. Group artifacts by type (PRDs on the left, use cases in the center, test suites on the right). Draw arrows from use cases to PRDs they exercise and from test suites to the use cases they validate.
 
@@ -92,7 +114,7 @@ A specifications document is a human-readable summary that ties together the pro
 
    Include all PRDs, use cases, and test suites that exist at the time of generation. For large projects, split into one diagram per release if a single diagram becomes unreadable.
 
-7. **Coverage Gaps** -- A short section listing any use cases without test suites, any PRDs not referenced by any use case, or any test suites that trace to nonexistent artifacts. This section may be empty if coverage is complete; in that case write "No gaps identified."
+8. **Coverage Gaps** -- A short section listing any use cases without test suites, any PRDs not referenced by any use case, or any test suites that trace to nonexistent artifacts. This section may be empty if coverage is complete; in that case write "No gaps identified."
 
 ## Optional Sections
 
@@ -127,6 +149,7 @@ When regenerating, read all files in `docs/product-requirements/`, `docs/use-cas
 - [ ] PRD Index lists every file in docs/product-requirements/
 - [ ] Use Case Index lists every file in docs/use-cases/
 - [ ] Test Suite Index lists every file in docs/test-suites/
+- [ ] PRD-to-Use-Case Mapping lists every use case / PRD pair with why required and coverage
 - [ ] Traceability Diagram shows PRD-to-use-case and use-case-to-test-suite relationships
 - [ ] Coverage Gaps section identifies missing test suites or untraced PRDs
 - [ ] Style follows documentation-standards (no forbidden terms, tables named, figures per standard)
