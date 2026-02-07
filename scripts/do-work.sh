@@ -130,7 +130,7 @@ $ISSUE_DESCRIPTION
 ### Instructions
 
 1. Read VISION.md and ARCHITECTURE.md for context
-2. Read any PRDs or docs referenced in the description
+2. Read any PRDs, use cases, test suites, or engineering guidelines referenced in the description
 3. Complete the task according to the description and acceptance criteria
 4. Commit your changes with a message that includes the task ID ($ISSUE_ID)
 

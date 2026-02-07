@@ -62,6 +62,8 @@ Minor releases (e.g., 01.1, 02.1) add functionality to a major release without r
 | **ROADMAP** | Release schedule and use case status; determines work priority. |
 | **ARCHITECTURE** | What we build; use case traces a path through it. |
 | **PRDs** | Detailed requirements for components; use case motivates which PRD items to implement first. |
+| **Test suites** | Test cases with inputs and expected outputs; validate use case success criteria. |
+| **Engineering guidelines** | Conventions and practices; use cases may reference guidelines (e.g. eng01-git-integration). |
 | **Use case** | One tracer bullet through the stack → PoC/demo; guides development order. |
 
 ## Completeness Checklist

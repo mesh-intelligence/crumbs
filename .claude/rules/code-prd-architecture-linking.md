@@ -7,6 +7,9 @@ When implementing code (e.g. via the **do-work** command), code must correspond 
 1. **Identify related docs** from the issue, component, or area you are changing:
    - **PRDs**: `docs/product-requirements/prd-*.md`
    - **Architecture**: `docs/ARCHITECTURE.md` (components, interfaces, protocols)
+   - **Use cases**: `docs/use-cases/rel*-uc*-*.md`
+   - **Test suites**: `docs/test-suites/test*.yaml`
+   - **Engineering guidelines**: `docs/engineering/eng*.md`
    - **Vision** (if relevant): `docs/VISION.md`
 2. **Read** the relevant sections of those docs so behaviour, data shapes, and contracts are clear.
 3. **Implement** so that the code conforms to the requirements and design described there.
@@ -64,6 +67,9 @@ When **do-work** is invoked:
 |-----|------|-----|
 | Architecture | `docs/ARCHITECTURE.md` | Components, interfaces, protocols |
 | PRDs | `docs/product-requirements/prd-*.md` | Requirements, operations, data structures |
+| Use cases | `docs/use-cases/rel*-uc*-*.md` | Tracer-bullet flows, demo criteria |
+| Test suites | `docs/test-suites/test*.yaml` | Test cases with inputs and expected outputs |
+| Engineering guidelines | `docs/engineering/eng*.md` | Conventions and practices |
 | Vision | `docs/VISION.md` | Goals and context |
 
 Code that does not map to at least one PRD or architecture section is out of scope for do-work unless the issue explicitly adds new behaviour and you first propose or update the relevant doc.

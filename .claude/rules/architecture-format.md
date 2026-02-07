@@ -54,7 +54,7 @@ An architecture document describes **how the system is built**: components, inte
 - [ ] Technology Choices table and link to Technology Stack PRD.
 - [ ] Project Structure shows directory tree and package roles; link to PRD if needed.
 - [ ] Implementation Status reflects current focus; optional phases and progress checklist.
-- [ ] Related Documents list VISION, PRDs, use cases (and optionally disclosures).
+- [ ] Related Documents list VISION, PRDs, use cases, test suites, engineering guidelines (and optionally disclosures).
 - [ ] Style follows documentation-standards (no forbidden terms, tables named, figures per standard).
 - [ ] File saved as `ARCHITECTURE.md` in `docs/` (or agreed location).
 
@@ -64,5 +64,7 @@ An architecture document describes **how the system is built**: components, inte
 - **ARCHITECTURE** – Components, interfaces, protocols, design decisions. How the system is built.
 - **PRDs** – Numbered requirements, field specs, operation contracts. Architecture points to PRDs for detail.
 - **Use cases** – Tracer bullets and flows. Architecture describes the components and interfaces those flows use.
+- **Test suites** – Test cases with inputs and expected outputs. Validate use case success criteria.
+- **Engineering guidelines** – Conventions and practices above the code layer.
 
 Code and PRDs should be traceable to ARCHITECTURE (components, interfaces) and VISION (goals).

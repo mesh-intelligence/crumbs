@@ -24,7 +24,9 @@ Documentation issues produce markdown (and optionally diagrams) under `docs/`. T
 | ----------------- | ---------------- | ----------- | ------------ |
 | **ARCHITECTURE / docs** | `docs/ARCHITECTURE.md` or specific doc | documentation-standards | Updating system overview, components, diagrams, design decisions |
 | **PRD** | `docs/product-requirements/prd-[feature-name].md` | prd-format | New or updated product requirements; numbered requirements, Problem/Goals/Non-Goals |
-| **Use case** | `docs/use-cases/uc-[short-name].md` | use-case-format | Tracer-bullet flows, actor/trigger, demo criteria |
+| **Use case** | `docs/use-cases/rel[NN].[N]-uc[NNN]-[short-name].md` | use-case-format | Tracer-bullet flows, actor/trigger, demo criteria |
+| **Test suite** | `docs/test-suites/test[NNN]-[short-name].yaml` | test-case-format | Test cases with inputs and expected outputs |
+| **Engineering guideline** | `docs/engineering/eng[NN]-[short-name].md` | engineering-guideline-format | Conventions and practices |
 
 ### What to Put in the Issue
 
@@ -109,7 +111,9 @@ When proposing or implementing code issues, keep implementation in **internal/**
 | ---------- | ------ | ---------------------- |
 | Documentation (ARCHITECTURE, general docs) | `docs/*.md`, `docs/**/*.puml` | Required Reading, Files to Create/Modify, Requirements, Acceptance Criteria; follow documentation-standards |
 | Documentation (PRD) | `docs/product-requirements/prd-*.md` | Required Reading, Files to Create/Modify, Required sections (Problem, Goals, Requirements, Non-Goals, Acceptance Criteria), Acceptance Criteria; follow prd-format |
-| Documentation (use case) | `docs/use-cases/uc-*.md` | Required Reading, Files to Create/Modify, Summary, Actor/trigger, Flow, Success criteria; follow use-case-format |
+| Documentation (use case) | `docs/use-cases/rel*-uc*-*.md` | Required Reading, Files to Create/Modify, Summary, Actor/trigger, Flow, Success criteria; follow use-case-format |
+| Documentation (test suite) | `docs/test-suites/test*.yaml` | Required Reading, Files to Create/Modify, traces, preconditions, test_cases with inputs/expected; follow test-case-format |
+| Documentation (engineering guideline) | `docs/engineering/eng*.md` | Required Reading, Files to Create/Modify, Introduction, Body; follow engineering-guideline-format |
 | Code | `pkg/`, `internal/`, `cmd/` | Required Reading, Files to Create/Modify, Requirements, Design Decisions, Acceptance Criteria (tests/behavior); see Go layout above |
 
 ## When Creating or Editing Issues

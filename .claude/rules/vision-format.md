@@ -52,5 +52,7 @@ A vision document states **what the project is**, **why it exists**, **how succe
 - **ARCHITECTURE** – Components, interfaces, protocols. How the system is built.
 - **PRDs** – Numbered requirements, acceptance criteria. What the system must do.
 - **Use cases** – Tracer bullets and demos. How we validate the path.
+- **Test suites** – Test cases with inputs and expected outputs. How we verify the path.
+- **Engineering guidelines** – Conventions and practices. How we work with the system.
 
 Code and PRDs should be traceable to VISION (goals, boundaries) and ARCHITECTURE (design).
