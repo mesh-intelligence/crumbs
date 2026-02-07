@@ -1,0 +1,101 @@
+@startuml entity-types
+!theme plain
+skinparam backgroundColor white
+skinparam classAttributeIconSize 0
+
+' Entity structs (pkg/types)
+class Crumb {
+    CrumbID: string
+    Name: string
+    State: string
+    CreatedAt: time.Time
+    UpdatedAt: time.Time
+    Properties: map[string]any
+    --
+    +SetState(state: string): error
+    +Pebble(): error
+    +Dust(): error
+    +SetProperty(propertyID: string, value: any): error
+    +GetProperty(propertyID: string): (any, error)
+    +GetProperties(): map[string]any
+    +ClearProperty(propertyID: string): error
+}
+
+class Trail {
+    TrailID: string
+    State: string
+    CreatedAt: time.Time
+    CompletedAt: *time.Time
+    --
+    +Complete(): error
+    +Abandon(): error
+}
+
+class Property {
+    PropertyID: string
+    Name: string
+    Description: string
+    ValueType: string
+    CreatedAt: time.Time
+}
+
+class Category {
+    CategoryID: string
+    PropertyID: string
+    Name: string
+    Ordinal: int
+}
+
+class Stash {
+    StashID: string
+    Name: string
+    StashType: string
+    Value: any
+    Version: int64
+    CreatedAt: time.Time
+    --
+    +SetValue(value: any): error
+    +GetValue(): any
+    +Increment(delta: int64): (int64, error)
+    +Acquire(holder: string): error
+    +Release(holder: string): error
+}
+
+class StashHistoryEntry {
+    HistoryID: string
+    Version: int64
+    Value: any
+    Operation: string
+    ChangedBy: *string
+    CreatedAt: time.Time
+}
+
+class Metadata {
+    MetadataID: string
+    CrumbID: string
+    TableName: string
+    Content: string
+    PropertyID: *string
+    CreatedAt: time.Time
+}
+
+class Link {
+    LinkID: string
+    LinkType: string
+    FromID: string
+    ToID: string
+    CreatedAt: time.Time
+}
+
+class Schema {
+    SchemaName: string
+    Description: string
+    ContentType: string
+}
+
+' Relationships
+Property "1" <-- "*" Category : belongs to
+Crumb "1" <-- "*" Metadata : attached to
+Stash "1" <-- "*" StashHistoryEntry : history of
+
+@enduml

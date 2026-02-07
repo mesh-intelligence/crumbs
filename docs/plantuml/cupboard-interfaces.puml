@@ -1,0 +1,64 @@
+@startuml cupboard-interfaces
+!theme plain
+skinparam backgroundColor white
+skinparam classAttributeIconSize 0
+
+' Interfaces (pkg/types)
+interface Cupboard <<interface>> {
+    +GetTable(name: string): (Table, error)
+    +Attach(config: Config): error
+    +Detach(): error
+}
+
+interface Table <<interface>> {
+    +Get(id: string): (any, error)
+    +Set(id: string, data: any): (string, error)
+    +Delete(id: string): error
+    +Fetch(filter: map[string]any): ([]any, error)
+}
+
+' Configuration (pkg/types)
+class Config {
+    Backend: string
+    DataDir: string
+    SQLiteConfig: *SQLiteConfig
+    --
+    +Validate(): error
+}
+
+class SQLiteConfig {
+    SyncStrategy: string
+    BatchSize: int
+    BatchInterval: int
+    --
+    +Validate(): error
+    +GetSyncStrategy(): string
+    +GetBatchSize(): int
+    +GetBatchInterval(): int
+}
+
+' Implementation (internal/sqlite)
+class Backend <<internal/sqlite>> {
+    -mu: sync.RWMutex
+    -attached: bool
+    -config: Config
+    -db: *sql.DB
+    -tables: map[string]*Table
+    --
+    +NewBackend(): *Backend
+}
+
+class "Table" as SqliteTable <<internal/sqlite>> {
+    -backend: *Backend
+    -tableName: string
+}
+
+' Relationships
+Config *-- SQLiteConfig : contains
+Cupboard <|.. Backend : implements
+Table <|.. SqliteTable : implements
+Cupboard ..> Table : returns
+Backend o-- SqliteTable : manages
+Backend --> Config : uses
+
+@enduml

@@ -60,6 +60,11 @@ Crumbs have a lifecycle driven by state transitions and trail operations. State 
 | belongs_to | crumb → trail | The crumb is part of that trail and follows its lifecycle. When the trail completes, the crumb becomes permanent. When the trail is abandoned, the crumb is deleted. |
 | scoped_to | stash → trail | The stash is scoped to that trail and shares its lifecycle. |
 
+|  |
+|:--:|
+| ![plantuml/graph-model.puml](images/graph-model.png) |
+|Figure 3 Graph model showing Link entity with four typed edges between entities |
+
 **Trail ownership rule**: All crumbs must belong to a trail. A crumb without a `belongs_to` link is either permanent (was on a completed trail) or orphaned (should be cleaned up). When a trail is completed, the backend removes all `belongs_to` links for its crumbs—they no longer belong to any trail and become part of the permanent record. When a trail is abandoned, the backend deletes all crumbs that belong to it, along with their properties, metadata, and links.
 
 ### Coordination Pattern
@@ -119,6 +124,11 @@ type Table interface {
 
 All entity types use this same interface. Get and Fetch return `any`; callers type-assert to the appropriate entity struct (Crumb, Trail, Property, etc.). Set accepts entity structs directly. When id is empty, Set generates a UUID v7 and creates a new entity; when id is provided, Set updates the existing entity.
 
+|  |
+|:--:|
+| ![plantuml/cupboard-interfaces.puml](images/cupboard-interfaces.png) |
+|Figure 1 Cupboard and Table interfaces with SQLite backend implementation |
+
 ### Entity Types
 
 Entities are plain structs with fields. Entity methods (SetState, Pebble, Dust, etc.) modify the struct in memory; callers must call `Table.Set` to persist changes. This separates data access from business logic.
@@ -134,6 +144,11 @@ Entities are plain structs with fields. Entity methods (SetState, Pebble, Dust, 
 | Link | Graph edge | LinkID, LinkType, FromID, ToID, CreatedAt | prd-sqlite-backend |
 
 Relationships use the links table (Decision 10): `branches_from` (trail→crumb branch point), `scoped_to` (stash→trail scope), `belongs_to` (crumb→trail membership), `child_of` (crumb→crumb dependencies).
+
+|  |
+|:--:|
+| ![plantuml/entity-types.puml](images/entity-types.png) |
+|Figure 2 Entity types with fields, methods, and relationships |
 
 ### Usage Pattern
 

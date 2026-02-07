@@ -1,0 +1,70 @@
+@startuml graph-model
+!theme plain
+skinparam backgroundColor white
+skinparam classAttributeIconSize 0
+
+' Entity types (simplified)
+class Crumb {
+    CrumbID
+}
+
+class Trail {
+    TrailID
+}
+
+class Stash {
+    StashID
+}
+
+' Link entity (central node)
+class Link {
+    LinkID: string
+    LinkType: string
+    FromID: string
+    ToID: string
+    CreatedAt: time.Time
+}
+
+' Link types as relationships
+Crumb --> Trail : belongs_to
+note on link
+    Crumb membership in Trail.
+    When trail completes,
+    link removed (crumb permanent).
+    When trail abandoned,
+    crumb deleted.
+end note
+
+Crumb --> Crumb : child_of
+note on link
+    Crumb dependency.
+    Child blocked until
+    parent reaches pebble.
+end note
+
+Trail --> Crumb : branches_from
+note on link
+    Trail branch point.
+    Trail explores alternative
+    path from this crumb.
+end note
+
+Stash --> Trail : scoped_to
+note on link
+    Stash scoped to trail.
+    Shares trail lifecycle.
+    Global stashes have
+    no scoped_to link.
+end note
+
+' Legend
+legend right
+    Link types (via links table)
+    |= Type |= Direction |
+    | belongs_to | Crumb -> Trail |
+    | child_of | Crumb -> Crumb |
+    | branches_from | Trail -> Crumb |
+    | scoped_to | Stash -> Trail |
+endlegend
+
+@enduml
