@@ -1,0 +1,350 @@
+id: test002-jsonl-git-roundtrip
+title: JSONL git roundtrip persistence
+description: >
+  Validates that JSONL files are the source of truth for the SQLite backend.
+  Tests the complete roundtrip: create crumbs, verify JSONL written, delete
+  cupboard.db, re-attach, and verify data is intact. Exercises prd-sqlite-backend
+  R1 (directory layout), R4 (startup sequence), R5 (write operations), and
+  eng01-git-integration conventions.
+traces:
+  - rel00.0-uc004-jsonl-git-roundtrip
+tags:
+  - persistence
+  - jsonl
+  - sqlite
+  - git-integration
+
+preconditions:
+  - Cupboard binary built from cmd/cupboard
+  - Fresh temp directory initialized as git repository
+  - Config file points SQLite backend at data subdirectory
+  - data/cupboard.db added to .gitignore
+  - No existing crumbs or JSONL files
+
+test_cases:
+
+  # --- JSONL file creation ---
+
+  - name: JSONL files created on first crumb
+    description: >
+      Creating the first crumb should generate crumbs.jsonl and other JSONL files
+      in the data directory.
+    inputs:
+      command: cupboard create --type task --title "First crumb" --description "Initial work item" --json
+    expected:
+      exit_code: 0
+      files:
+        - path: data/crumbs.jsonl
+          exists: true
+        - path: data/cupboard.db
+          exists: true
+
+  - name: Crumb appears in crumbs.jsonl
+    inputs:
+      setup:
+        - cupboard create --type task --title "Tracked crumb" --description "Should be in JSONL" --json
+      command: cat data/crumbs.jsonl | wc -l
+    expected:
+      exit_code: 0
+      stdout_equals: "1"
+
+  - name: Multiple crumbs written to JSONL
+    inputs:
+      setup:
+        - cupboard create --type task --title "Task one" --description "First"
+        - cupboard create --type epic --title "Epic one" --description "Second" --labels "code"
+        - cupboard create --type task --title "Task two" --description "Third"
+      command: cat data/crumbs.jsonl | wc -l
+    expected:
+      exit_code: 0
+      stdout_equals: "3"
+
+  # --- JSONL content correctness ---
+
+  - name: JSONL contains correct crumb data
+    inputs:
+      setup:
+        - cupboard create --type task --title "Verify content" --description "Check JSONL fields" --json
+      command: cat data/crumbs.jsonl
+    expected:
+      exit_code: 0
+      stdout_contains: "Verify content"
+      stdout_contains: "crumb_id"
+      stdout_contains: "state"
+
+  - name: JSONL uses RFC 3339 timestamps
+    inputs:
+      setup:
+        - cupboard create --type task --title "Timestamp test" --description "Check format" --json
+      command: cat data/crumbs.jsonl
+    expected:
+      exit_code: 0
+      stdout_contains: "created_at"
+      stdout_contains: "T"
+      stdout_contains: "Z"
+
+  - name: JSONL uses lowercase hyphenated UUIDs
+    description: >
+      UUID v7 identifiers should be lowercase with hyphens per prd-sqlite-backend R2.12.
+    inputs:
+      setup:
+        - cupboard create --type task --title "UUID test" --description "Check format" --json
+      command: cat data/crumbs.jsonl | grep -o '"crumb_id":"[^"]*"'
+    expected:
+      exit_code: 0
+      stdout_contains: "-"
+
+  # --- Database deletion and rebuild ---
+
+  - name: Delete cupboard.db removes database
+    inputs:
+      setup:
+        - cupboard create --type task --title "Pre-delete" --description "Before removal"
+      command: rm data/cupboard.db && ls data/cupboard.db 2>&1
+    expected:
+      exit_code: 1
+      stderr_contains: "No such file"
+
+  - name: Cupboard command regenerates database from JSONL
+    description: >
+      After deleting cupboard.db, running any cupboard command should trigger
+      the startup sequence (prd-sqlite-backend R4) which recreates the database.
+    inputs:
+      setup:
+        - cupboard create --type task --title "Rebuilder" --description "Test rebuild" --json
+        - rm data/cupboard.db
+      command: cupboard list --json | jq length
+    expected:
+      exit_code: 0
+      stdout_equals: "1"
+      state:
+        file_exists: data/cupboard.db
+
+  - name: Single crumb survives database deletion
+    inputs:
+      setup:
+        - cupboard create --type task --title "Survivor" --description "Will survive" --json
+        - rm data/cupboard.db
+      command: cupboard list --json
+    expected:
+      exit_code: 0
+      stdout_json:
+        length: 1
+        items:
+          - title: "Survivor"
+
+  - name: Multiple crumbs survive database deletion
+    inputs:
+      setup:
+        - cupboard create --type task --title "First survivor" --description "One"
+        - cupboard create --type epic --title "Second survivor" --description "Two" --labels "infra"
+        - cupboard create --type task --title "Third survivor" --description "Three"
+        - rm data/cupboard.db
+      command: cupboard list --json | jq length
+    expected:
+      exit_code: 0
+      stdout_equals: "3"
+
+  - name: Crumb details intact after rebuild
+    description: >
+      Verify that all crumb fields (title, description, type, state) are preserved
+      after deleting cupboard.db and rebuilding from JSONL.
+    inputs:
+      setup:
+        - cupboard create --type epic --title "Detailed epic" --description "Full details" --labels "code,infra" --json
+        - rm data/cupboard.db
+      command: cupboard show ${crumb_id}
+    expected:
+      exit_code: 0
+      stdout_contains: "Detailed epic"
+      stdout_contains: "Full details"
+      stdout_contains: "epic"
+
+  # --- State changes persist to JSONL ---
+
+  - name: State update persists to JSONL
+    inputs:
+      setup:
+        - cupboard create --type task --title "State test" --description "Will change state" --json
+      command: cupboard update ${crumb_id} --status in_progress && cat data/crumbs.jsonl | grep ${crumb_id}
+    expected:
+      exit_code: 0
+      stdout_contains: "in_progress"
+
+  - name: State change survives database deletion
+    inputs:
+      setup:
+        - cupboard create --type task --title "State survivor" --description "State will persist" --json
+        - cupboard update ${crumb_id} --status in_progress
+        - rm data/cupboard.db
+      command: cupboard show ${crumb_id}
+    expected:
+      exit_code: 0
+      stdout_contains: "in_progress"
+
+  - name: Closed state survives database deletion
+    inputs:
+      setup:
+        - cupboard create --type task --title "Closeable" --description "Will be closed" --json
+        - cupboard close ${crumb_id}
+        - rm data/cupboard.db
+      command: cupboard show ${crumb_id}
+    expected:
+      exit_code: 0
+      stdout_contains: "closed"
+
+  # --- Queries work after rebuild ---
+
+  - name: Ready filter works after rebuild
+    inputs:
+      setup:
+        - cupboard create --type task --title "Open task" --description "Available"
+        - cupboard create --type task --title "Closed task" --description "Done" --json
+        - cupboard close ${crumb_id}
+        - rm data/cupboard.db
+      command: cupboard ready --json --type task | jq length
+    expected:
+      exit_code: 0
+      stdout_equals: "1"
+
+  - name: Type filter works after rebuild
+    inputs:
+      setup:
+        - cupboard create --type task --title "A task" --description "Task type"
+        - cupboard create --type epic --title "An epic" --description "Epic type"
+        - rm data/cupboard.db
+      command: cupboard ready --json --type epic | jq length
+    expected:
+      exit_code: 0
+      stdout_equals: "1"
+
+  # --- Empty cupboard rebuild ---
+
+  - name: Empty JSONL files create empty cupboard
+    description: >
+      Starting with empty JSONL files (fresh repository clone scenario) should
+      result in an empty but functional cupboard.
+    inputs:
+      setup:
+        - rm -f data/*.jsonl data/cupboard.db
+      command: cupboard list --json
+    expected:
+      exit_code: 0
+      stdout_json:
+        length: 0
+
+  - name: Fresh start with no files
+    description: >
+      When no data directory exists, cupboard should create it and initialize
+      empty JSONL files per prd-sqlite-backend R1.3, R1.4.
+    inputs:
+      setup:
+        - rm -rf data
+      command: cupboard list --json
+    expected:
+      exit_code: 0
+      stdout_json:
+        length: 0
+      files:
+        - path: data/crumbs.jsonl
+          exists: true
+
+  - name: Create works after fresh start
+    description: >
+      After a fresh start with no existing data, creating crumbs should work
+      normally and persist to JSONL.
+    inputs:
+      setup:
+        - rm -rf data
+        - cupboard list --json
+      command: cupboard create --type task --title "Fresh crumb" --description "After fresh start" --json
+    expected:
+      exit_code: 0
+      stdout_json:
+        type: task
+        title: "Fresh crumb"
+
+  # --- Git integration simulation ---
+
+  - name: JSONL files can be committed to git
+    description: >
+      JSONL files should be committable to git while cupboard.db is gitignored.
+      This simulates the git workflow from eng01-git-integration.
+    inputs:
+      setup:
+        - cupboard create --type task --title "Git tracked" --description "In version control"
+      command: git add data/*.jsonl && git status --porcelain data/
+    expected:
+      exit_code: 0
+      stdout_contains: "crumbs.jsonl"
+
+  - name: Cupboard.db not tracked by git
+    description: >
+      The SQLite database should be gitignored per eng01-git-integration.
+    inputs:
+      setup:
+        - cupboard create --type task --title "Db test" --description "Check gitignore"
+      command: git status --porcelain data/cupboard.db
+    expected:
+      exit_code: 0
+      stdout_equals: ""
+
+  # --- Full roundtrip workflow ---
+
+  - name: Complete roundtrip workflow
+    description: >
+      Simulates the full workflow from rel00.0-uc004: create crumbs, commit JSONL,
+      delete database, rebuild, verify data, modify data, repeat roundtrip.
+    inputs:
+      steps:
+        - command: cupboard create --type task --title "Roundtrip task" --description "Full workflow" --json
+          capture: task_id
+        - command: cupboard create --type epic --title "Roundtrip epic" --description "Parent" --labels "test" --json
+          capture: epic_id
+        - command: git add data/*.jsonl && git commit -m "Add initial crumbs"
+        - command: cupboard list --json | jq length
+          expected:
+            stdout_equals: "2"
+        - command: rm data/cupboard.db
+        - command: cupboard list --json | jq length
+          expected:
+            stdout_equals: "2"
+        - command: cupboard show ${task_id}
+          expected:
+            stdout_contains: "Roundtrip task"
+        - command: cupboard update ${task_id} --status in_progress
+        - command: rm data/cupboard.db && cupboard show ${task_id}
+          expected:
+            stdout_contains: "in_progress"
+        - command: cupboard close ${task_id}
+        - command: rm data/cupboard.db && cupboard show ${task_id}
+          expected:
+            stdout_contains: "closed"
+    expected:
+      final_state:
+        command: cupboard ready --json --type task
+        stdout_json:
+          length: 0
+
+  - name: Roundtrip with multiple deletes
+    description: >
+      Repeatedly deleting and rebuilding the database should always produce
+      consistent results from JSONL.
+    inputs:
+      setup:
+        - cupboard create --type task --title "Persistent" --description "Always here" --json
+      steps:
+        - command: rm data/cupboard.db && cupboard list --json | jq length
+          expected:
+            stdout_equals: "1"
+        - command: rm data/cupboard.db && cupboard list --json | jq length
+          expected:
+            stdout_equals: "1"
+        - command: rm data/cupboard.db && cupboard list --json | jq length
+          expected:
+            stdout_equals: "1"
+    expected:
+      exit_code: 0
+
+cleanup:
+  - Remove temp directory and git repository
