@@ -466,5 +466,177 @@ test_cases:
       state:
         property_score: 42
 
+  # --- S12: DefineCategory creates category accessible via GetCategories ---
+
+  - name: DefineCategory creates category for categorical property
+    description: Define a category on the priority property and verify it is persisted.
+    inputs:
+      steps:
+        - cupboard define-category priority "critical" 0
+      command: cupboard get-categories priority
+    expected:
+      exit_code: 0
+      stdout_contains: "critical"
+
+  - name: DefineCategory returns category with populated CategoryID
+    inputs:
+      command: cupboard define-category priority "urgent" -1
+    expected:
+      exit_code: 0
+      stdout_json:
+        has_category_id: true
+        name: "urgent"
+        ordinal: -1
+
+  - name: Multiple categories can be defined on same property
+    inputs:
+      steps:
+        - cupboard define-category type "feature" 10
+        - cupboard define-category type "enhancement" 11
+        - cupboard define-category type "documentation" 12
+      command: cupboard get-categories type
+    expected:
+      exit_code: 0
+      state:
+        category_count_ge: 3
+
+  # --- S13: GetCategories returns categories ordered by ordinal then name ---
+
+  - name: GetCategories returns categories ordered by ordinal ascending
+    inputs:
+      setup:
+        - cupboard set properties "" '{"Name":"severity","ValueType":"categorical","Description":"Issue severity"}'
+        - cupboard define-category severity "low" 3
+        - cupboard define-category severity "high" 1
+        - cupboard define-category severity "medium" 2
+      command: cupboard get-categories severity --json
+    expected:
+      exit_code: 0
+      state:
+        first_category_name: "high"
+        second_category_name: "medium"
+        third_category_name: "low"
+
+  - name: GetCategories orders by name for same ordinal
+    description: Categories with the same ordinal are ordered by name ascending.
+    inputs:
+      setup:
+        - cupboard set properties "" '{"Name":"status","ValueType":"categorical","Description":"Status"}'
+        - cupboard define-category status "zebra" 1
+        - cupboard define-category status "alpha" 1
+        - cupboard define-category status "beta" 1
+      command: cupboard get-categories status --json
+    expected:
+      exit_code: 0
+      state:
+        first_category_name: "alpha"
+        second_category_name: "beta"
+        third_category_name: "zebra"
+
+  - name: GetCategories returns empty slice for property with no categories
+    inputs:
+      setup:
+        - cupboard set properties "" '{"Name":"empty_cat","ValueType":"categorical","Description":"Empty"}'
+      command: cupboard get-categories empty_cat --json
+    expected:
+      exit_code: 0
+      stdout_json:
+        length: 0
+
+  # --- S14: DefineCategory returns ErrDuplicateName for duplicates ---
+
+  - name: DefineCategory fails for duplicate name
+    inputs:
+      setup:
+        - cupboard set properties "" '{"Name":"dup_test","ValueType":"categorical","Description":"Dup test"}'
+        - cupboard define-category dup_test "same_name" 1
+      command: cupboard define-category dup_test "same_name" 2
+    expected:
+      exit_code: 1
+      stderr_contains: "duplicate name"
+
+  - name: DefineCategory allows same name on different properties
+    description: Same category name can exist on different properties.
+    inputs:
+      setup:
+        - cupboard set properties "" '{"Name":"prop_a","ValueType":"categorical","Description":"Prop A"}'
+        - cupboard set properties "" '{"Name":"prop_b","ValueType":"categorical","Description":"Prop B"}'
+        - cupboard define-category prop_a "shared_name" 1
+      command: cupboard define-category prop_b "shared_name" 1
+    expected:
+      exit_code: 0
+
+  # --- S15: DefineCategory and GetCategories return ErrInvalidValueType for non-categorical ---
+
+  - name: DefineCategory fails for text property
+    inputs:
+      command: cupboard define-category description "some_value" 1
+    expected:
+      exit_code: 1
+      stderr_contains: "invalid value type"
+
+  - name: DefineCategory fails for integer property
+    inputs:
+      setup:
+        - cupboard set properties "" '{"Name":"int_prop","ValueType":"integer","Description":"Integer prop"}'
+      command: cupboard define-category int_prop "value" 1
+    expected:
+      exit_code: 1
+      stderr_contains: "invalid value type"
+
+  - name: GetCategories fails for text property
+    inputs:
+      command: cupboard get-categories owner
+    expected:
+      exit_code: 1
+      stderr_contains: "invalid value type"
+
+  - name: GetCategories fails for list property
+    inputs:
+      command: cupboard get-categories labels
+    expected:
+      exit_code: 1
+      stderr_contains: "invalid value type"
+
+  # --- DefineCategory with negative ordinals ---
+
+  - name: DefineCategory allows negative ordinals
+    inputs:
+      setup:
+        - cupboard set properties "" '{"Name":"neg_ord","ValueType":"categorical","Description":"Neg ordinal test"}'
+      command: cupboard define-category neg_ord "top_priority" -10
+    expected:
+      exit_code: 0
+      stdout_json:
+        ordinal: -10
+
+  - name: Negative ordinals sort before positive
+    inputs:
+      setup:
+        - cupboard set properties "" '{"Name":"ord_sort","ValueType":"categorical","Description":"Ordinal sort test"}'
+        - cupboard define-category ord_sort "positive" 5
+        - cupboard define-category ord_sort "negative" -5
+        - cupboard define-category ord_sort "zero" 0
+      command: cupboard get-categories ord_sort --json
+    expected:
+      exit_code: 0
+      state:
+        first_category_name: "negative"
+        second_category_name: "zero"
+        third_category_name: "positive"
+
+  # --- Category JSONL persistence ---
+
+  - name: Categories persist to JSONL
+    description: Verify that categories are persisted to categories.jsonl.
+    inputs:
+      setup:
+        - cupboard set properties "" '{"Name":"persist_cat","ValueType":"categorical","Description":"Persist test"}'
+        - cupboard define-category persist_cat "persisted" 1
+      command: cat ${data_dir}/categories.jsonl
+    expected:
+      exit_code: 0
+      stdout_contains: '"name":"persisted"'
+
 cleanup:
   - Remove temp config and data directories

@@ -18,6 +18,8 @@ var (
 	ErrInvalidState      = errors.New("invalid state value")
 	ErrInvalidTransition = errors.New("invalid state transition")
 	ErrInvalidName       = errors.New("invalid name")
+	ErrDuplicateName     = errors.New("duplicate name")
+	ErrInvalidValueType  = errors.New("invalid value type")
 	ErrPropertyNotFound  = errors.New("property not found")
 	ErrTypeMismatch      = errors.New("type mismatch")
 	ErrInvalidCategory   = errors.New("invalid category")

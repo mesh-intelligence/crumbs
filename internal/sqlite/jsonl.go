@@ -412,6 +412,15 @@ func (b *Backend) deletePropertyFromJSONL(id string) error {
 	return deleteFromJSONLFile(path, id, "property_id")
 }
 
+// saveCategoryToJSONL persists category to JSONL file after SQLite write.
+// Per prd-properties-interface R7.6.
+func (b *Backend) saveCategoryToJSONL(cat *categoryJSON) error {
+	path := filepath.Join(b.config.DataDir, categoriesJSONL)
+	return updateJSONLFile(path, cat.CategoryID, "category_id", func() ([]byte, error) {
+		return json.Marshal(cat)
+	})
+}
+
 // saveMetadataToJSONL persists metadata to JSONL file after SQLite write.
 func (b *Backend) saveMetadataToJSONL(meta *types.Metadata) error {
 	path := filepath.Join(b.config.DataDir, metadataJSONL)

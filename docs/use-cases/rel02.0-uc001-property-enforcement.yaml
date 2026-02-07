@@ -22,16 +22,21 @@ flow:
   - F12: "Verify invariant holds: Retrieve both crumbs and call GetProperties(). Confirm each has exactly six properties with no gaps."
   - F13: "Retrieve crumb by ID with properties: Call Table.Get(crumbID) and verify the returned Crumb has its Properties map populated with all defined properties and their current values."
   - F14: "Modify property on fetched crumb: Retrieve a crumb via Table.Get, call SetProperty to update a value, persist with Table.Set, then re-fetch the crumb via Table.Get and verify the updated value persists."
-  - F15: "Detach the cupboard: Call cupboard.Detach()."
+  - F15: "Define categories for a categorical property: Retrieve the priority property, call DefineCategory with name and ordinal for each category (e.g., highest:0, high:1, medium:2, low:3, lowest:4). Verify each call returns a Category with populated CategoryID."
+  - F16: "Retrieve categories and verify ordering: Call GetCategories on the priority property. Verify categories are returned ordered by ordinal ascending, then name ascending for ties."
+  - F17: "Verify category uniqueness: Attempt to define a duplicate category name on the same property. Verify ErrDuplicateName is returned."
+  - F18: "Verify value type validation: Attempt to call DefineCategory on a text property. Verify ErrInvalidValueType is returned."
+  - F19: "Detach the cupboard: Call cupboard.Detach()."
 touchpoints:
   - T1: "Cupboard interface: Attach, Detach, GetTable (prd-cupboard-core R2)"
   - T2: "Table (crumbs): Get, Set, Fetch"
   - T3: "Table (properties): Get, Set, Fetch"
   - T4: "Crumb entity: SetProperty, GetProperty, GetProperties, ClearProperty (prd-crumbs-interface R5)"
-  - T5: "Property entity: struct fields"
+  - T5: "Property entity: struct fields, DefineCategory, GetCategories (prd-properties-interface R7, R8)"
   - T6: "Built-in property seeding (prd-properties-interface R9, prd-sqlite-backend R9)"
   - T7: "Crumb creation with property auto-initialization (prd-crumbs-interface R3)"
   - T8: "Property definition with backfill to existing crumbs (prd-properties-interface R4)"
+  - T9: "Category entity: struct fields, persistence to SQLite and JSONL (prd-properties-interface R2, R7)"
 success_criteria:
   - S1: properties table Fetch returns five built-in properties after initialization
   - S2: Newly added crumbs have all defined properties with default values
@@ -44,13 +49,17 @@ success_criteria:
   - S9: No crumb ever has fewer properties than are defined
   - S10: Table.Get returns crumb with Properties map containing all defined properties
   - S11: Properties survive round-trip (create, get, verify, modify via SetProperty, get, verify updated value)
+  - S12: DefineCategory creates category accessible via GetCategories
+  - S13: GetCategories returns categories ordered by ordinal ascending, then name ascending
+  - S14: DefineCategory returns ErrDuplicateName for duplicate category names within a property
+  - S15: DefineCategory and GetCategories return ErrInvalidValueType for non-categorical properties
 out_of_scope:
   - Core CRUD operations (Get, Set, Delete, Fetch) - see rel01.0-uc003
-  - Category management (DefineCategory, GetCategories entity methods)
   - Property deletion or renaming (not supported per prd-properties-interface)
   - Trail operations - see rel03.0-uc001
   - Concurrent property definition and crumb creation
   - Property value validation beyond type checking
+  - Category deletion or renaming (not supported per prd-properties-interface)
 test_suite: test-rel02.0-uc001-property-enforcement
 dependencies:
   - D1: rel01.0-uc001 (Cupboard lifecycle) must pass
