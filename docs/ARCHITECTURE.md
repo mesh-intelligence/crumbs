@@ -47,13 +47,20 @@ Crumbs have a lifecycle driven by state transitions and trail operations. State 
 
 **Crumb states** (prd-crumbs-interface R2): `draft` → `pending` → `ready` → `taken` → `pebble` or `dust`. Terminal states are `pebble` (completed successfully) and `dust` (failed or abandoned). Initial state on creation is `draft`. The Table interface tracks state but does not enforce transitions—agents or coordination layers define transition rules.
 
-<!-- TODO: trails should have a state equivalent to draft and pending-->
-**Trail states** (prd-trails-interface R2): `active` → `completed` or `abandoned`. The `Trail.Complete()` and `Trail.Abandon()` entity methods update the trail's state field. When persisted via `Table.Set`, the backend performs cascade operations: completing a trail removes `belongs_to` links (crumbs become permanent), abandoning a trail deletes its crumbs.
+**Trail states**: `draft` → `pending` → `active` → `completed` or `abandoned`. A trail in `draft` state is being planned—the agent is considering what crumbs to include but has not committed to the exploration. A trail in `pending` state is defined but waiting for some precondition (e.g., a resource or a blocking crumb) before work can begin. The `active` state indicates the trail is open for work and crumbs can be added. The `Trail.Complete()` and `Trail.Abandon()` entity methods update the trail's state field. When persisted via `Table.Set`, the backend performs cascade operations: completing a trail removes `belongs_to` links (crumbs become permanent), abandoning a trail deletes its crumbs.
 
 **Trail structure**: Trails group crumbs via `belongs_to` links. Crumbs can depend on other crumbs via `child_of` links, forming a DAG. Trails can branch from a crumb on another trail via `branches_from` links. A crumb belongs to at most one trail at a time.
-<!-- TODO: Explain the semantics of relationships. Child of means that crumb is blocked until the parent crumb is pebbled. Branches from means that the trail is exploring an alternative approach starting from that crumb. Belongs to means that the crumb is part of that trail and follows the lifecycle of that trail. -->
 
-<!-- TODO: All crumbs must belong to a trail. When a trail is completed, all its crumbs are unlinked (they no longer belong to the trail and become part of the permanent record). When a trail is abandoned, all its crumbs are deleted. -->
+**Relationship semantics**: Each link type has distinct semantics that affect crumb and trail behavior.
+
+| Link type | Direction | Semantics |
+|-----------|-----------|-----------|
+| child_of | crumb → crumb | The child crumb is blocked until the parent crumb reaches `pebble` state. This models dependencies within a trail or across trails. |
+| branches_from | trail → crumb | The trail explores an alternative approach starting from that crumb. The branch point crumb remains on its original trail; the new trail represents a different path forward from that decision point. |
+| belongs_to | crumb → trail | The crumb is part of that trail and follows its lifecycle. When the trail completes, the crumb becomes permanent. When the trail is abandoned, the crumb is deleted. |
+| scoped_to | stash → trail | The stash is scoped to that trail and shares its lifecycle. |
+
+**Trail ownership rule**: All crumbs must belong to a trail. A crumb without a `belongs_to` link is either permanent (was on a completed trail) or orphaned (should be cleaned up). When a trail is completed, the backend removes all `belongs_to` links for its crumbs—they no longer belong to any trail and become part of the permanent record. When a trail is abandoned, the backend deletes all crumbs that belong to it, along with their properties, metadata, and links.
 
 ### Coordination Pattern
 
