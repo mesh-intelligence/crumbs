@@ -1,0 +1,178 @@
+id: test-rel01.1-uc003-configuration-loading
+title: Configuration and path resolution test suite
+description: >
+  Validates the configuration loading pipeline: platform-specific defaults,
+  environment variable overrides, config.yaml values, and CLI flag overrides.
+  Tests exercise the precedence chain defined in prd-configuration-directories.
+traces:
+  - rel01.1-uc003-configuration-loading
+tags:
+  - cli
+  - integration
+  - configuration
+
+preconditions:
+  - Cupboard binary built from cmd/cupboard
+  - Fresh temp directories for config and data
+  - Clean environment (no pre-existing CRUMBS_* env vars)
+
+test_cases:
+
+  # --- Platform defaults ---
+
+  - name: Platform default config directory (Linux)
+    description: On Linux, default config dir is $XDG_CONFIG_HOME/crumbs or ~/.config/crumbs
+    inputs:
+      env:
+        XDG_CONFIG_HOME: ""
+        HOME: /home/testuser
+      command: internal call to paths.DefaultConfigDir()
+    expected:
+      config_dir: /home/testuser/.config/crumbs
+
+  - name: Platform default data directory (Linux)
+    description: On Linux, default data dir is $XDG_DATA_HOME/crumbs or ~/.local/share/crumbs
+    inputs:
+      env:
+        XDG_DATA_HOME: ""
+        HOME: /home/testuser
+      command: internal call to paths.DefaultDataDir()
+    expected:
+      data_dir: /home/testuser/.local/share/crumbs
+
+  # --- Environment variable overrides ---
+
+  - name: CRUMBS_CONFIG_DIR overrides platform default
+    inputs:
+      env:
+        CRUMBS_CONFIG_DIR: /tmp/custom-config
+      command: cupboard init
+    expected:
+      exit_code: 0
+      state:
+        config_dir_used: /tmp/custom-config
+
+  - name: CRUMBS_DATA_DIR in config.yaml overrides platform default
+    description: Set data_dir via config.yaml placed at CRUMBS_CONFIG_DIR location
+    inputs:
+      setup:
+        - mkdir -p /tmp/config-test
+        - echo "backend: sqlite\ndata_dir: /tmp/custom-data" > /tmp/config-test/config.yaml
+      env:
+        CRUMBS_CONFIG_DIR: /tmp/config-test
+      command: cupboard init
+    expected:
+      exit_code: 0
+      files:
+        /tmp/custom-data/crumbs.jsonl:
+          exists: true
+
+  # --- Flag overrides (highest precedence) ---
+
+  - name: --config-dir flag overrides environment variable
+    inputs:
+      env:
+        CRUMBS_CONFIG_DIR: /tmp/env-config
+      command: cupboard --config-dir=/tmp/flag-config init
+    expected:
+      exit_code: 0
+      state:
+        config_dir_used: /tmp/flag-config
+
+  - name: --data-dir flag overrides config.yaml value
+    inputs:
+      setup:
+        - mkdir -p /tmp/cfg
+        - echo "backend: sqlite\ndata_dir: /tmp/config-data" > /tmp/cfg/config.yaml
+      command: cupboard --config-dir=/tmp/cfg --data-dir=/tmp/flag-data init
+    expected:
+      exit_code: 0
+      files:
+        /tmp/flag-data/crumbs.jsonl:
+          exists: true
+        /tmp/config-data/crumbs.jsonl:
+          exists: false
+
+  - name: --data-dir flag overrides platform default
+    inputs:
+      command: cupboard --data-dir=/tmp/explicit-data init
+    expected:
+      exit_code: 0
+      files:
+        /tmp/explicit-data/crumbs.jsonl:
+          exists: true
+
+  # --- Config file behavior ---
+
+  - name: Missing config.yaml uses defaults without error
+    description: CLI works with no config.yaml present
+    inputs:
+      setup:
+        - mkdir -p /tmp/empty-config
+      env:
+        CRUMBS_CONFIG_DIR: /tmp/empty-config
+      command: cupboard --data-dir=/tmp/no-config-data init
+    expected:
+      exit_code: 0
+      files:
+        /tmp/no-config-data/crumbs.jsonl:
+          exists: true
+
+  - name: Config.yaml data_dir value is respected
+    inputs:
+      setup:
+        - mkdir -p /tmp/yaml-cfg
+        - echo "backend: sqlite\ndata_dir: /tmp/from-yaml" > /tmp/yaml-cfg/config.yaml
+      command: cupboard --config-dir=/tmp/yaml-cfg init
+    expected:
+      exit_code: 0
+      files:
+        /tmp/from-yaml/crumbs.jsonl:
+          exists: true
+
+  - name: Config directory created on first run
+    description: CLI creates config directory if it does not exist
+    inputs:
+      env:
+        CRUMBS_CONFIG_DIR: /tmp/new-config-dir
+      command: cupboard --data-dir=/tmp/first-run-data init
+    expected:
+      exit_code: 0
+      files:
+        /tmp/new-config-dir:
+          exists: true
+          is_dir: true
+
+  # --- Precedence chain validation ---
+
+  - name: Full precedence chain (flag > env > config > default)
+    description: Verify the complete precedence order
+    inputs:
+      setup:
+        - mkdir -p /tmp/prec-cfg
+        - echo "backend: sqlite\ndata_dir: /tmp/prec-config-data" > /tmp/prec-cfg/config.yaml
+      env:
+        CRUMBS_CONFIG_DIR: /tmp/prec-cfg
+      command: cupboard --data-dir=/tmp/prec-flag-data init
+    expected:
+      exit_code: 0
+      files:
+        /tmp/prec-flag-data/crumbs.jsonl:
+          exists: true
+        /tmp/prec-config-data/crumbs.jsonl:
+          exists: false
+
+  # --- Error conditions ---
+
+  - name: Invalid config.yaml syntax logs warning but continues
+    inputs:
+      setup:
+        - mkdir -p /tmp/bad-cfg
+        - echo "invalid: yaml: syntax: :" > /tmp/bad-cfg/config.yaml
+      command: cupboard --config-dir=/tmp/bad-cfg --data-dir=/tmp/bad-yaml-data init
+    expected:
+      exit_code: 1
+      stderr_contains: "read config"
+
+cleanup:
+  - Remove all temp directories created during tests
