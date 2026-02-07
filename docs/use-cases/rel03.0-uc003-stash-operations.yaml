@@ -1,0 +1,74 @@
+id: rel03.0-uc003-stash-operations
+title: Stash Operations
+summary: |
+  A developer creates stashes of each type (resource, artifact, context, counter,
+  lock) to share state between crumbs. This tracer bullet validates stash creation,
+  value operations (SetValue/GetValue), counter operations (Increment), lock
+  operations (Acquire/Release with reentrant and contention semantics), version
+  tracking across mutations, and fetch with filters through the Table interface.
+actor: Coding agent or developer managing shared state between crumbs
+trigger: Need to create, access, or coordinate shared state in a trail
+flow:
+  - F1: "Create cupboard and get stashes table: construct a Cupboard via sqlite.NewBackend(), call Attach(config), and get stashes table"
+  - F2: "Create resource stash: create a stash with type 'resource' containing URI and kind"
+  - F3: "Verify resource stash creation: confirm StashID generated, Version is 1, CreatedAt set"
+  - F4: "Create artifact stash: create a stash with type 'artifact' containing path and producer"
+  - F5: "Create context stash: create a stash with type 'context' containing configuration data"
+  - F6: "Test SetValue on context stash: update value and verify Version increments"
+  - F7: "Test GetValue retrieves current value: confirm value matches what was set"
+  - F8: "Create counter stash: create a stash with type 'counter' with initial value 0"
+  - F9: "Test Increment with positive delta: call Increment(5), verify returns 5 and Version increments"
+  - F10: "Test Increment with negative delta: call Increment(-2), verify returns 3 and Version increments"
+  - F11: "Test multiple increments: verify accumulated value is correct across operations"
+  - F12: "Create lock stash: create a stash with type 'lock' with nil initial value"
+  - F13: "Test Acquire lock: call Acquire('worker-1'), verify success and Version increments"
+  - F14: "Test reentrant acquire: call Acquire('worker-1') again, verify success without error"
+  - F15: "Test contention (ErrLockHeld): call Acquire('worker-2'), verify ErrLockHeld returned"
+  - F16: "Test Release lock: call Release('worker-1'), verify success and Version increments"
+  - F17: "Test wrong holder release (ErrNotLockHolder): call Release('worker-2') on unlocked lock"
+  - F18: "Fetch stashes by stash_type filter: query stashes table with stash_type filter"
+  - F19: "Fetch stashes by name filter: query stashes table with name filter"
+  - F20: "Delete stash: remove a stash and verify ErrNotFound on subsequent Get"
+  - F21: "Detach the cupboard: call cupboard.Detach()"
+touchpoints:
+  - T1: "Cupboard interface: Attach, Detach, GetTable (prd-cupboard-core R2)"
+  - T2: "Table (stashes): Get, Set, Delete, Fetch (prd-cupboard-core R3)"
+  - T3: "Stash entity: StashID, Name, StashType, Value, Version, CreatedAt fields (prd-stash-interface R1)"
+  - T4: "Stash types: resource, artifact, context, counter, lock (prd-stash-interface R2)"
+  - T5: "SetValue/GetValue methods for value access (prd-stash-interface R4)"
+  - T6: "Increment method for counter operations (prd-stash-interface R5)"
+  - T7: "Acquire/Release methods for lock operations (prd-stash-interface R6)"
+  - T8: "Version tracking across mutations (prd-stash-interface R1.6)"
+  - T9: "Filter map for stash queries: stash_type, name (prd-stash-interface R9)"
+success_criteria:
+  - S1: Stash created via Table.Set generates UUID v7 for StashID
+  - S2: All five stash types can be created (resource, artifact, context, counter, lock)
+  - S3: SetValue updates value and increments Version; returns ErrInvalidStashType for lock type
+  - S4: GetValue returns current value or nil if not set
+  - S5: Increment adds delta to counter value and increments Version; returns ErrInvalidStashType for non-counter
+  - S6: Increment with negative delta decrements the counter correctly
+  - S7: Acquire sets holder and increments Version; returns ErrLockHeld if held by different holder
+  - S8: Acquire by same holder succeeds (reentrant) without error
+  - S9: Release clears lock and increments Version; returns ErrNotLockHolder if wrong holder
+  - S10: Version starts at 1 and increments on every mutation
+  - S11: Fetch with stash_type filter returns only stashes of that type
+  - S12: Fetch with name filter returns stash matching that name
+  - S13: Delete removes stash; subsequent Get returns ErrNotFound
+out_of_scope:
+  - Stash history tracking (backend concern per prd-stash-interface R7)
+  - Stash scoping via scoped_to links (see rel03.0-uc002)
+  - Blocking lock acquisition with timeout
+  - Stash name uniqueness validation (backend may enforce)
+  - Concurrent stash operations
+test_suite: test-rel03.0-uc003-stash-operations
+dependencies:
+  - D1: rel01.0-uc001 (Cupboard lifecycle) must pass
+  - D2: rel01.0-uc002 (Table CRUD) must pass
+  - D3: prd-stash-interface (stash entity, methods) must be implemented
+risks:
+  - K1: "Counter overflow on large increments | Use int64 for sufficient range"
+  - K2: "Lock state corruption | Verify atomic version increment on each operation"
+  - K3: "Type mismatch on method calls | Validate StashType before each operation"
+demo: |
+  # Run the integration tests
+  go test -v ./tests/integration -run TestStashOperations
