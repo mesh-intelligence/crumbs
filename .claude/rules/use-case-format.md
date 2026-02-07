@@ -35,7 +35,7 @@ success_criteria:
 out_of_scope:
   - Connection pooling or retry policies
   - File-based configuration loading
-test_suite: test005-scaffolding-validation
+test_suite: test-rel01.0-uc001-cupboard-lifecycle
 ```
 
 ### id
@@ -147,7 +147,7 @@ out_of_scope:
 The ID of the corresponding test suite in `docs/test-suites/`. Every use case must have a test suite. When creating a new use case, also create the test suite YAML file.
 
 ```yaml
-test_suite: test005-scaffolding-validation
+test_suite: test-rel01.0-uc004-scaffolding-validation
 ```
 
 ## Optional Fields
@@ -237,7 +237,7 @@ Minor releases (e.g., 01.1, 02.1) validate completed major releases without renu
 
 Every use case must have a corresponding test suite. The test suite:
 
-- Lives in `docs/test-suites/test[NNN]-[short-name].yaml`
+- Lives in `docs/test-suites/test-[use-case-id].yaml`
 - Traces back to the use case via the `traces` field
 - Contains test cases that validate the success criteria (`S1`, `S2`, ...)
 - Follows the test-case-format rule

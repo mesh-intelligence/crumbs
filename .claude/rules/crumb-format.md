@@ -25,7 +25,7 @@ Documentation issues produce markdown (and optionally diagrams) under `docs/`. T
 | **ARCHITECTURE / docs** | `docs/ARCHITECTURE.md` or specific doc | documentation-standards | Updating system overview, components, diagrams, design decisions |
 | **PRD** | `docs/product-requirements/prd-[feature-name].yaml` | prd-format | New or updated product requirements; numbered requirements, Problem/Goals/Non-Goals |
 | **Use case** | `docs/use-cases/rel[NN].[N]-uc[NNN]-[short-name].yaml` | use-case-format | Tracer-bullet flows, actor/trigger, demo criteria; must include test suite |
-| **Test suite** | `docs/test-suites/test[NNN]-[short-name].yaml` | test-case-format | Test cases with inputs and expected outputs |
+| **Test suite** | `docs/test-suites/test-[use-case-id].yaml` | test-case-format | Test cases with inputs and expected outputs |
 | **Engineering guideline** | `docs/engineering/eng[NN]-[short-name].md` | engineering-guideline-format | Conventions and practices |
 | **Specification** | `docs/SPECIFICATIONS.md` | specification-format | Summary of PRDs, use cases, test suites, roadmap with traceability diagram |
 

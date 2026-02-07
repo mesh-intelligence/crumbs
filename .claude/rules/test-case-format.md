@@ -4,13 +4,14 @@ A test suite is a YAML document that groups related test cases under shared prec
 
 ## File and Naming
 
-- **Location**: `docs/test-suites/test[NNN]-[short-name].yaml`
-- **Prefix**: `test` followed by a three-digit sequence number (e.g., `test001`, `test002`)
-- **Short name**: Lowercase, hyphenated, describing the feature under test (e.g., `create-crumb`, `ready-filters`)
+- **Location**: `docs/test-suites/test-[use-case-id].yaml`
+- **Prefix**: `test-` followed by the use case ID that the suite validates
+- **Use case ID**: The full use case identifier (e.g., `rel01.0-uc001-cupboard-lifecycle`)
 
 Examples:
-- `docs/test-suites/test001-create-crumb.yaml`
-- `docs/test-suites/test002-ready-filters.yaml`
+
+- `docs/test-suites/test-rel01.0-uc001-cupboard-lifecycle.yaml`
+- `docs/test-suites/test-rel02.1-uc001-issue-tracking-cli.yaml`
 
 ## Required Fields
 
@@ -19,7 +20,7 @@ Examples:
 The suite identifier, matching the filename without extension.
 
 ```yaml
-id: test001-create-crumb
+id: test-rel02.1-uc001-issue-tracking-cli
 ```
 
 ### 2. title
@@ -27,7 +28,7 @@ id: test001-create-crumb
 A short human-readable name for the suite.
 
 ```yaml
-title: Create crumb operations
+title: Issue-tracking CLI operations
 ```
 
 ### 3. traces
@@ -167,13 +168,12 @@ cleanup:
 ## Full Example
 
 ```yaml
-id: test001-create-crumb
-title: Create crumb operations
+id: test-rel01.0-uc002-sqlite-crud
+title: Table interface CRUD operations
 description: >
-  Validates cupboard create across different input combinations.
+  Validates Set, Get, Fetch, Delete across entity types with JSONL persistence.
 traces:
-  - rel02.1-uc003-self-hosting
-  - prd-cupboard-core R4
+  - rel01.0-uc002-sqlite-crud
 tags:
   - cli
   - smoke
@@ -233,9 +233,9 @@ Table 4: Test suite code layout
 
 | YAML spec | Go test code |
 | --------- | ------------ |
-| `docs/test-suites/test001-self-hosting.yaml` | `tests/integration/test001_self_hosting_test.go` |
-| `docs/test-suites/test002-jsonl-git-roundtrip.yaml` | `tests/integration/test002_jsonl_git_roundtrip_test.go` |
-| Long suite (many test cases) | `tests/integration/test003_table_benchmarks/` (directory with multiple files) |
+| `docs/test-suites/test-rel02.1-uc003-self-hosting.yaml` | `tests/integration/test_rel02_1_uc003_self_hosting_test.go` |
+| `docs/test-suites/test-rel01.1-uc002-jsonl-git-roundtrip.yaml` | `tests/integration/test_rel01_1_uc002_jsonl_git_roundtrip_test.go` |
+| Long suite (many test cases) | `tests/integration/test_rel02_1_uc002_table_benchmarks/` (directory with multiple files) |
 
 Rules:
 
@@ -290,4 +290,4 @@ func TestCreateCrumb(t *testing.T) {
 - [ ] Each test case has a name, inputs, and expected outputs
 - [ ] Inputs use real commands and data
 - [ ] Expected outputs are specific and checkable
-- [ ] File saved as `test[NNN]-[short-name].yaml` in `docs/test-suites/`
+- [ ] File saved as `test-[use-case-id].yaml` in `docs/test-suites/`
