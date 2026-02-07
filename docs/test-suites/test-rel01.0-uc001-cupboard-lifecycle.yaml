@@ -6,7 +6,6 @@ description: >
   Each test case exercises the core CRUD operations via the cupboard CLI.
 traces:
   - rel01.0-uc001-cupboard-lifecycle
-  - rel01.0-uc003-crud-operations
 tags:
   - cli
   - integration
