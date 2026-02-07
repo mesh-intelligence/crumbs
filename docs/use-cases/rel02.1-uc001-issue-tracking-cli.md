@@ -10,7 +10,7 @@ The actor is a developer or coding agent using the cupboard CLI for task trackin
 
 ## Flow
 
-This use case exercises the cupboard CLI commands from Phase 1 of rel00.0-uc001-self-hosting. Each command uses the Cupboard library via `GetTable("crumbs")` (prd-cupboard-core R2) and operates through the Table interface (prd-cupboard-core R3).
+This use case exercises the cupboard CLI commands from Phase 1 of rel02.1-uc003-self-hosting. Each command uses the Cupboard library via `GetTable("crumbs")` (prd-cupboard-core R2) and operates through the Table interface (prd-cupboard-core R3).
 
 1. Initialize a fresh cupboard with SQLite backend.
 
@@ -184,8 +184,8 @@ All test cases from test001-self-hosting.yaml validate these commands. The test 
 
 ## Out of Scope
 
-- Script integration (do-work.sh, make-work.sh) — covered by rel00.0-uc001-self-hosting Phase 2
-- Interactive agent workflow rules — covered by rel00.0-uc001-self-hosting Phase 3
+- Script integration (do-work.sh, make-work.sh) — covered by rel02.1-uc003-self-hosting Phase 2
+- Interactive agent workflow rules — covered by rel02.1-uc003-self-hosting Phase 3
 - Trail operations (create, complete, abandon)
 - Multi-user or concurrent access patterns
 - Remote backends

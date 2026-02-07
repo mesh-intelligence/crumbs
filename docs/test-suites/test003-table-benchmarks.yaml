@@ -5,9 +5,9 @@ description: >
   data scales. Each test case runs a Go benchmark command and verifies that
   it completes without error and reports timing and memory metrics. The
   benchmarks establish baseline performance for Get, Set, Delete, Fetch,
-  and property operations as specified in rel00.0-uc005-table-benchmarks.
+  and property operations as specified in rel02.1-uc002-table-benchmarks.
 traces:
-  - rel00.0-uc005-table-benchmarks
+  - rel02.1-uc002-table-benchmarks
 tags:
   - performance
   - benchmark

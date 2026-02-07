@@ -7,7 +7,7 @@ description: >
   R1 (directory layout), R4 (startup sequence), R5 (write operations), and
   eng01-git-integration conventions.
 traces:
-  - rel00.0-uc004-jsonl-git-roundtrip
+  - rel01.1-uc002-jsonl-git-roundtrip
 tags:
   - persistence
   - jsonl
@@ -293,7 +293,7 @@ test_cases:
 
   - name: Complete roundtrip workflow
     description: >
-      Simulates the full workflow from rel00.0-uc004: create crumbs, commit JSONL,
+      Simulates the full workflow from rel01.1-uc002: create crumbs, commit JSONL,
       delete database, rebuild, verify data, modify data, repeat roundtrip.
     inputs:
       steps:

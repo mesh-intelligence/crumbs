@@ -36,4 +36,4 @@ Once scripts and the interactive workflow run on cupboard, we remove the bd depe
 ## References
 
 - eng01-git-integration (JSONL in git, trails as worktrees)
-- docs/use-cases/rel00.0-uc001-self-hosting.md (the use case this migration enables)
+- docs/use-cases/rel02.1-uc003-self-hosting.md (the use case this migration enables)

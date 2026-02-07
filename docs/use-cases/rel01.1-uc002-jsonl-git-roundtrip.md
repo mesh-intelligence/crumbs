@@ -220,7 +220,7 @@ The roundtrip demonstrates that:
 - Startup sequence loads JSONL into SQLite (prd-sqlite-backend R4)
 - Cupboard interface with Attach/Detach (prd-cupboard-core R4, R5)
 - Table interface with Get/Set/Fetch (prd-cupboard-core R3)
-- Issue-tracking CLI commands (rel00.0-uc003-issue-tracking-cli)
+- Issue-tracking CLI commands (rel02.1-uc001-issue-tracking-cli)
 
 ## Risks and Mitigations
 

@@ -11,6 +11,7 @@
 #   --silence-claude       Suppress Claude's output
 #   --make-work-limit N    Number of issues to create when no tasks (default: 1)
 #   --cycles N             Number of make-work cycles (default: 1)
+#   --regenerate           Tag repo, delete Go files, reinitialize module, then loop
 #
 # Workflow:
 # 1. Pick and claim a task from beads
@@ -28,6 +29,7 @@ set -e
 SILENCE_CLAUDE=false
 MAKE_WORK_LIMIT=5
 CYCLES=0
+REGENERATE=false
 REPO_ARG=""
 
 while [[ $# -gt 0 ]]; do
@@ -43,6 +45,10 @@ while [[ $# -gt 0 ]]; do
     --cycles)
       CYCLES="$2"
       shift 2
+      ;;
+    --regenerate)
+      REGENERATE=true
+      shift
       ;;
     *)
       REPO_ARG="$1"
@@ -214,6 +220,45 @@ call_make_work() {
   "$SCRIPT_DIR/make-work.sh" $make_work_args
 }
 
+regenerate() {
+  echo ""
+  echo "========================================"
+  echo "Regenerating from documentation"
+  echo "========================================"
+  echo ""
+
+  # Tag current state
+  local tag="generation-$(date +%Y-%m-%d-%H-%M)"
+  echo "Tagging current state as $tag..."
+  git tag "$tag"
+
+  # Delete Go source files
+  echo "Deleting Go source files..."
+  find . -name '*.go' -not -path './.git/*' -delete 2>/dev/null || true
+
+  # Remove empty directories left behind in Go source dirs
+  find cmd/ pkg/ internal/ -type d -empty -delete 2>/dev/null || true
+
+  # Remove build artifacts and dependency lock
+  rm -rf bin/ go.sum
+
+  # Reinitialize Go module
+  echo "Reinitializing Go module..."
+  rm -f go.mod
+  go mod init github.com/mesh-intelligence/crumbs
+
+  # Commit the clean state
+  echo "Committing clean state..."
+  git add -A
+  git commit -m "Regenerate: delete Go files, reinitialize module
+
+Tagged previous state as $tag"
+
+  echo ""
+  echo "Regeneration complete. Starting make-work/do-work loop."
+  echo ""
+}
+
 main() {
   local total_tasks=0
   local make_work_calls=0
@@ -249,5 +294,9 @@ main() {
   echo "Make-work calls: $make_work_calls"
   echo "========================================"
 }
+
+if [ "$REGENERATE" = true ]; then
+  regenerate
+fi
 
 main

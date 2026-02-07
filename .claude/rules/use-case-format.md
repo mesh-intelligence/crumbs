@@ -45,14 +45,14 @@ See road-map.yaml for the authoritative release schedule and use case status. Su
 
 | Release | Focus |
 |---------|-------|
-| 00.0 | Cross-release milestones (span multiple releases) |
 | 01.0 | Core storage with SQLite backend |
+| 01.1 | Post-core validation (go install, JSONL roundtrip) |
 | 02.0 | Properties with enforcement |
+| 02.1 | Issue-tracking CLI, benchmarks, self-hosting |
 | 03.0 | Trails and stashes |
-| 04.0 | Metadata and additional backends |
 | 99.0 | Unscheduled (not yet assigned to a release) |
 
-Minor releases (e.g., 01.1, 02.1) add functionality to a major release without renumbering existing use cases.
+Minor releases (e.g., 01.1, 02.1) validate completed major releases without renumbering existing use cases.
 
 ## Relationship to Other Docs
 

@@ -5,7 +5,7 @@ description: >
   Each test case exercises a command from the uc001 self-hosting use case
   via exec, using a fresh cupboard instance with SQLite backend.
 traces:
-  - rel00.0-uc001-self-hosting
+  - rel02.1-uc003-self-hosting
 tags:
   - cli
   - integration

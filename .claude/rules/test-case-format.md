@@ -36,7 +36,7 @@ What this suite validates. List one or more use case IDs, PRD requirement IDs, o
 
 ```yaml
 traces:
-  - rel00.0-uc001-self-hosting
+  - rel02.1-uc003-self-hosting
   - prd-cupboard-core R4
 ```
 
@@ -172,7 +172,7 @@ title: Create crumb operations
 description: >
   Validates cupboard create across different input combinations.
 traces:
-  - rel00.0-uc001-self-hosting
+  - rel02.1-uc003-self-hosting
   - prd-cupboard-core R4
 tags:
   - cli
