@@ -269,14 +269,26 @@ type Filter = map[string]any
 
 ### R10: Querying Stashes
 
-10.1. To query stashes, use Table.Fetch with a filter map:
+10.1. To query stashes by type, use Table.Fetch with a filter map:
 
 ```go
+// Find all lock-type stashes
 filter := map[string]any{
-    "trail_id":   &trailID,
     "stash_type": "lock",
 }
-entities, err := table.Fetch(filter)
+entities, err := stashTable.Fetch(filter)
+```
+
+To find stashes scoped to a trail, query the links table for `scoped_to` links (per R9.2.1):
+
+```go
+// Find stash IDs scoped to a trail
+linkFilter := map[string]any{
+    "link_type": "scoped_to",
+    "to_id":     trailID,
+}
+links, err := linksTable.Fetch(linkFilter)
+// Extract stash IDs from links (each link.FromID is a stash_id)
 ```
 
 10.2. Table.Fetch returns a slice of entities ([]any); the caller must type-assert each element to *Stash:

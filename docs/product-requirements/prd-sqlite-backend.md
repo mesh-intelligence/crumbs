@@ -486,7 +486,7 @@ type Cupboard interface {
 ```go
 type Table interface {
     Get(id string) (any, error)
-    Set(id string, data any) error
+    Set(id string, data any) (string, error)
     Delete(id string) error
     Fetch(filter map[string]any) ([]any, error)
 }
