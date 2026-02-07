@@ -29,4 +29,4 @@ For specific document types, see:
 - [rules/use-case-format.md](rules/use-case-format.md) - Use cases and tracer bullets
 - [rules/vision-format.md](rules/vision-format.md) - Vision documents
 - [rules/architecture-format.md](rules/architecture-format.md) - Architecture documents
-- [rules/issue-format.md](rules/issue-format.md) - How to structure issues in Beads
+- [rules/crumb-format.md](rules/crumb-format.md) - How to structure crumbs (docs vs code)

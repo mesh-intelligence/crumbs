@@ -132,7 +132,7 @@ The `/make-work` command analyzes the project state and proposes new work. It re
 1. Reads project documentation (VISION, ARCHITECTURE, ROADMAP, PRDs, use cases)
 2. Checks open and closed issues via `bd` CLI
 3. Identifies gaps between the roadmap and current state
-4. Proposes epics and child issues with proper structure (per `issue-format.md`)
+4. Proposes epics and child issues with proper structure (per `crumb-format.md`)
 5. Creates issues via `bd` after user approval
 
 **Example:**
@@ -191,7 +191,7 @@ The `.claude/rules/` directory contains formatting and process rules:
 | `documentation-standards.md`       | Writing style, formatting, content quality        |
 | `prd-format.md`                    | Product Requirements Document structure           |
 | `use-case-format.md`               | Use case document structure                       |
-| `issue-format.md`                  | How to structure issues (docs vs code)            |
+| `crumb-format.md`                  | How to structure crumbs (docs vs code)            |
 | `code-prd-architecture-linking.md` | Linking code to PRDs and architecture             |
 | `vision-format.md`                 | Vision document structure                         |
 | `architecture-format.md`           | Architecture document structure                   |

@@ -13,7 +13,7 @@ This directory contains custom instructions and rules for the Claude Code agent.
 │   ├── documentation-standards.md
 │   ├── prd-format.md
 │   ├── use-case-format.md
-│   ├── issue-format.md
+│   ├── crumb-format.md
 │   ├── patent-disclosure-format.md
 │   ├── vision-format.md
 │   └── architecture-format.md
@@ -42,7 +42,7 @@ Context-specific rules that govern how the agent works:
 - **documentation-standards.md**: Writing style, formatting, figures, and content quality rules
 - **prd-format.md**: Product Requirements Document structure and guidelines
 - **use-case-format.md**: Use case document structure (tracer bullets, demos)
-- **issue-format.md**: How to structure documentation vs code issues in Beads
+- **crumb-format.md**: How to structure documentation vs code crumbs
 - **vision-format.md**: Vision document structure and guidelines
 - **architecture-format.md**: Architecture document structure and guidelines
 

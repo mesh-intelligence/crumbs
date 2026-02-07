@@ -25,7 +25,7 @@ Based on this, propose next steps using **release priority**:
 5. If no epics exist: suggest epics to create and initial issues for each
 6. Identify dependencies - what should be built first and why?
 
-When proposing issues (per issue-format rule):
+When proposing issues (per crumb-format rule):
 
 1. **Type**: Say whether each issue is **documentation** (markdown in `docs/`) or **code** (implementation).
 2. **Required Reading**: List files the agent must read before starting (PRDs, ARCHITECTURE sections, existing code). This is mandatory for all issues.

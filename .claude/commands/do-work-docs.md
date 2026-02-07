@@ -1,6 +1,6 @@
 # Command: Do Work (Documentation)
 
-Use this command when the work is **documentation** (markdown in `docs/`): PRDs, use cases, invention disclosures, ARCHITECTURE updates, or other docs. Follow the **issue-format** rule for output location and format; use the format rule named in the issue (prd-format, use-case-format, patent-disclosure-format, documentation-standards).
+Use this command when the work is **documentation** (markdown in `docs/`): PRDs, use cases, invention disclosures, ARCHITECTURE updates, or other docs. Follow the **crumb-format** rule for output location and format; use the format rule named in the issue (prd-format, use-case-format, patent-disclosure-format, documentation-standards).
 
 Read VISION.md and ARCHITECTURE.md for context. For PRDs also scan existing `docs/product-requirements/`; for use cases `docs/use-cases/`; for invention disclosures `docs/invention-disclosures/`.
 

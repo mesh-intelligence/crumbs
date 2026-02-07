@@ -225,6 +225,45 @@ cleanup:
   - Remove the test data directory
 ```
 
+## Implementation Layout
+
+Test suite code lives in a single Go file or directory that matches the YAML spec filename.
+
+Table 4: Test suite code layout
+
+| YAML spec | Go test code |
+| --------- | ------------ |
+| `docs/test-suites/test001-self-hosting.yaml` | `tests/integration/test001_self_hosting_test.go` |
+| `docs/test-suites/test002-jsonl-git-roundtrip.yaml` | `tests/integration/test002_jsonl_git_roundtrip_test.go` |
+| Long suite (many test cases) | `tests/integration/test003_table_benchmarks/` (directory with multiple files) |
+
+Rules:
+
+- One test suite per file. If the suite is long, use a directory named after the suite.
+- Use Go table-driven tests to avoid repeating setup and assertion logic across test cases. Each YAML test case maps to one row in the table.
+- The Go file or directory name matches the YAML filename: replace hyphens with underscores and append `_test.go`.
+
+Example table-driven pattern:
+
+```go
+func TestCreateCrumb(t *testing.T) {
+    tests := []struct {
+        name    string
+        args    []string
+        wantErr bool
+        check   func(t *testing.T, output string)
+    }{
+        {"required fields", []string{"create", "--type", "task", "--title", "Test"}, false, nil},
+        {"missing title", []string{"create", "--type", "task"}, true, nil},
+    }
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            // shared setup, exec, assertions
+        })
+    }
+}
+```
+
 ## Writing Guidelines
 
 - **One feature per suite**: Group test cases that exercise the same command or operation. Split unrelated behaviors into separate suites.
@@ -232,6 +271,7 @@ cleanup:
 - **Checkable outputs**: Each expected field must be verifiable without judgment. Prefer exact values over vague descriptions.
 - **Traceability**: Every suite must trace to at least one use case or PRD requirement.
 - **Independent test cases**: Each test case should be runnable in isolation given the preconditions. Do not rely on ordering between test cases unless explicitly noted.
+- **Table-driven tests**: Use Go table-driven tests to implement the test cases from the YAML spec. Each row in the table corresponds to one test case in the YAML.
 
 ## Relationship to Other Docs
 
