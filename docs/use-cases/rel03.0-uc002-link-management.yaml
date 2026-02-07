@@ -1,0 +1,71 @@
+id: rel03.0-uc002-link-management
+title: Link Management
+summary: |
+  A developer creates links between entities to establish relationships: belongs_to
+  (crumb→trail membership), child_of (crumb→crumb hierarchy), branches_from
+  (trail→crumb branch point), and scoped_to (stash→trail scope). This tracer bullet
+  validates link CRUD operations, uniqueness constraints, and filter-based queries
+  through the Table interface.
+actor: Coding agent or developer managing entity relationships
+trigger: Need to establish, query, or remove relationships between crumbs, trails, and stashes
+flow:
+  - F1: "Create cupboard and get tables: construct a Cupboard via sqlite.NewBackend(), call Attach(config), and get links, crumbs, trails, and stashes tables"
+  - F2: "Create prerequisite entities: create parent crumb, child crumb, trail, and stash for linking"
+  - F3: "Create belongs_to link: create a link from crumb to trail indicating trail membership"
+  - F4: "Verify belongs_to link: retrieve the link and confirm link_type, from_id, and to_id"
+  - F5: "Create child_of link: create a link from child crumb to parent crumb indicating hierarchy"
+  - F6: "Verify child_of link: retrieve the link and confirm the crumb dependency relationship"
+  - F7: "Create branches_from link: create a link from trail to crumb indicating branch point"
+  - F8: "Verify branches_from link: retrieve the link and confirm the trail branch point"
+  - F9: "Create scoped_to link: create a link from stash to trail indicating trail scope"
+  - F10: "Verify scoped_to link: retrieve the link and confirm the stash scope"
+  - F11: "Fetch links by link_type: query links table with link_type filter"
+  - F12: "Fetch links by from_id: query links table with from_id filter"
+  - F13: "Fetch links by to_id: query links table with to_id filter"
+  - F14: "Fetch links with combined filters: query with multiple filter keys"
+  - F15: "Update link (idempotent): Set with existing link ID updates fields"
+  - F16: "Delete link: remove a link and verify ErrNotFound on subsequent Get"
+  - F17: "Delete nonexistent link: verify ErrNotFound returned"
+  - F18: "Verify uniqueness: attempt duplicate link creation with same link_type+from_id+to_id"
+  - F19: "Detach the cupboard: call cupboard.Detach()"
+touchpoints:
+  - T1: "Cupboard interface: Attach, Detach, GetTable"
+  - T2: "Table (links): Get, Set, Delete, Fetch"
+  - T3: "Table (crumbs): Set for creating prerequisite crumbs"
+  - T4: "Table (trails): Set for creating prerequisite trails"
+  - T5: "Table (stashes): Set for creating prerequisite stashes"
+  - T6: "Link entity: LinkID, LinkType, FromID, ToID, CreatedAt fields (prd-sqlite-backend R14.6)"
+  - T7: "belongs_to link type: crumb→trail membership (prd-trails-interface R7)"
+  - T8: "child_of link type: crumb→crumb hierarchy (prd-sqlite-backend graph_model)"
+  - T9: "branches_from link type: trail→crumb branch point (prd-trails-interface R9)"
+  - T10: "scoped_to link type: stash→trail scope (prd-stash-interface R13)"
+  - T11: "Link table indexes: idx_links_type_from, idx_links_type_to (prd-sqlite-backend R3.3)"
+success_criteria:
+  - S1: Link created via Table.Set generates UUID v7 for LinkID
+  - S2: belongs_to link associates crumb with trail (from_id=crumb_id, to_id=trail_id)
+  - S3: child_of link establishes crumb hierarchy (from_id=child, to_id=parent)
+  - S4: branches_from link indicates trail branch point (from_id=trail_id, to_id=crumb_id)
+  - S5: scoped_to link scopes stash to trail (from_id=stash_id, to_id=trail_id)
+  - S6: Fetch with link_type filter returns only links of that type
+  - S7: Fetch with from_id filter returns links originating from that entity
+  - S8: Fetch with to_id filter returns links targeting that entity
+  - S9: Delete removes link; subsequent Get returns ErrNotFound
+  - S10: Delete of nonexistent link returns ErrNotFound
+out_of_scope:
+  - Trail cascade behavior on Complete/Abandon (see rel03.0-uc001)
+  - Graph traversal or cycle detection (R10 ValidateDAG)
+  - Foreign key validation (R10 ValidateReferences)
+  - Link cardinality enforcement (one belongs_to per crumb, etc.)
+  - Concurrent link operations
+test_suite: test-rel03.0-uc002-link-management
+dependencies:
+  - D1: rel01.0-uc001 (Cupboard lifecycle) must pass
+  - D2: rel01.0-uc002 (Table CRUD) must pass
+  - D3: prd-sqlite-backend (links table, R3.2, R14.6) must be implemented
+risks:
+  - K1: "Orphan links after entity deletion | Test link cleanup on entity removal"
+  - K2: "Duplicate links allowed | Verify uniqueness constraint or idempotent behavior"
+  - K3: "Performance with many links | Test with 100+ links on a single entity"
+demo: |
+  # Run the integration tests
+  go test -v ./tests/integration -run TestLinkManagement
