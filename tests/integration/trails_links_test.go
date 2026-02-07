@@ -1,187 +1,16 @@
-// CLI integration tests for cupboard.
-// Validates self-hosting milestone (uc002-self-hosting).
+// CLI integration tests for trails, links, and archive operations.
+// These tests do NOT belong in test001-self-hosting; they will be extracted
+// into a separate test suite by Task 2.
 // Implements: crumbs-ag8.1 (convert validation script to Go tests).
 package integration
 
 import (
-	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 )
 
-// TestMain builds the cupboard binary once before running tests.
-func TestMain(m *testing.M) {
-	// Find project root by looking for go.mod
-	projectRoot, err := FindProjectRoot()
-	if err != nil {
-		SetBuildErr(err)
-		os.Exit(1)
-	}
-
-	// Build cupboard binary into a temp directory
-	tmpDir, err := os.MkdirTemp("", "cupboard-test-*")
-	if err != nil {
-		SetBuildErr(err)
-		os.Exit(1)
-	}
-	binPath := filepath.Join(tmpDir, "cupboard")
-	SetCupboardBin(binPath)
-
-	cmd := exec.Command("go", "build", "-o", binPath, "./cmd/cupboard")
-	cmd.Dir = projectRoot
-	if output, err := cmd.CombinedOutput(); err != nil {
-		SetBuildErr(&BuildError{
-			Err:    err,
-			Output: string(output),
-		})
-		os.Exit(1)
-	}
-
-	code := m.Run()
-
-	// Cleanup binary
-	os.RemoveAll(tmpDir)
-
-	os.Exit(code)
-}
-
-// Test1_InitializeCupboard verifies cupboard initialization.
-func Test1_InitializeCupboard(t *testing.T) {
-	env := NewTestEnv(t)
-
-	result := env.MustRunCupboard("init")
-
-	// Verify output message
-	if result.Stdout == "" {
-		t.Error("expected init output message")
-	}
-
-	// Verify data directory was created
-	if _, err := os.Stat(env.DataDir); os.IsNotExist(err) {
-		t.Error("data directory not created")
-	}
-
-	// Verify crumbs.jsonl was created
-	crumbsFile := filepath.Join(env.DataDir, "crumbs.jsonl")
-	if _, err := os.Stat(crumbsFile); os.IsNotExist(err) {
-		t.Error("crumbs.jsonl not created")
-	}
-}
-
-// Test2_CreateCrumbs verifies crumb creation with draft state.
-func Test2_CreateCrumbs(t *testing.T) {
-	env := NewTestEnv(t)
-	env.MustRunCupboard("init")
-
-	// Create first crumb
-	result1 := env.MustRunCupboard("set", "crumbs", "", `{"Name":"Implement feature X","State":"draft"}`)
-	crumb1 := ParseJSON[Crumb](t, result1.Stdout)
-	if crumb1.CrumbID == "" {
-		t.Error("crumb1 ID not generated")
-	}
-	if crumb1.Name != "Implement feature X" {
-		t.Errorf("crumb1 name mismatch: got %q", crumb1.Name)
-	}
-	if crumb1.State != "draft" {
-		t.Errorf("crumb1 state mismatch: got %q", crumb1.State)
-	}
-
-	// Create second crumb
-	result2 := env.MustRunCupboard("set", "crumbs", "", `{"Name":"Write tests for feature X","State":"draft"}`)
-	crumb2 := ParseJSON[Crumb](t, result2.Stdout)
-	if crumb2.CrumbID == "" {
-		t.Error("crumb2 ID not generated")
-	}
-
-	// Create third crumb
-	result3 := env.MustRunCupboard("set", "crumbs", "", `{"Name":"Try approach A","State":"draft"}`)
-	crumb3 := ParseJSON[Crumb](t, result3.Stdout)
-	if crumb3.CrumbID == "" {
-		t.Error("crumb3 ID not generated")
-	}
-
-	// Verify all three are different
-	if crumb1.CrumbID == crumb2.CrumbID || crumb2.CrumbID == crumb3.CrumbID {
-		t.Error("crumb IDs should be unique")
-	}
-}
-
-// Test3_CrumbStateTransitions verifies state transitions (draft -> ready -> taken -> pebble).
-func Test3_CrumbStateTransitions(t *testing.T) {
-	env := NewTestEnv(t)
-	env.MustRunCupboard("init")
-
-	// Create crumb in draft state
-	result := env.MustRunCupboard("set", "crumbs", "", `{"Name":"Implement feature X","State":"draft"}`)
-	crumb := ParseJSON[Crumb](t, result.Stdout)
-	crumbID := crumb.CrumbID
-
-	// Transition to ready
-	env.MustRunCupboard("set", "crumbs", crumbID, `{"CrumbID":"`+crumbID+`","Name":"Implement feature X","State":"ready"}`)
-	getResult := env.MustRunCupboard("get", "crumbs", crumbID)
-	crumb = ParseJSON[Crumb](t, getResult.Stdout)
-	if crumb.State != "ready" {
-		t.Errorf("expected state ready, got %q", crumb.State)
-	}
-
-	// Transition to taken
-	env.MustRunCupboard("set", "crumbs", crumbID, `{"CrumbID":"`+crumbID+`","Name":"Implement feature X","State":"taken"}`)
-	getResult = env.MustRunCupboard("get", "crumbs", crumbID)
-	crumb = ParseJSON[Crumb](t, getResult.Stdout)
-	if crumb.State != "taken" {
-		t.Errorf("expected state taken, got %q", crumb.State)
-	}
-
-	// Transition to pebble (completed successfully)
-	env.MustRunCupboard("set", "crumbs", crumbID, `{"CrumbID":"`+crumbID+`","Name":"Implement feature X","State":"pebble"}`)
-	getResult = env.MustRunCupboard("get", "crumbs", crumbID)
-	crumb = ParseJSON[Crumb](t, getResult.Stdout)
-	if crumb.State != "pebble" {
-		t.Errorf("expected state pebble, got %q", crumb.State)
-	}
-}
-
-// Test4_QueryCrumbsWithFilters verifies filtering by state.
-func Test4_QueryCrumbsWithFilters(t *testing.T) {
-	env := NewTestEnv(t)
-	env.MustRunCupboard("init")
-
-	// Create crumbs in various states
-	result1 := env.MustRunCupboard("set", "crumbs", "", `{"Name":"Crumb 1","State":"draft"}`)
-	crumb1 := ParseJSON[Crumb](t, result1.Stdout)
-
-	env.MustRunCupboard("set", "crumbs", "", `{"Name":"Crumb 2","State":"draft"}`)
-	env.MustRunCupboard("set", "crumbs", "", `{"Name":"Crumb 3","State":"draft"}`)
-
-	// Transition crumb1 to pebble
-	env.MustRunCupboard("set", "crumbs", crumb1.CrumbID,
-		`{"CrumbID":"`+crumb1.CrumbID+`","Name":"Crumb 1","State":"pebble"}`)
-
-	// Query draft crumbs (should be 2)
-	draftResult := env.MustRunCupboard("list", "crumbs", "State=draft")
-	draftCrumbs := ParseJSON[[]Crumb](t, draftResult.Stdout)
-	if len(draftCrumbs) != 2 {
-		t.Errorf("expected 2 draft crumbs, got %d", len(draftCrumbs))
-	}
-
-	// Query pebble crumbs (should be 1)
-	pebbleResult := env.MustRunCupboard("list", "crumbs", "State=pebble")
-	pebbleCrumbs := ParseJSON[[]Crumb](t, pebbleResult.Stdout)
-	if len(pebbleCrumbs) != 1 {
-		t.Errorf("expected 1 pebble crumb, got %d", len(pebbleCrumbs))
-	}
-
-	// Query all crumbs (should be 3)
-	allResult := env.MustRunCupboard("list", "crumbs")
-	allCrumbs := ParseJSON[[]Crumb](t, allResult.Stdout)
-	if len(allCrumbs) != 3 {
-		t.Errorf("expected 3 total crumbs, got %d", len(allCrumbs))
-	}
-}
-
-// Test5_CreateTrails verifies trail creation.
-func Test5_CreateTrails(t *testing.T) {
+// TestCreateTrails verifies trail creation.
+func TestCreateTrails(t *testing.T) {
 	env := NewTestEnv(t)
 	env.MustRunCupboard("init")
 
@@ -208,8 +37,8 @@ func Test5_CreateTrails(t *testing.T) {
 	}
 }
 
-// Test6_LinkCrumbsToTrails verifies belongs_to link creation.
-func Test6_LinkCrumbsToTrails(t *testing.T) {
+// TestLinkCrumbsToTrails verifies belongs_to link creation.
+func TestLinkCrumbsToTrails(t *testing.T) {
 	env := NewTestEnv(t)
 	env.MustRunCupboard("init")
 
@@ -251,8 +80,8 @@ func Test6_LinkCrumbsToTrails(t *testing.T) {
 	}
 }
 
-// Test7_CompleteTrail verifies trail completion (successful exploration).
-func Test7_CompleteTrail(t *testing.T) {
+// TestCompleteTrail verifies trail completion (successful exploration).
+func TestCompleteTrail(t *testing.T) {
 	env := NewTestEnv(t)
 	env.MustRunCupboard("init")
 
@@ -272,8 +101,8 @@ func Test7_CompleteTrail(t *testing.T) {
 	}
 }
 
-// Test8_AbandonTrail verifies trail abandonment (failed exploration).
-func Test8_AbandonTrail(t *testing.T) {
+// TestAbandonTrail verifies trail abandonment (failed exploration).
+func TestAbandonTrail(t *testing.T) {
 	env := NewTestEnv(t)
 	env.MustRunCupboard("init")
 
@@ -293,8 +122,8 @@ func Test8_AbandonTrail(t *testing.T) {
 	}
 }
 
-// Test9_ArchiveCrumb verifies crumb archival (soft delete).
-func Test9_ArchiveCrumb(t *testing.T) {
+// TestArchiveCrumb verifies crumb archival (soft delete via dust state).
+func TestArchiveCrumb(t *testing.T) {
 	env := NewTestEnv(t)
 	env.MustRunCupboard("init")
 
@@ -324,8 +153,8 @@ func Test9_ArchiveCrumb(t *testing.T) {
 	}
 }
 
-// Test10_JSONPersistence verifies data is persisted to JSON files.
-func Test10_JSONPersistence(t *testing.T) {
+// TestTrailsPersistence verifies trails are persisted to JSONL files.
+func TestTrailsPersistence(t *testing.T) {
 	env := NewTestEnv(t)
 	env.MustRunCupboard("init")
 
@@ -346,13 +175,6 @@ func Test10_JSONPersistence(t *testing.T) {
 	env.MustRunCupboard("set", "trails", trail2.TrailID,
 		`{"TrailID":"`+trail2.TrailID+`","State":"abandoned"}`)
 
-	// Verify crumbs.jsonl
-	crumbsFile := filepath.Join(env.DataDir, "crumbs.jsonl")
-	crumbs := ReadJSONLFile[map[string]any](t, crumbsFile)
-	if len(crumbs) != 3 {
-		t.Errorf("expected 3 crumbs in JSONL, got %d", len(crumbs))
-	}
-
 	// Verify trails.jsonl
 	trailsFile := filepath.Join(env.DataDir, "trails.jsonl")
 	trails := ReadJSONLFile[map[string]any](t, trailsFile)
@@ -370,8 +192,8 @@ func Test10_JSONPersistence(t *testing.T) {
 	}
 }
 
-// Test11_FullWorkflowValidation verifies the complete self-hosting workflow.
-func Test11_FullWorkflowValidation(t *testing.T) {
+// TestFullWorkflowWithTrails verifies the complete workflow with trails.
+func TestFullWorkflowWithTrails(t *testing.T) {
 	env := NewTestEnv(t)
 	env.MustRunCupboard("init")
 
