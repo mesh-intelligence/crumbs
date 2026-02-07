@@ -1,0 +1,365 @@
+id: prd-cupboard-cli
+title: Cupboard CLI Interface
+problem: |
+  The CLI design is scattered across multiple documents. prd-cupboard-core defines the Cupboard and Table interfaces but does not specify CLI commands. prd-configuration-directories defines configuration flags but not command structure. prd-crumbs-interface defines the Crumb entity but not crumb-specific CLI commands. eng02-beads-migration lists issue-tracking commands but not their full specification.
+
+  Agents building the CLI must read four documents and infer the CLI contract. Without a single specification, implementations diverge on command naming, flag conventions, output formats, and error handling. We need one document that defines the complete CLI interface so developers and agents can implement commands consistently.
+goals:
+  - G1: Consolidate all CLI commands into one specification
+  - G2: Define generic table commands that expose the Table interface
+  - G3: Define crumb-specific commands with entity-aware flags
+  - G4: Define issue-tracking commands for the beads migration
+  - G5: Specify output formats for human-readable and JSON modes
+  - G6: Define exit codes and error message conventions
+  - G7: Document global flags for configuration and data directory overrides
+requirements:
+  R1:
+    title: Command Structure
+    items:
+      - R1.1: The CLI executable must be named "cupboard"
+      - R1.2: Commands must follow a two-tier structure
+        detail: |
+          | Tier | Pattern | Example |
+          |------|---------|---------|
+          | Root | cupboard <command> | cupboard init, cupboard version |
+          | Generic table | cupboard <operation> <table> | cupboard get crumbs abc123 |
+          | Entity group | cupboard <entity> <operation> | cupboard crumb add --name "Task" |
+      - R1.3: Generic table commands (get, set, delete, list) must accept any table name and work uniformly across all tables
+      - R1.4: Entity-specific commands (crumb, trail, etc.) must provide friendly flags and validation for that entity type
+      - R1.5: The CLI must use cobra for command parsing and viper for configuration management
+  R2:
+    title: Root Commands
+    items:
+      - R2.1: "cupboard init must initialize the cupboard storage and print confirmation"
+        detail: |
+          ```
+          Usage: cupboard init
+          Output: "Cupboard initialized successfully"
+          Exit code: 0 on success, 1 on failure
+          ```
+      - R2.2: "cupboard version must print the version string"
+        detail: |
+          ```
+          Usage: cupboard version
+          Output: "cupboard v0.1.0" (version number updates with releases)
+          Exit code: 0
+          ```
+  R3:
+    title: Generic Table Commands
+    items:
+      - R3.1: "cupboard get <table> <id> must retrieve an entity by ID from the specified table"
+        detail: |
+          ```
+          Usage: cupboard get <table> <id>
+          Arguments:
+            table - Table name (crumbs, trails, properties, metadata, links, stashes)
+            id    - Entity UUID
+          Output: JSON object of the entity (pretty-printed)
+          Exit code: 0 on success, 1 if not found or invalid table
+          Errors:
+            - "unknown table \"X\" (valid: crumbs, trails, properties, metadata, links, stashes)"
+            - "entity \"X\" not found in table \"Y\""
+          ```
+      - R3.2: 'cupboard set <table> <id> <json> must create or update an entity'
+        detail: |
+          ```
+          Usage: cupboard set <table> <id> <json>
+          Arguments:
+            table - Table name
+            id    - Entity UUID (empty string "" for new entity)
+            json  - JSON object with entity fields
+          Output: JSON object of the saved entity (pretty-printed)
+          Exit code: 0 on success, 1 on failure
+          Errors:
+            - "unknown table \"X\""
+            - "parse JSON: ..."
+            - "set entity: ..."
+          ```
+      - R3.3: "cupboard delete <table> <id> must remove an entity by ID"
+        detail: |
+          ```
+          Usage: cupboard delete <table> <id>
+          Arguments:
+            table - Table name
+            id    - Entity UUID
+          Output: "Deleted <table>/<id>"
+          Exit code: 0 on success, 1 if not found or invalid table
+          Errors:
+            - "unknown table \"X\""
+            - "entity \"X\" not found in table \"Y\""
+          ```
+      - R3.4: "cupboard list <table> [filter...] must query entities with optional filters"
+        detail: |
+          ```
+          Usage: cupboard list <table> [key=value...]
+          Arguments:
+            table  - Table name
+            filter - Zero or more key=value pairs (ANDed together)
+          Output: JSON array of matching entities (pretty-printed)
+          Exit code: 0 on success (empty array if no matches), 1 on failure
+          Errors:
+            - "unknown table \"X\""
+            - "invalid filter \"X\" (expected key=value)"
+            - "fetch entities: ..."
+          ```
+  R4:
+    title: Crumb Commands
+    items:
+      - R4.1: Crumb commands must be grouped under "cupboard crumb"
+      - R4.2: All crumb commands must support the --json flag for JSON output
+      - R4.3: "cupboard crumb add must create a new crumb with entity-specific flags"
+        detail: |
+          ```
+          Usage: cupboard crumb add --name <name> [--state <state>] [--json]
+          Flags:
+            --name   - Required. Human-readable name for the crumb
+            --state  - Optional. Initial state (default: draft)
+          Output (default): "Created crumb: <id>"
+          Output (--json): JSON object of the created crumb
+          Exit code: 0 on success, 1 on failure
+          Errors:
+            - "invalid state \"X\": invalid state value"
+            - "create crumb: ..."
+          ```
+      - R4.4: "cupboard crumb get <id> must retrieve a crumb with human-readable or JSON output"
+        detail: |
+          ```
+          Usage: cupboard crumb get <id> [--json]
+          Arguments:
+            id - Crumb UUID
+          Output (default):
+            ID:        <uuid>
+            Name:      <name>
+            State:     <state>
+            Created:   <timestamp>
+            Updated:   <timestamp>
+            Properties:
+              <key>: <value>
+          Output (--json): JSON object of the crumb
+          Exit code: 0 on success, 1 if not found
+          Errors:
+            - "crumb \"X\" not found"
+          ```
+      - R4.5: "cupboard crumb list must query crumbs with optional state filter"
+        detail: |
+          ```
+          Usage: cupboard crumb list [--state <state>] [--limit <n>] [--json]
+          Flags:
+            --state  - Filter by crumb state
+            --limit  - Maximum number of results (0 = no limit)
+          Output (default):
+            ID        NAME                                      STATE     CREATED
+            --        ----                                      -----     -------
+            abc123..  Implement feature X                       ready     2025-01-15
+            Total: N crumb(s)
+          Output (--json): JSON array of crumbs
+          Exit code: 0 (empty result is not an error)
+          ```
+      - R4.6: "cupboard crumb delete <id> must remove a crumb by ID"
+        detail: |
+          ```
+          Usage: cupboard crumb delete <id> [--json]
+          Arguments:
+            id - Crumb UUID
+          Output (default): "Deleted crumb: <id>"
+          Output (--json): {"deleted": "<id>", "status": "success"}
+          Exit code: 0 on success, 1 if not found
+          Errors:
+            - "crumb \"X\" not found"
+          ```
+  R5:
+    title: Issue-Tracking Commands
+    items:
+      - R5.1: Issue-tracking commands must provide parity with the beads (bd) CLI for migration purposes
+      - R5.2: "cupboard ready must list crumbs that are ready for work"
+        detail: |
+          ```
+          Usage: cupboard ready [-n <count>] [--type <type>] [--json]
+          Flags:
+            -n       - Maximum number of results (default: all)
+            --type   - Filter by crumb type property (e.g., task, epic)
+            --json   - Output as JSON array
+          Output (default): Table of ready crumbs (same format as crumb list)
+          Output (--json): JSON array of crumbs
+          Behavior: Filters for state="ready", ordered by CreatedAt descending
+          Exit code: 0
+          ```
+      - R5.3: "cupboard create must create a new crumb with issue-tracking fields"
+        detail: |
+          ```
+          Usage: cupboard create --type <type> --title <title> [--description <text>] [--json]
+          Flags:
+            --type        - Required. Crumb type property (task, epic, bug, etc.)
+            --title       - Required. Maps to crumb Name field
+            --description - Optional. Sets description property
+            --json        - Output as JSON
+          Output (default): "Created <type>: <id>"
+          Output (--json): JSON object of the created crumb
+          Behavior: Creates crumb with state="draft", sets type and description properties
+          Exit code: 0 on success, 1 on failure
+          ```
+      - R5.4: "cupboard show <id> must display a crumb with full details"
+        detail: |
+          ```
+          Usage: cupboard show <id> [--json]
+          Arguments:
+            id - Crumb UUID or short ID prefix
+          Output (default): Human-readable crumb details (same as crumb get)
+          Output (--json): JSON object of the crumb
+          Exit code: 0 on success, 1 if not found
+          ```
+      - R5.5: "cupboard update <id> must modify crumb fields"
+        detail: |
+          ```
+          Usage: cupboard update <id> [--status <state>] [--title <title>] [--json]
+          Flags:
+            --status  - Set crumb state (draft, pending, ready, taken, pebble, dust)
+            --title   - Set crumb name
+            --json    - Output as JSON
+          Output (default): "Updated <id>"
+          Output (--json): JSON object of the updated crumb
+          Behavior: Retrieves crumb, applies changes, saves via Table.Set
+          Exit code: 0 on success, 1 on failure
+          Errors:
+            - "crumb \"X\" not found"
+            - "invalid state \"X\": invalid state value"
+          ```
+      - R5.6: "cupboard close <id> must transition a crumb to completed state"
+        detail: |
+          ```
+          Usage: cupboard close <id> [--json]
+          Arguments:
+            id - Crumb UUID
+          Output (default): "Closed <id>"
+          Output (--json): JSON object of the closed crumb
+          Behavior: Sets state to "pebble" (completed)
+          Exit code: 0 on success, 1 on failure
+          Errors:
+            - "crumb \"X\" not found"
+            - "close crumb: invalid state transition" (if not in taken state)
+          ```
+      - R5.7: "cupboard comments add <id> <text> must add a comment to a crumb"
+        detail: |
+          ```
+          Usage: cupboard comments add <id> <text>
+          Arguments:
+            id   - Crumb UUID
+            text - Comment text
+          Output: "Added comment to <id>"
+          Behavior: Creates a metadata entry linked to the crumb
+          Exit code: 0 on success, 1 on failure
+          Errors:
+            - "crumb \"X\" not found"
+          ```
+  R6:
+    title: Global Flags
+    items:
+      - R6.1: All commands must inherit global flags from the root command
+      - R6.2: "--config-dir must override the configuration directory"
+        detail: |
+          ```
+          Flag: --config-dir <path>
+          Precedence: flag > CRUMBS_CONFIG_DIR env > platform default
+          Default: Platform-specific (see prd-configuration-directories R1.2)
+          ```
+      - R6.3: "--data-dir must override the data directory"
+        detail: |
+          ```
+          Flag: --data-dir <path>
+          Precedence: flag > config.yaml data_dir > platform default
+          Default: Platform-specific (see prd-configuration-directories R2.2)
+          ```
+      - R6.4: "--help must print usage information for any command"
+        detail: |
+          ```
+          Flag: --help, -h
+          Behavior: Prints command usage, flags, and examples; exits with code 0
+          ```
+      - R6.5: "--version (on root command) must be an alias for cupboard version"
+  R7:
+    title: Output Formats
+    items:
+      - R7.1: Commands must support two output modes
+        detail: |
+          | Mode | Flag | Description |
+          |------|------|-------------|
+          | Human-readable | (default) | Formatted tables or key-value output |
+          | JSON | --json | Machine-readable JSON objects or arrays |
+      - R7.2: Human-readable output must use tabwriter for aligned columns
+      - R7.3: JSON output must be pretty-printed with 2-space indentation
+      - R7.4: Error messages must be written to stderr, not stdout
+      - R7.5: Successful output must be written to stdout
+      - R7.6: JSON output for single entities must be an object; for multiple entities must be an array
+      - R7.7: Empty results must output an empty array [] in JSON mode, or "No <entity> found." in human-readable mode
+  R8:
+    title: Exit Codes
+    items:
+      - R8.1: The CLI must use the following exit codes
+        detail: |
+          | Code | Meaning | Examples |
+          |------|---------|----------|
+          | 0 | Success | Command completed successfully |
+          | 1 | User error | Invalid arguments, entity not found, validation failure |
+          | 2 | System error | Cannot connect to backend, file I/O error, internal error |
+      - R8.2: Exit code 0 must be returned for successful operations, including empty query results
+      - R8.3: Exit code 1 must be returned for user-correctable errors (bad input, missing entity)
+      - R8.4: Exit code 2 must be returned for system errors that require investigation
+  R9:
+    title: Error Messages
+    items:
+      - R9.1: Error messages must follow the pattern "context: details"
+        detail: |
+          ```
+          Examples:
+            "load config: resolve data dir: ..."
+            "get table: cupboard is detached"
+            "create crumb: invalid state value"
+            "entity \"abc123\" not found in table \"crumbs\""
+          ```
+      - R9.2: Error messages must not include stack traces in normal operation
+      - R9.3: Error messages must include the entity ID or table name when relevant
+      - R9.4: Validation errors must explain what was expected
+        detail: |
+          ```
+          Good: "invalid state \"foo\" (valid: draft, pending, ready, taken, pebble, dust)"
+          Bad:  "invalid state"
+          ```
+  R10:
+    title: Init Command
+    items:
+      - R10.1: "cupboard init must initialize the storage backend"
+      - R10.2: Init must create the data directory if it does not exist
+      - R10.3: Init must create empty JSONL files if they do not exist
+      - R10.4: Init must seed built-in properties (priority, type, description, owner, labels) per prd-properties-interface R8
+      - R10.5: Init must be idempotent (running init twice must not error or duplicate data)
+      - R10.6: Init must print "Cupboard initialized successfully" on completion
+non_goals:
+  - This PRD does not define a graphical user interface (GUI) or terminal user interface (TUI)
+  - This PRD does not define shell completion scripts (bash, zsh, fish)
+  - This PRD does not define a plugin system for custom commands
+  - This PRD does not define remote backend support (HTTP, gRPC)
+  - This PRD does not define batch operations beyond what the generic table commands provide
+  - This PRD does not define interactive mode or REPL functionality
+acceptance_criteria:
+  - All implemented commands documented (init, version, get, set, delete, list, crumb add/get/list/delete)
+  - All planned issue-tracking commands documented (ready, create, show, update, close, comments add)
+  - Generic table commands specify table argument, ID argument, and output format
+  - Crumb commands specify entity-specific flags (--name, --state, --limit)
+  - Issue-tracking commands specify flags for beads migration parity (--type, --title, --description, --status)
+  - Global flags documented (--config-dir, --data-dir, --help, --version)
+  - Output format specified for each command (human-readable and JSON)
+  - Exit codes defined (0 success, 1 user error, 2 system error)
+  - Error message format defined with examples
+  - Init command behavior documented (directory creation, property seeding, idempotence)
+constraints:
+  - Commands must work offline (no network access required)
+  - Configuration and data directory overrides must follow prd-configuration-directories precedence rules
+  - Output must be valid UTF-8
+  - JSON output must be parseable by standard JSON parsers
+references:
+  - prd-cupboard-core (Cupboard interface, Table interface, standard table names)
+  - prd-crumbs-interface (Crumb entity, state values, property methods)
+  - prd-configuration-directories (directory structure, config loading, JSONL format)
+  - prd-properties-interface (built-in properties, property types)
+  - eng02-beads-migration (issue-tracking command parity)
+  - "docs/ARCHITECTURE § CLI"
