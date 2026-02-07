@@ -63,6 +63,9 @@ releases:
       - id: rel02.0-uc001-property-enforcement
         summary: Define properties, auto-init, backfill
         status: not_started
+      - id: rel02.0-uc002-regeneration-compatibility
+        summary: New generation reads and operates on previous generation's JSONL data
+        status: not_started
 
   - version: "02.1"
     name: Issue-Tracking and Self-Hosting
