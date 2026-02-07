@@ -8,6 +8,8 @@ We need a property system where applications can define custom attributes at run
 
 This PRD defines the Property and Category entities: their struct fields and entity methods. Properties and categories are stored and retrieved via the generic Table interface from prd-cupboard-core. Setting and getting property values on crumbs is handled by Crumb entity methods (see prd-crumbs-interface); this PRD covers only the property definitions themselves.
 
+**Future scope:** VISION.md establishes that properties are a general mechanism extending crumbs, trails, and stashes uniformly. This PRD specifies crumb properties for the current release. Trail properties (e.g., hypothesis, approach, risk-level for exploration sessions) and stash properties (e.g., build-stage, artifact-type, retention-policy for shared state) will follow the same pattern in later releases.
+
 ## Goals
 
 1. Define the Property struct with all required fields

@@ -68,7 +68,7 @@ Crumbs provides storage, not coordination. Agents or coordination frameworks bui
 
 ### Properties Model
 
-Properties extend crumbs with custom attributes. The system enforces that every crumb has a value for every defined property—there is no concept of a property being "not set" (prd-properties-interface R3.5, R3.6).
+Properties extend entities with custom attributes. We design properties as a general mechanism that applies to crumbs, trails, and stashes uniformly. The current implementation focuses on crumb properties; trail and stash properties follow the same pattern and will be added in later releases. The system enforces that every entity has a value for every defined property in its scope—there is no concept of a property being "not set" (prd-properties-interface R3.5, R3.6).
 
 **Property types** (prd-properties-interface R3): categorical (enum from defined categories), text, integer, boolean, timestamp, list (of strings). Each type has a default value used for initialization.
 
