@@ -1,0 +1,94 @@
+id: rel02.1-uc003-self-hosting
+title: Self-Hosting
+summary: |
+  The cupboard CLI tracks development work on the crumbs repository. The
+  do-work.sh and make-work.sh scripts run end-to-end using cupboard commands.
+  This validates that cupboard works as an issue tracker for real agent
+  workflows.
+actor: Coding agent (e.g., Claude Code) working on the crumbs codebase via do-work.sh and make-work.sh scripts
+trigger: Cupboard CLI providing the issue-tracking commands that scripts need
+flow:
+  - F1: "Implement issue-tracking CLI commands: ready, create, update, close, show, list, comments"
+    detail: |
+      The cupboard CLI provides issue-tracking commands that operate on crumbs.
+      Under the hood, each command uses the Cupboard library via GetTable
+      (prd-cupboard-core R2) for storage. Table operations (Get, Set, Fetch)
+      follow the Table interface contract (prd-cupboard-core R3). The CLI
+      layers issue-tracking semantics on top of the storage layer.
+
+      Command reference:
+      - cupboard ready -n N --json --type <type>: Return up to N open crumbs
+        of the given type, ordered by priority (prd-crumbs-interface R9, R10)
+      - cupboard create --type <type> --title T --description D: Create a crumb
+        with type, title, description, and optional --parent and --labels
+        (prd-crumbs-interface R3)
+      - cupboard update <id> --status <status>: Transition a crumb's state
+        (prd-crumbs-interface R4)
+      - cupboard close <id>: Shortcut for setting state to closed with a
+        timestamp (prd-crumbs-interface R4.3)
+      - cupboard show <id>: Display a crumb's details in human-readable format
+        (prd-cupboard-core R3.2)
+      - cupboard list --json: Return all crumbs as JSON (prd-crumbs-interface R10)
+      - cupboard comments add <id> "text": Append a comment to a crumb
+        (metadata via prd-sqlite-backend R2.8)
+  - F2: "Support JSON output: the --json flag outputs JSON for script consumption; without it, output is human-readable"
+  - F3: "Handle crumb creation options: cupboard create accepts --type, --title, --description, --parent, --labels"
+    detail: |
+      The --type (task, epic, chore, bug) and --labels set categorical and
+      list properties (prd-properties-interface R3). The --parent flag creates
+      a child_of link (prd-sqlite-backend R2.7).
+  - F4: "Follow state transitions: draft, pending, ready, taken, pebble, dust (prd-crumbs-interface R2)"
+  - F5: "Integrate do-work.sh script: use cupboard commands to pick a task, claim it, and close it after completion"
+    detail: |
+      The script's structure: pick task (Table.Fetch with state filter,
+      prd-crumbs-interface R10), create worktree, run Claude, merge, clean up,
+      close task (state transition via Table.Set, prd-crumbs-interface R4).
+  - F6: "Integrate make-work.sh script: use cupboard commands to list existing issues and create new ones"
+    detail: |
+      The import function creates crumbs via cupboard create, which calls
+      Table.Set with an empty ID to generate a UUID v7 (prd-cupboard-core R8,
+      prd-crumbs-interface R3).
+  - F7: "Handle JSONL sync: no explicit sync command needed; SQLite backend syncs on every write using immediate sync strategy (prd-sqlite-backend R5, R16)"
+  - F8: "Reference cupboard commands in agent workflow rule: .claude/rules/ references cupboard commands for interactive use"
+    detail: |
+      cupboard ready              # Find available work (Table.Fetch)
+      cupboard show <id>          # View issue details (Table.Get)
+      cupboard update <id> --status in_progress  # Claim work (SetState)
+      cupboard comments add <id> "tokens: <count>"  # Log token usage
+      cupboard close <id>         # Close work (Pebble)
+  - F9: "Commit JSONL files to git: per eng01-git-integration, JSONL files are committed as part of session completion"
+    detail: |
+      The git add in session completion commits JSONL files from the data
+      directory. The directory layout follows prd-sqlite-backend R1.
+touchpoints:
+  - T1: "cupboard CLI (cmd/cupboard): issue-tracking commands ready, create, close, update, show, list, comments (prd-crumbs-interface R3, R4, R10)"
+  - T2: "Cupboard library (pkg/types): Cupboard interface with GetTable, Table interface for CRUD, Crumb/Property entities (prd-cupboard-core R2, R3; prd-crumbs-interface R1)"
+  - T3: "SQLite backend (internal/sqlite): storage, JSONL persistence, query engine, entity hydration (prd-sqlite-backend R1-R5, R12-R15)"
+  - T4: "do-work.sh: task picking (Fetch), worktree management, agent invocation (prd-crumbs-interface R9, R10)"
+  - T5: "make-work.sh: work creation (Set), issue import (prd-crumbs-interface R3; prd-cupboard-core R3.3)"
+  - T6: ".claude/rules/: agent workflow instructions (eng01-git-integration)"
+success_criteria:
+  - S1: "cupboard ready returns available tasks as JSON"
+  - S2: "cupboard create --type task --title 'Test' --description '...' creates a crumb"
+  - S3: "cupboard update <id> --status in_progress transitions crumb state"
+  - S4: "cupboard close <id> marks crumb as closed"
+  - S5: "cupboard list --json returns all crumbs as JSON"
+  - S6: "do-work.sh runs a full cycle (pick, worktree, Claude, merge, close) using cupboard"
+  - S7: "make-work.sh creates issues via cupboard and commits JSONL changes"
+out_of_scope:
+  - Multi-agent coordination (single agent self-hosting)
+  - Remote backends (SQLite only)
+  - Trail-based worktree integration in the CLI (trails are worktrees per eng01-git-integration, but the CLI does not manage git worktrees; do-work.sh handles that)
+test_suite: test001-self-hosting
+dependencies:
+  - D1: "Cupboard interface with Attach/Detach/GetTable (prd-cupboard-core R2, R4, R5)"
+  - D2: "Table interface with Get/Set/Delete/Fetch (prd-cupboard-core R3)"
+  - D3: "Crumb entity with state transitions and property methods (prd-crumbs-interface R1-R5)"
+  - D4: "SQLite backend with JSONL persistence (prd-sqlite-backend R1-R5, R11-R15)"
+  - D5: "Property definitions for type, priority, labels (prd-properties-interface R1, R9)"
+  - D6: "Built-in properties seeded on first startup (prd-sqlite-backend R9)"
+  - D7: "Issue-tracking CLI commands (the new work in this use case)"
+risks:
+  - K1: "Bug in cupboard loses work tracking | Commit JSONL frequently; git history provides recovery"
+  - K2: "Missing CLI features block scripts | Implement minimum commands first, iterate on ergonomics after"
+  - K3: "Self-hosting reveals missing features | Treat as validation; file issues for gaps"

@@ -1,0 +1,89 @@
+id: rel02.1-uc002-table-benchmarks
+title: Table Benchmarks
+summary: |
+  A developer runs Go benchmarks against the crumbs Table interface with
+  varying data sizes and measures operation latency. The benchmarks establish
+  baseline performance numbers that future releases must not regress.
+actor: Developer or CI pipeline validating performance
+trigger: Code change that could affect Table operation latency, such as modifying the SQLite backend, changing entity hydration, or altering JSONL persistence
+flow:
+  - F1: "Create benchmark test files: add crumbs_bench_test.go in internal/sqlite package"
+    detail: |
+      Benchmarks follow standard Go conventions. Each benchmark function
+      receives a *testing.B and runs the target operation b.N times.
+  - F2: "Implement Get benchmarks at different scales: BenchmarkCrumbsGet10, Get100, Get1000, Get10000"
+    detail: |
+      Each benchmark seeds the specified number of crumbs before the timer
+      starts (b.ResetTimer()). Get operations use random selection from the
+      seeded IDs to measure average lookup time across the dataset.
+  - F3: "Implement Set benchmarks for create: BenchmarkCrumbsSetCreate10, SetCreate1000"
+    detail: |
+      Set benchmarks measure creation (empty ID triggers UUID v7 generation
+      per prd-cupboard-core R8). The JSONL sync cost is included in the
+      measurement since every write syncs to JSONL with the immediate
+      strategy (prd-sqlite-backend R5.3, R16.2).
+  - F4: "Implement Set benchmarks for update: BenchmarkCrumbsSetUpdate10, SetUpdate1000"
+    detail: |
+      Update benchmarks measure the path for existing IDs including JSONL
+      sync cost.
+  - F5: "Implement Delete benchmarks: BenchmarkCrumbsDelete10, Delete1000"
+    detail: |
+      Delete benchmarks measure cascade deletion including property values,
+      metadata, and links (prd-crumbs-interface R8.3). Each iteration creates
+      a crumb, then deletes it, measuring the full delete path including
+      JSONL persistence.
+  - F6: "Implement Fetch benchmarks with filters: FetchAll, FetchState, FetchProperties, FetchLimit"
+    detail: |
+      Fetch benchmarks measure query performance with different filter types.
+      The state filter exercises the idx_crumbs_state index (prd-sqlite-backend
+      R3.3). Property filters exercise the crumb_properties table join.
+  - F7: "Implement property operation benchmarks: BenchmarkCrumbSetProperty, GetProperty at 10 and 1000 scale"
+    detail: |
+      Property benchmarks measure the overhead of property access. SetProperty
+      includes Table.Set to measure the full persist path including JSONL
+      write for crumb_properties.jsonl (prd-sqlite-backend R5.5).
+  - F8: "Run benchmarks and capture baseline: go test -bench=. -benchmem ./internal/sqlite/..."
+    detail: |
+      The -benchmem flag reports memory allocations per operation. Output
+      format follows Go conventions reporting ns/op, B/op, allocs/op.
+  - F9: "Compare against baseline on code changes: use benchstat for statistical comparison"
+    detail: |
+      The benchstat tool (from golang.org/x/perf/cmd/benchstat) provides
+      statistical comparison. Regressions exceeding 10% warrant investigation.
+touchpoints:
+  - T1: "Table interface: Get, Set, Delete, Fetch (prd-cupboard-core R3)"
+  - T2: "SQLite backend: entity hydration from rows (prd-sqlite-backend R14)"
+  - T3: "SQLite backend: entity persistence to rows (prd-sqlite-backend R15)"
+  - T4: "SQLite backend: JSONL atomic write (prd-sqlite-backend R5.2)"
+  - T5: "SQLite backend: immediate sync strategy (prd-sqlite-backend R16.2)"
+  - T6: "Crumb entity: SetProperty, GetProperty (prd-crumbs-interface R5)"
+  - T7: "Crumb table: filter map queries (prd-crumbs-interface R9)"
+  - T8: "SQLite backend: idx_crumbs_state index (prd-sqlite-backend R3.3)"
+success_criteria:
+  - S1: "go test -bench=BenchmarkCrumbsGet -benchmem ./internal/sqlite/... runs without error"
+  - S2: "go test -bench=BenchmarkCrumbsSet -benchmem ./internal/sqlite/... completes for create and update benchmarks"
+  - S3: "go test -bench=BenchmarkCrumbsFetch -benchmem ./internal/sqlite/... completes for all filter types"
+  - S4: "go test -bench=. -benchmem ./internal/sqlite/... > baseline.txt captures full benchmark suite to file"
+  - S5: "baseline.txt contains all benchmarks reporting ns/op, B/op, allocs/op"
+  - S6: "All benchmark functions execute without error"
+  - S7: "Each benchmark reports consistent ns/op across multiple runs (variance under 10%)"
+  - S8: "Memory allocations (B/op, allocs/op) are captured for regression tracking"
+  - S9: "Baseline file is committed to the repository for future comparison"
+out_of_scope:
+  - Concurrent access benchmarks (prd-sqlite-backend R8 describes single-writer model)
+  - Network latency (SQLite backend is local; no network overhead)
+  - CLI command overhead (benchmarks measure Table interface, not CLI parsing)
+  - Non-immediate sync strategies (prd-sqlite-backend R16.3, R16.4 are deferred performance options)
+  - Trail and stash operations (those entity types are in later releases)
+test_suite: test003-table-benchmarks
+dependencies:
+  - D1: "SQLite backend with JSONL persistence (prd-sqlite-backend R1-R5)"
+  - D2: "Table interface with Get/Set/Delete/Fetch (prd-cupboard-core R3)"
+  - D3: "Crumb entity with property methods (prd-crumbs-interface R1, R5)"
+  - D4: "Built-in properties seeded (prd-sqlite-backend R9)"
+  - D5: "Go testing infrastructure with testing.B"
+risks:
+  - K1: "Benchmark variance makes comparisons unreliable | Run benchmarks multiple times; use benchstat for statistical analysis; run on consistent hardware"
+  - K2: "JSONL sync dominates write latency | This is expected and intentional (immediate sync strategy); document that non-immediate strategies trade durability for performance"
+  - K3: "Initial targets are arbitrary | Treat first run as baseline establishment; refine targets based on actual measurements and use case requirements"
+  - K4: "Benchmarks become stale as code evolves | Include benchmarks in CI; fail on significant regression; update targets when architecture changes"
