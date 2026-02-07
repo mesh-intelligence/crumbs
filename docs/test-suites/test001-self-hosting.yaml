@@ -1,0 +1,288 @@
+id: test001-self-hosting
+title: Self-hosting issue-tracking workflow
+description: >
+  Validates the cupboard CLI as an issue tracker for the crumbs repository.
+  Each test case exercises a command from the uc001 self-hosting use case
+  via exec, using a fresh cupboard instance with SQLite backend.
+traces:
+  - rel00.0-uc001-self-hosting
+tags:
+  - cli
+  - integration
+  - self-hosting
+
+preconditions:
+  - Cupboard binary built from cmd/cupboard
+  - Fresh temp directory for config and data
+  - Config file points SQLite backend at the temp data directory
+  - No existing crumbs
+
+test_cases:
+
+  # --- create ---
+
+  - name: Create task with required fields
+    inputs:
+      command: cupboard create --type task --title "Implement feature" --description "Add the widget"
+    expected:
+      exit_code: 0
+      stdout_contains: "Created"
+
+  - name: Create task with JSON output
+    inputs:
+      command: cupboard create --type task --title "Write tests" --description "Unit and integration" --json
+    expected:
+      exit_code: 0
+      stdout_json:
+        type: task
+        title: "Write tests"
+        state: open
+
+  - name: Create epic with labels
+    inputs:
+      command: cupboard create --type epic --title "Storage layer" --description "Core storage" --labels "code,infra"
+    expected:
+      exit_code: 0
+      stdout_contains: "Created"
+
+  - name: Create task with parent
+    description: >
+      Create an epic first, then create a task with --parent referencing the epic ID.
+    inputs:
+      setup:
+        - cupboard create --type epic --title "Parent epic" --description "Group" --json
+      command: cupboard create --type task --title "Child task" --description "Under epic" --parent ${epic_id}
+    expected:
+      exit_code: 0
+
+  - name: Create without title fails
+    inputs:
+      command: cupboard create --type task --description "No title"
+    expected:
+      exit_code: 1
+      stderr_contains: "title"
+
+  - name: Create without type fails
+    inputs:
+      command: cupboard create --title "No type" --description "Missing type"
+    expected:
+      exit_code: 1
+      stderr_contains: "type"
+
+  # --- list ---
+
+  - name: List returns all crumbs as JSON
+    inputs:
+      setup:
+        - cupboard create --type task --title "Task A" --description "First"
+        - cupboard create --type task --title "Task B" --description "Second"
+      command: cupboard list --json
+    expected:
+      exit_code: 0
+      stdout_json:
+        length: 2
+
+  - name: List empty cupboard returns empty array
+    inputs:
+      command: cupboard list --json
+    expected:
+      exit_code: 0
+      stdout_json:
+        length: 0
+
+  # --- show ---
+
+  - name: Show displays crumb details
+    inputs:
+      setup:
+        - cupboard create --type task --title "Visible task" --description "Details here" --json
+      command: cupboard show ${crumb_id}
+    expected:
+      exit_code: 0
+      stdout_contains: "Visible task"
+      stdout_contains: "Details here"
+
+  - name: Show nonexistent ID fails
+    inputs:
+      command: cupboard show nonexistent-id
+    expected:
+      exit_code: 1
+
+  # --- update ---
+
+  - name: Update status to in_progress
+    inputs:
+      setup:
+        - cupboard create --type task --title "Claimable" --description "Ready to work" --json
+      command: cupboard update ${crumb_id} --status in_progress
+    expected:
+      exit_code: 0
+    verify:
+      command: cupboard show ${crumb_id}
+      stdout_contains: "in_progress"
+
+  - name: Update status to closed
+    inputs:
+      setup:
+        - cupboard create --type task --title "Closeable" --description "Will close" --json
+      command: cupboard update ${crumb_id} --status closed
+    expected:
+      exit_code: 0
+    verify:
+      command: cupboard show ${crumb_id}
+      stdout_contains: "closed"
+
+  - name: Update nonexistent ID fails
+    inputs:
+      command: cupboard update nonexistent-id --status in_progress
+    expected:
+      exit_code: 1
+
+  # --- close ---
+
+  - name: Close sets state to closed
+    inputs:
+      setup:
+        - cupboard create --type task --title "To close" --description "Will be closed" --json
+      command: cupboard close ${crumb_id}
+    expected:
+      exit_code: 0
+    verify:
+      command: cupboard show ${crumb_id}
+      stdout_contains: "closed"
+
+  - name: Close already-closed crumb succeeds
+    inputs:
+      setup:
+        - cupboard create --type task --title "Already closed" --description "Close twice" --json
+        - cupboard close ${crumb_id}
+      command: cupboard close ${crumb_id}
+    expected:
+      exit_code: 0
+
+  # --- ready ---
+
+  - name: Ready returns open tasks
+    inputs:
+      setup:
+        - cupboard create --type task --title "Open task" --description "Available"
+        - cupboard create --type task --title "Claimed task" --description "Taken" --json
+        - cupboard update ${crumb_id} --status in_progress
+      command: cupboard ready --json --type task
+    expected:
+      exit_code: 0
+      stdout_json:
+        length: 1
+        items:
+          - title: "Open task"
+            state: open
+
+  - name: Ready with limit
+    inputs:
+      setup:
+        - cupboard create --type task --title "Task 1" --description "First"
+        - cupboard create --type task --title "Task 2" --description "Second"
+        - cupboard create --type task --title "Task 3" --description "Third"
+      command: cupboard ready -n 1 --json --type task
+    expected:
+      exit_code: 0
+      stdout_json:
+        length: 1
+
+  - name: Ready with no open tasks returns empty
+    inputs:
+      setup:
+        - cupboard create --type task --title "Only task" --description "Will close" --json
+        - cupboard close ${crumb_id}
+      command: cupboard ready --json --type task
+    expected:
+      exit_code: 0
+      stdout_json:
+        length: 0
+
+  - name: Ready filters by type
+    inputs:
+      setup:
+        - cupboard create --type epic --title "An epic" --description "Not a task"
+        - cupboard create --type task --title "A task" --description "This one"
+      command: cupboard ready --json --type task
+    expected:
+      exit_code: 0
+      stdout_json:
+        length: 1
+        items:
+          - type: task
+
+  # --- comments ---
+
+  - name: Add comment to crumb
+    inputs:
+      setup:
+        - cupboard create --type task --title "Commentable" --description "Has comments" --json
+      command: cupboard comments add ${crumb_id} "tokens: 34256"
+    expected:
+      exit_code: 0
+    verify:
+      command: cupboard show ${crumb_id}
+      stdout_contains: "tokens: 34256"
+
+  - name: Add multiple comments
+    inputs:
+      setup:
+        - cupboard create --type task --title "Multi-comment" --description "Several notes" --json
+        - cupboard comments add ${crumb_id} "started work"
+      command: cupboard comments add ${crumb_id} "finished work"
+    expected:
+      exit_code: 0
+    verify:
+      command: cupboard show ${crumb_id}
+      stdout_contains: "started work"
+      stdout_contains: "finished work"
+
+  - name: Add comment to nonexistent ID fails
+    inputs:
+      command: cupboard comments add nonexistent-id "orphan comment"
+    expected:
+      exit_code: 1
+
+  # --- end-to-end workflow ---
+
+  - name: Do-work cycle
+    description: >
+      Simulates the do-work.sh flow: pick a task, claim it, do work, close it.
+    inputs:
+      setup:
+        - cupboard create --type task --title "Build widget" --description "Implement the widget feature"
+      steps:
+        - command: cupboard ready -n 1 --json --type task
+          capture: task_id
+        - command: cupboard update ${task_id} --status in_progress
+        - command: cupboard comments add ${task_id} "tokens: 15000"
+        - command: cupboard close ${task_id}
+    expected:
+      final_state:
+        command: cupboard show ${task_id}
+        stdout_contains: "closed"
+        stdout_contains: "tokens: 15000"
+
+  - name: Make-work cycle
+    description: >
+      Simulates the make-work.sh flow: list existing issues, create new ones.
+    inputs:
+      setup:
+        - cupboard create --type task --title "Existing task" --description "Already here"
+      steps:
+        - command: cupboard list --json
+          capture: existing_count
+        - command: cupboard create --type epic --title "New epic" --description "Proposed work" --json
+          capture: epic_id
+        - command: cupboard create --type task --title "New task 1" --description "Under epic" --parent ${epic_id}
+        - command: cupboard create --type task --title "New task 2" --description "Also under epic" --parent ${epic_id}
+    expected:
+      final_state:
+        command: cupboard list --json
+        stdout_json:
+          length: 4
+
+cleanup:
+  - Remove temp config and data directories
