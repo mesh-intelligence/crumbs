@@ -1,0 +1,329 @@
+id: test009-regeneration-compatibility
+title: Regeneration compatibility validation
+description: >
+  Validates that the --regenerate cycle produces a generation N+1 that can
+  read and operate on JSONL data created by generation N. Tests backward
+  and forward compatibility across regeneration cycles.
+traces:
+  - rel02.0-uc002-regeneration-compatibility
+tags:
+  - integration
+  - compatibility
+  - regeneration
+
+preconditions:
+  - Generation N built and installed via go install ./cmd/cupboard
+  - Fresh temp directory for test data (separate from repo)
+  - The cupboard binary is accessible from $GOBIN or $PATH
+  - Git repository is clean (no uncommitted changes)
+
+test_cases:
+
+  # --- S1: build and install generation N succeeds ---
+
+  - name: Build generation N succeeds
+    inputs:
+      command: go build -o /tmp/cupboard-gen-n ./cmd/cupboard
+    expected:
+      exit_code: 0
+      files:
+        /tmp/cupboard-gen-n:
+          exists: true
+
+  - name: Install generation N to GOBIN succeeds
+    inputs:
+      command: go install ./cmd/cupboard
+    expected:
+      exit_code: 0
+
+  - name: Installed cupboard --help works
+    inputs:
+      command: cupboard --help
+    expected:
+      exit_code: 0
+      stdout_contains: "cupboard"
+
+  - name: Installed cupboard version works
+    inputs:
+      command: cupboard version
+    expected:
+      exit_code: 0
+      stdout_contains: "cupboard"
+
+  # --- S2: create crumbs with generation N produces JSONL ---
+
+  - name: Initialize data directory with generation N
+    inputs:
+      command: cupboard init --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+
+  - name: Create crumb with generation N
+    inputs:
+      command: cupboard set crumbs "" '{"Name":"Compat test crumb","State":"draft"}' --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+      stdout_contains: "CrumbID"
+
+  - name: Create multiple crumbs with generation N
+    inputs:
+      steps:
+        - cupboard set crumbs "" '{"Name":"Crumb one","State":"draft"}' --datadir /tmp/regen-test
+        - cupboard set crumbs "" '{"Name":"Crumb two","State":"ready"}' --datadir /tmp/regen-test
+        - cupboard set crumbs "" '{"Name":"Crumb three","State":"taken"}' --datadir /tmp/regen-test
+      command: cupboard list crumbs --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+      stdout_json:
+        length: 4
+
+  - name: Crumbs persisted to JSONL file
+    inputs:
+      command: cat /tmp/regen-test/crumbs.jsonl
+    expected:
+      exit_code: 0
+      stdout_contains:
+        - '"name":"Compat test crumb"'
+        - '"name":"Crumb one"'
+        - '"name":"Crumb two"'
+        - '"name":"Crumb three"'
+
+  # --- S3: run --regenerate creates tag, deletes Go, reinitializes ---
+
+  - name: Create git tag before regeneration
+    inputs:
+      command: git tag -a regen-test-$(date +%s) -m "Pre-regeneration tag"
+    expected:
+      exit_code: 0
+
+  - name: Regenerate script runs successfully
+    description: Run the regeneration script which deletes Go files and reinitializes.
+    inputs:
+      command: ./scripts/do-work.sh --regenerate --cycles 0 --dry-run
+    expected:
+      exit_code: 0
+      stdout_contains: "regenerate"
+
+  - name: Regeneration creates clean commit
+    description: Verify regeneration commits the deletion of Go files.
+    inputs:
+      command: git log -1 --oneline
+    expected:
+      exit_code: 0
+      state:
+        commit_exists: true
+
+  # --- S4: build generation N+1 succeeds ---
+
+  - name: Build generation N+1 from fresh code
+    inputs:
+      command: go build -o /tmp/cupboard-gen-n1 ./cmd/cupboard
+    expected:
+      exit_code: 0
+      files:
+        /tmp/cupboard-gen-n1:
+          exists: true
+
+  - name: Generation N+1 binary runs
+    inputs:
+      command: /tmp/cupboard-gen-n1 --help
+    expected:
+      exit_code: 0
+      stdout_contains: "cupboard"
+
+  # --- S5: generation N+1 reads generation N data ---
+
+  - name: Generation N+1 lists crumbs created by generation N
+    inputs:
+      command: /tmp/cupboard-gen-n1 list crumbs --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+      stdout_contains:
+        - "Compat test crumb"
+        - "Crumb one"
+        - "Crumb two"
+        - "Crumb three"
+
+  - name: Generation N+1 gets specific crumb by ID
+    inputs:
+      setup:
+        - CRUMB_ID=$(cupboard list crumbs --datadir /tmp/regen-test --json | jq -r '.[0].crumb_id')
+      command: /tmp/cupboard-gen-n1 get crumbs ${CRUMB_ID} --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+      stdout_contains: "CrumbID"
+
+  - name: Generation N+1 reads all crumb fields correctly
+    inputs:
+      command: /tmp/cupboard-gen-n1 list crumbs --datadir /tmp/regen-test --json
+    expected:
+      exit_code: 0
+      stdout_json:
+        length: 4
+      state:
+        all_crumbs_have_name: true
+        all_crumbs_have_state: true
+        all_crumbs_have_created_at: true
+
+  # --- S6: generation N+1 modifies generation N data ---
+
+  - name: Generation N+1 updates crumb state
+    inputs:
+      setup:
+        - CRUMB_ID=$(cupboard list crumbs --datadir /tmp/regen-test --json | jq -r '.[] | select(.name=="Crumb two") | .crumb_id')
+      command: /tmp/cupboard-gen-n1 set crumbs ${CRUMB_ID} '{"CrumbID":"${CRUMB_ID}","Name":"Crumb two","State":"pebble"}' --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+
+  - name: Modification reflected in JSONL
+    inputs:
+      command: cat /tmp/regen-test/crumbs.jsonl
+    expected:
+      exit_code: 0
+      stdout_contains: '"state":"pebble"'
+
+  - name: Generation N+1 creates new crumb
+    inputs:
+      command: /tmp/cupboard-gen-n1 set crumbs "" '{"Name":"N+1 created crumb","State":"draft"}' --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+      stdout_contains: "CrumbID"
+
+  - name: New crumb appears in JSONL
+    inputs:
+      command: cat /tmp/regen-test/crumbs.jsonl
+    expected:
+      exit_code: 0
+      stdout_contains: '"name":"N+1 created crumb"'
+
+  # --- S7: generation N reads data modified by N+1 ---
+
+  - name: Installed generation N lists all crumbs including N+1 additions
+    inputs:
+      command: cupboard list crumbs --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+      stdout_contains:
+        - "Compat test crumb"
+        - "Crumb one"
+        - "Crumb two"
+        - "N+1 created crumb"
+
+  - name: Generation N reads state change made by N+1
+    inputs:
+      command: cupboard list crumbs --datadir /tmp/regen-test --json
+    expected:
+      exit_code: 0
+      state:
+        crumb_two_state: pebble
+
+  - name: Generation N gets crumb created by N+1
+    inputs:
+      setup:
+        - CRUMB_ID=$(cupboard list crumbs --datadir /tmp/regen-test --json | jq -r '.[] | select(.name=="N+1 created crumb") | .crumb_id')
+      command: cupboard get crumbs ${CRUMB_ID} --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+      stdout_contains: "N+1 created crumb"
+
+  - name: Generation N modifies crumb after N+1 modification
+    inputs:
+      setup:
+        - CRUMB_ID=$(cupboard list crumbs --datadir /tmp/regen-test --json | jq -r '.[] | select(.name=="Crumb three") | .crumb_id')
+      command: cupboard set crumbs ${CRUMB_ID} '{"CrumbID":"${CRUMB_ID}","Name":"Crumb three","State":"dust"}' --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+    verify:
+      command: /tmp/cupboard-gen-n1 get crumbs ${CRUMB_ID} --datadir /tmp/regen-test --json
+      state:
+        crumb_state: dust
+
+  # --- S8: properties and values from N readable by N+1 ---
+
+  - name: Generation N sets property value on crumb
+    inputs:
+      setup:
+        - CRUMB_ID=$(cupboard list crumbs --datadir /tmp/regen-test --json | jq -r '.[0].crumb_id')
+      command: cupboard set-property crumbs ${CRUMB_ID} owner "alice" --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+
+  - name: Generation N+1 reads property value set by N
+    inputs:
+      setup:
+        - CRUMB_ID=$(cupboard list crumbs --datadir /tmp/regen-test --json | jq -r '.[0].crumb_id')
+      command: /tmp/cupboard-gen-n1 get-property crumbs ${CRUMB_ID} owner --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+      stdout_contains: "alice"
+
+  - name: Generation N defines custom property
+    inputs:
+      command: cupboard set properties "" '{"Name":"regen_test_prop","ValueType":"text","Description":"Test property for regeneration"}' --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+
+  - name: Generation N+1 lists custom property defined by N
+    inputs:
+      command: /tmp/cupboard-gen-n1 list properties --datadir /tmp/regen-test --json
+    expected:
+      exit_code: 0
+      stdout_contains: '"name":"regen_test_prop"'
+
+  - name: Generation N+1 sets value on property defined by N
+    inputs:
+      setup:
+        - CRUMB_ID=$(cupboard list crumbs --datadir /tmp/regen-test --json | jq -r '.[0].crumb_id')
+      command: /tmp/cupboard-gen-n1 set-property crumbs ${CRUMB_ID} regen_test_prop "n+1 value" --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+
+  - name: Generation N reads property value set by N+1
+    inputs:
+      setup:
+        - CRUMB_ID=$(cupboard list crumbs --datadir /tmp/regen-test --json | jq -r '.[0].crumb_id')
+      command: cupboard get-property crumbs ${CRUMB_ID} regen_test_prop --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+      stdout_contains: "n+1 value"
+
+  # --- unknown field tolerance (forward compatibility) ---
+
+  - name: JSONL with unknown fields is parsed by older generation
+    description: Generation N+1 adds a field; generation N ignores it.
+    inputs:
+      setup:
+        - echo '{"crumb_id":"test-uuid","name":"Unknown field test","state":"draft","future_field":"unknown"}' >> /tmp/regen-test/crumbs.jsonl
+      command: cupboard list crumbs --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+      stdout_contains: "Unknown field test"
+
+  # --- error recovery ---
+
+  - name: Generation N+1 handles missing JSONL gracefully
+    inputs:
+      command: /tmp/cupboard-gen-n1 list crumbs --datadir /tmp/empty-dir
+    expected:
+      exit_code: 0
+      stdout_json:
+        length: 0
+
+  - name: Both generations handle corrupted entry
+    description: A single corrupted line should not prevent reading valid entries.
+    inputs:
+      setup:
+        - echo 'not valid json' >> /tmp/regen-test-corrupt/crumbs.jsonl
+        - echo '{"crumb_id":"valid-uuid","name":"Valid after corrupt","state":"draft"}' >> /tmp/regen-test-corrupt/crumbs.jsonl
+      command: cupboard list crumbs --datadir /tmp/regen-test-corrupt
+    expected:
+      exit_code: 0
+      stdout_contains: "Valid after corrupt"
+
+cleanup:
+  - Remove /tmp/regen-test directory
+  - Remove /tmp/regen-test-corrupt directory
+  - Remove /tmp/empty-dir directory
+  - Remove /tmp/cupboard-gen-n binary
+  - Remove /tmp/cupboard-gen-n1 binary
+  - Restore git state if regeneration was run

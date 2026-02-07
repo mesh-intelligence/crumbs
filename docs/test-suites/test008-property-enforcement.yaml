@@ -1,0 +1,394 @@
+id: test008-property-enforcement
+title: Property enforcement operations
+description: >
+  Validates the property enforcement mechanism: built-in property seeding,
+  auto-initialization on crumb creation, backfill on property definition,
+  and property operations (SetProperty, GetProperty, GetProperties, ClearProperty).
+traces:
+  - rel02.0-uc001-property-enforcement
+tags:
+  - cli
+  - integration
+  - properties
+
+preconditions:
+  - Cupboard binary built from cmd/cupboard
+  - Fresh temp directory for config and data
+  - Config file points SQLite backend at the temp data directory
+  - No existing crumbs or properties
+
+test_cases:
+
+  # --- S1: built-in properties seeded ---
+
+  - name: Built-in properties seeded on initialization
+    description: Verify that five built-in properties exist after cupboard initialization.
+    inputs:
+      command: cupboard list properties
+    expected:
+      exit_code: 0
+      stdout_json:
+        length: 5
+
+  - name: Built-in property priority exists with categorical type
+    inputs:
+      command: cupboard list properties --json
+    expected:
+      exit_code: 0
+      stdout_contains: '"name":"priority"'
+      state:
+        property_name: priority
+        property_value_type: categorical
+
+  - name: Built-in property type exists with categorical type
+    inputs:
+      command: cupboard list properties --json
+    expected:
+      exit_code: 0
+      stdout_contains: '"name":"type"'
+      state:
+        property_name: type
+        property_value_type: categorical
+
+  - name: Built-in property description exists with text type
+    inputs:
+      command: cupboard list properties --json
+    expected:
+      exit_code: 0
+      stdout_contains: '"name":"description"'
+      state:
+        property_name: description
+        property_value_type: text
+
+  - name: Built-in property owner exists with text type
+    inputs:
+      command: cupboard list properties --json
+    expected:
+      exit_code: 0
+      stdout_contains: '"name":"owner"'
+      state:
+        property_name: owner
+        property_value_type: text
+
+  - name: Built-in property labels exists with list type
+    inputs:
+      command: cupboard list properties --json
+    expected:
+      exit_code: 0
+      stdout_contains: '"name":"labels"'
+      state:
+        property_name: labels
+        property_value_type: list
+
+  # --- S2: new crumbs have all defined properties with defaults ---
+
+  - name: New crumb has all five built-in properties initialized
+    inputs:
+      command: cupboard set crumbs "" '{"Name":"Test crumb"}'
+    expected:
+      exit_code: 0
+      stdout_contains: "CrumbID"
+    verify:
+      command: cupboard get crumbs ${crumb_id} --json
+      stdout_json:
+        properties_count: 5
+
+  - name: New crumb properties have default values
+    description: Verify that text properties default to empty string, list to empty array.
+    inputs:
+      setup:
+        - cupboard set crumbs "" '{"Name":"Default values crumb"}'
+      command: cupboard get crumbs ${crumb_id} --json
+    expected:
+      exit_code: 0
+      state:
+        property_description: ""
+        property_owner: ""
+        property_labels: []
+
+  # --- S3: SetProperty updates value and changes UpdatedAt ---
+
+  - name: SetProperty updates property value
+    inputs:
+      setup:
+        - cupboard set crumbs "" '{"Name":"Property update crumb"}'
+      command: cupboard set-property crumbs ${crumb_id} owner "alice"
+    expected:
+      exit_code: 0
+    verify:
+      command: cupboard get crumbs ${crumb_id} --json
+      state:
+        property_owner: "alice"
+
+  - name: SetProperty updates UpdatedAt timestamp
+    description: Verify that UpdatedAt changes after SetProperty.
+    inputs:
+      setup:
+        - cupboard set crumbs "" '{"Name":"Timestamp test crumb"}'
+        - sleep 0.1
+      command: cupboard set-property crumbs ${crumb_id} owner "bob"
+    expected:
+      exit_code: 0
+      state:
+        updated_at_changed: true
+
+  - name: SetProperty with list value
+    inputs:
+      setup:
+        - cupboard set crumbs "" '{"Name":"Labels crumb"}'
+      command: cupboard set-property crumbs ${crumb_id} labels '["frontend","urgent"]'
+    expected:
+      exit_code: 0
+    verify:
+      command: cupboard get crumbs ${crumb_id} --json
+      state:
+        property_labels:
+          - frontend
+          - urgent
+
+  # --- S4: GetProperty returns current value ---
+
+  - name: GetProperty returns set value
+    inputs:
+      setup:
+        - cupboard set crumbs "" '{"Name":"Get property crumb"}'
+        - cupboard set-property crumbs ${crumb_id} description "A detailed description"
+      command: cupboard get-property crumbs ${crumb_id} description
+    expected:
+      exit_code: 0
+      stdout_contains: "A detailed description"
+
+  - name: GetProperty returns default value before set
+    inputs:
+      setup:
+        - cupboard set crumbs "" '{"Name":"Default get crumb"}'
+      command: cupboard get-property crumbs ${crumb_id} owner
+    expected:
+      exit_code: 0
+      stdout_equals: ""
+
+  # --- S5: creating a Property via Table.Set backfills existing crumbs ---
+
+  - name: Define custom property backfills existing crumbs
+    description: Create a crumb, define a new property, verify crumb has the new property.
+    inputs:
+      setup:
+        - cupboard set crumbs "" '{"Name":"Backfill target crumb"}'
+      steps:
+        - cupboard set properties "" '{"Name":"estimate","ValueType":"integer","Description":"Time estimate in hours"}'
+      command: cupboard get crumbs ${crumb_id} --json
+    expected:
+      exit_code: 0
+      state:
+        properties_count: 6
+        property_estimate: 0
+
+  - name: Multiple existing crumbs are backfilled
+    description: Create multiple crumbs, define property, verify all have the new property.
+    inputs:
+      setup:
+        - cupboard set crumbs "" '{"Name":"Crumb one"}'
+        - cupboard set crumbs "" '{"Name":"Crumb two"}'
+        - cupboard set crumbs "" '{"Name":"Crumb three"}'
+      steps:
+        - cupboard set properties "" '{"Name":"complexity","ValueType":"integer","Description":"Task complexity"}'
+      command: cupboard list crumbs --json
+    expected:
+      exit_code: 0
+      state:
+        all_crumbs_have_property: complexity
+        property_default_value: 0
+
+  # --- S6: GetProperties returns all properties (never partial) ---
+
+  - name: GetProperties returns all defined properties
+    inputs:
+      setup:
+        - cupboard set crumbs "" '{"Name":"All properties crumb"}'
+      command: cupboard get-properties crumbs ${crumb_id}
+    expected:
+      exit_code: 0
+      state:
+        properties_count: 5
+        has_priority: true
+        has_type: true
+        has_description: true
+        has_owner: true
+        has_labels: true
+
+  - name: GetProperties includes custom properties
+    inputs:
+      setup:
+        - cupboard set properties "" '{"Name":"custom_field","ValueType":"text","Description":"Custom text field"}'
+        - cupboard set crumbs "" '{"Name":"Custom props crumb"}'
+      command: cupboard get-properties crumbs ${crumb_id}
+    expected:
+      exit_code: 0
+      state:
+        properties_count: 6
+        has_custom_field: true
+
+  # --- S7: ClearProperty resets value to default, not null ---
+
+  - name: ClearProperty resets text to empty string
+    inputs:
+      setup:
+        - cupboard set crumbs "" '{"Name":"Clear text crumb"}'
+        - cupboard set-property crumbs ${crumb_id} owner "charlie"
+      command: cupboard clear-property crumbs ${crumb_id} owner
+    expected:
+      exit_code: 0
+    verify:
+      command: cupboard get-property crumbs ${crumb_id} owner
+      stdout_equals: ""
+
+  - name: ClearProperty resets list to empty array
+    inputs:
+      setup:
+        - cupboard set crumbs "" '{"Name":"Clear list crumb"}'
+        - cupboard set-property crumbs ${crumb_id} labels '["tag1","tag2"]'
+      command: cupboard clear-property crumbs ${crumb_id} labels
+    expected:
+      exit_code: 0
+    verify:
+      command: cupboard get crumbs ${crumb_id} --json
+      state:
+        property_labels: []
+
+  - name: ClearProperty resets integer to zero
+    inputs:
+      setup:
+        - cupboard set properties "" '{"Name":"points","ValueType":"integer","Description":"Story points"}'
+        - cupboard set crumbs "" '{"Name":"Clear integer crumb"}'
+        - cupboard set-property crumbs ${crumb_id} points 8
+      command: cupboard clear-property crumbs ${crumb_id} points
+    expected:
+      exit_code: 0
+    verify:
+      command: cupboard get-property crumbs ${crumb_id} points
+      stdout_equals: "0"
+
+  - name: ClearProperty updates UpdatedAt timestamp
+    inputs:
+      setup:
+        - cupboard set crumbs "" '{"Name":"Clear timestamp crumb"}'
+        - cupboard set-property crumbs ${crumb_id} owner "dave"
+        - sleep 0.1
+      command: cupboard clear-property crumbs ${crumb_id} owner
+    expected:
+      exit_code: 0
+      state:
+        updated_at_changed: true
+
+  # --- S8: crumbs added after property definition have new property ---
+
+  - name: Crumb created after property definition has new property
+    inputs:
+      setup:
+        - cupboard set properties "" '{"Name":"story_points","ValueType":"integer","Description":"Estimated story points"}'
+      command: cupboard set crumbs "" '{"Name":"New crumb after prop def"}'
+    expected:
+      exit_code: 0
+    verify:
+      command: cupboard get crumbs ${crumb_id} --json
+      state:
+        properties_count: 6
+        property_story_points: 0
+
+  - name: Multiple crumbs after property definition all have property
+    inputs:
+      setup:
+        - cupboard set properties "" '{"Name":"effort","ValueType":"integer","Description":"Effort level"}'
+      steps:
+        - cupboard set crumbs "" '{"Name":"Crumb A"}'
+        - cupboard set crumbs "" '{"Name":"Crumb B"}'
+      command: cupboard list crumbs --json
+    expected:
+      exit_code: 0
+      state:
+        all_crumbs_have_property: effort
+
+  # --- S9: no crumb ever has fewer properties than defined ---
+
+  - name: All crumbs have same property count after multiple definitions
+    description: Define multiple properties, create crumbs at different times, verify all have same count.
+    inputs:
+      steps:
+        - cupboard set crumbs "" '{"Name":"Early crumb"}'
+        - cupboard set properties "" '{"Name":"prop_one","ValueType":"text","Description":"First custom property"}'
+        - cupboard set crumbs "" '{"Name":"Middle crumb"}'
+        - cupboard set properties "" '{"Name":"prop_two","ValueType":"integer","Description":"Second custom property"}'
+        - cupboard set crumbs "" '{"Name":"Late crumb"}'
+      command: cupboard list crumbs --json
+    expected:
+      exit_code: 0
+      state:
+        all_crumbs_same_property_count: true
+        properties_count: 7
+
+  - name: Invariant holds after mixed operations
+    description: Perform various operations and verify property count invariant.
+    inputs:
+      steps:
+        - cupboard set crumbs "" '{"Name":"Crumb 1"}'
+        - cupboard set crumbs "" '{"Name":"Crumb 2"}'
+        - cupboard set properties "" '{"Name":"field_a","ValueType":"text","Description":"Field A"}'
+        - cupboard set-property crumbs ${crumb1_id} field_a "value_a"
+        - cupboard set crumbs "" '{"Name":"Crumb 3"}'
+        - cupboard clear-property crumbs ${crumb1_id} field_a
+        - cupboard set properties "" '{"Name":"field_b","ValueType":"boolean","Description":"Field B"}'
+      command: cupboard list crumbs --json
+    expected:
+      exit_code: 0
+      state:
+        all_crumbs_same_property_count: true
+        no_crumb_has_fewer_properties: true
+
+  # --- error conditions ---
+
+  - name: SetProperty with invalid property fails
+    inputs:
+      setup:
+        - cupboard set crumbs "" '{"Name":"Error test crumb"}'
+      command: cupboard set-property crumbs ${crumb_id} nonexistent_prop "value"
+    expected:
+      exit_code: 1
+      stderr_contains: "property not found"
+
+  - name: SetProperty with wrong type fails
+    inputs:
+      setup:
+        - cupboard set properties "" '{"Name":"numeric_field","ValueType":"integer","Description":"Numeric field"}'
+        - cupboard set crumbs "" '{"Name":"Type error crumb"}'
+      command: cupboard set-property crumbs ${crumb_id} numeric_field "not a number"
+    expected:
+      exit_code: 1
+      stderr_contains: "type mismatch"
+
+  - name: GetProperty with invalid property fails
+    inputs:
+      setup:
+        - cupboard set crumbs "" '{"Name":"Get error crumb"}'
+      command: cupboard get-property crumbs ${crumb_id} nonexistent_prop
+    expected:
+      exit_code: 1
+      stderr_contains: "property not found"
+
+  - name: ClearProperty with invalid property fails
+    inputs:
+      setup:
+        - cupboard set crumbs "" '{"Name":"Clear error crumb"}'
+      command: cupboard clear-property crumbs ${crumb_id} nonexistent_prop
+    expected:
+      exit_code: 1
+      stderr_contains: "property not found"
+
+  - name: Duplicate property name fails
+    inputs:
+      command: cupboard set properties "" '{"Name":"priority","ValueType":"text","Description":"Duplicate"}'
+    expected:
+      exit_code: 1
+      stderr_contains: "duplicate name"
+
+cleanup:
+  - Remove temp config and data directories
