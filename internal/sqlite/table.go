@@ -407,7 +407,8 @@ func (t *Table) getTrail(id string) (*types.Trail, error) {
 }
 
 func (t *Table) setTrail(id string, trail *types.Trail) (string, error) {
-	if id == "" {
+	isNewTrail := id == ""
+	if isNewTrail {
 		id = generateUUID()
 	}
 	trail.TrailID = id
@@ -416,12 +417,41 @@ func (t *Table) setTrail(id string, trail *types.Trail) (string, error) {
 		trail.CreatedAt = time.Now()
 	}
 
+	// Set default state to "draft" on creation (prd-trails-interface R2.2, R3.3)
+	if isNewTrail && trail.State == "" {
+		trail.State = types.TrailStateDraft
+	}
+
+	// Get previous state to detect state changes (for cascade operations)
+	var previousState string
+	if !isNewTrail {
+		var state sql.NullString
+		err := t.backend.db.QueryRow(
+			"SELECT state FROM trails WHERE trail_id = ?",
+			id,
+		).Scan(&state)
+		if err == nil && state.Valid {
+			previousState = state.String
+		}
+	}
+
 	var completedAt interface{}
 	if trail.CompletedAt != nil {
 		completedAt = trail.CompletedAt.Format(time.RFC3339)
 	}
 
-	_, err := t.backend.db.Exec(
+	// Begin transaction for atomic cascade operations (prd-sqlite-backend R5.7)
+	tx, err := t.backend.db.Begin()
+	if err != nil {
+		return "", fmt.Errorf("begin transaction: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	_, err = tx.Exec(
 		`INSERT INTO trails (trail_id, state, created_at, completed_at)
 		 VALUES (?, ?, ?, ?)
 		 ON CONFLICT(trail_id) DO UPDATE SET
@@ -436,17 +466,152 @@ func (t *Table) setTrail(id string, trail *types.Trail) (string, error) {
 		return "", err
 	}
 
+	// Cascade operations on state change (prd-sqlite-backend R5.6)
+	var cascadeCrumbIDs []string
+	if previousState != "" && previousState != trail.State {
+		switch trail.State {
+		case types.TrailStateCompleted:
+			// Complete cascade: remove belongs_to links (crumbs become permanent)
+			_, err = tx.Exec(
+				`DELETE FROM links WHERE link_type = ? AND to_id = ?`,
+				types.LinkTypeBelongsTo, trail.TrailID,
+			)
+			if err != nil {
+				return "", fmt.Errorf("remove belongs_to links: %w", err)
+			}
+
+		case types.TrailStateAbandoned:
+			// Abandon cascade: find all crumbs, delete crumbs and their data
+			rows, err := tx.Query(
+				`SELECT from_id FROM links WHERE link_type = ? AND to_id = ?`,
+				types.LinkTypeBelongsTo, trail.TrailID,
+			)
+			if err != nil {
+				return "", fmt.Errorf("query trail crumbs: %w", err)
+			}
+			for rows.Next() {
+				var crumbID string
+				if err := rows.Scan(&crumbID); err != nil {
+					rows.Close()
+					return "", fmt.Errorf("scan crumb_id: %w", err)
+				}
+				cascadeCrumbIDs = append(cascadeCrumbIDs, crumbID)
+			}
+			rows.Close()
+
+			// Delete each crumb and its associated data
+			for _, crumbID := range cascadeCrumbIDs {
+				// Delete crumb properties
+				_, err = tx.Exec(
+					`DELETE FROM crumb_properties WHERE crumb_id = ?`,
+					crumbID,
+				)
+				if err != nil {
+					return "", fmt.Errorf("delete crumb properties for %s: %w", crumbID, err)
+				}
+
+				// Delete metadata
+				_, err = tx.Exec(
+					`DELETE FROM metadata WHERE crumb_id = ?`,
+					crumbID,
+				)
+				if err != nil {
+					return "", fmt.Errorf("delete metadata for %s: %w", crumbID, err)
+				}
+
+				// Delete links where crumb is from_id or to_id
+				_, err = tx.Exec(
+					`DELETE FROM links WHERE from_id = ? OR to_id = ?`,
+					crumbID, crumbID,
+				)
+				if err != nil {
+					return "", fmt.Errorf("delete links for %s: %w", crumbID, err)
+				}
+
+				// Delete the crumb itself
+				_, err = tx.Exec(
+					`DELETE FROM crumbs WHERE crumb_id = ?`,
+					crumbID,
+				)
+				if err != nil {
+					return "", fmt.Errorf("delete crumb %s: %w", crumbID, err)
+				}
+			}
+		}
+	}
+
+	// Commit transaction
+	if err = tx.Commit(); err != nil {
+		return "", fmt.Errorf("commit transaction: %w", err)
+	}
+
 	// Persist to JSONL based on sync strategy (prd-sqlite-backend R16)
 	if t.backend.shouldPersistImmediately() {
 		if err := t.backend.saveTrailToJSONL(trail); err != nil {
 			return "", fmt.Errorf("persist trail to JSONL: %w", err)
 		}
+
+		// Persist cascade deletions to JSONL
+		if previousState != "" && previousState != trail.State {
+			switch trail.State {
+			case types.TrailStateCompleted:
+				// Remove belongs_to links from JSONL
+				if err := t.backend.deleteLinksByTrailIDFromJSONL(trail.TrailID); err != nil {
+					return "", fmt.Errorf("persist belongs_to link deletion: %w", err)
+				}
+
+			case types.TrailStateAbandoned:
+				// Delete crumbs and associated data from JSONL
+				for _, crumbID := range cascadeCrumbIDs {
+					if err := t.backend.deleteCrumbPropertiesByCrumbIDFromJSONL(crumbID); err != nil {
+						return "", fmt.Errorf("persist crumb properties deletion for %s: %w", crumbID, err)
+					}
+					if err := t.backend.deleteMetadataByCrumbIDFromJSONL(crumbID); err != nil {
+						return "", fmt.Errorf("persist metadata deletion for %s: %w", crumbID, err)
+					}
+					if err := t.backend.deleteLinksByCrumbIDFromJSONL(crumbID); err != nil {
+						return "", fmt.Errorf("persist links deletion for %s: %w", crumbID, err)
+					}
+					if err := t.backend.deleteCrumbFromJSONL(crumbID); err != nil {
+						return "", fmt.Errorf("persist crumb deletion for %s: %w", crumbID, err)
+					}
+				}
+			}
+		}
 	} else {
-		// Capture trail state for deferred write
+		// Queue deferred writes
 		trailCopy := *trail
 		t.backend.queueWrite(types.TrailsTable, "save", func() error {
 			return t.backend.saveTrailToJSONL(&trailCopy)
 		})
+
+		// Queue cascade deletions
+		if previousState != "" && previousState != trail.State {
+			switch trail.State {
+			case types.TrailStateCompleted:
+				trailID := trail.TrailID
+				t.backend.queueWrite(types.LinksTable, "delete", func() error {
+					return t.backend.deleteLinksByTrailIDFromJSONL(trailID)
+				})
+
+			case types.TrailStateAbandoned:
+				for _, crumbID := range cascadeCrumbIDs {
+					id := crumbID // Capture for closure
+					t.backend.queueWrite("crumb_properties", "delete", func() error {
+						return t.backend.deleteCrumbPropertiesByCrumbIDFromJSONL(id)
+					})
+					t.backend.queueWrite(types.MetadataTable, "delete", func() error {
+						return t.backend.deleteMetadataByCrumbIDFromJSONL(id)
+					})
+					t.backend.queueWrite(types.LinksTable, "delete", func() error {
+						return t.backend.deleteLinksByCrumbIDFromJSONL(id)
+					})
+					t.backend.queueWrite(types.CrumbsTable, "delete", func() error {
+						return t.backend.deleteCrumbFromJSONL(id)
+					})
+				}
+			}
+		}
 	}
 
 	return id, nil

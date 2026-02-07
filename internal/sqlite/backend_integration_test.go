@@ -1022,3 +1022,275 @@ func splitLines(data []byte) [][]byte {
 	}
 	return lines
 }
+
+// TestIntegration_TrailDefaultState tests that new trails default to draft state.
+// Implements: prd-trails-interface R2.2, R3.3
+func TestIntegration_TrailDefaultState(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	backend := NewBackend()
+	config := types.Config{
+		Backend: types.BackendSQLite,
+		DataDir: tmpDir,
+	}
+	if err := backend.Attach(config); err != nil {
+		t.Fatalf("Attach failed: %v", err)
+	}
+	defer backend.Detach()
+
+	trailsTable, _ := backend.GetTable(types.TrailsTable)
+
+	// Create trail without specifying state
+	trail := &types.Trail{}
+	id, err := trailsTable.Set("", trail)
+	if err != nil {
+		t.Fatalf("Set failed: %v", err)
+	}
+
+	// Verify state defaults to draft
+	if trail.State != types.TrailStateDraft {
+		t.Errorf("New trail should default to draft state, got %q", trail.State)
+	}
+
+	// Verify persisted state
+	entity, _ := trailsTable.Get(id)
+	retrieved := entity.(*types.Trail)
+	if retrieved.State != types.TrailStateDraft {
+		t.Errorf("Persisted trail state should be draft, got %q", retrieved.State)
+	}
+}
+
+// TestIntegration_TrailCompleteCascade tests that completing a trail removes belongs_to links.
+// Implements: prd-trails-interface R5.6, R5.7; prd-sqlite-backend R5.6
+func TestIntegration_TrailCompleteCascade(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	backend := NewBackend()
+	config := types.Config{
+		Backend: types.BackendSQLite,
+		DataDir: tmpDir,
+	}
+	if err := backend.Attach(config); err != nil {
+		t.Fatalf("Attach failed: %v", err)
+	}
+	defer backend.Detach()
+
+	trailsTable, _ := backend.GetTable(types.TrailsTable)
+	crumbsTable, _ := backend.GetTable(types.CrumbsTable)
+	linksTable, _ := backend.GetTable(types.LinksTable)
+
+	// Create trail in active state
+	trail := &types.Trail{State: types.TrailStateActive}
+	trailID, _ := trailsTable.Set("", trail)
+
+	// Create crumbs
+	crumb1 := &types.Crumb{Name: "Crumb 1", State: types.StateDraft}
+	crumb2 := &types.Crumb{Name: "Crumb 2", State: types.StateDraft}
+	crumbID1, _ := crumbsTable.Set("", crumb1)
+	crumbID2, _ := crumbsTable.Set("", crumb2)
+
+	// Create belongs_to links
+	link1 := &types.Link{LinkType: types.LinkTypeBelongsTo, FromID: crumbID1, ToID: trailID}
+	link2 := &types.Link{LinkType: types.LinkTypeBelongsTo, FromID: crumbID2, ToID: trailID}
+	linkID1, _ := linksTable.Set("", link1)
+	linkID2, _ := linksTable.Set("", link2)
+
+	// Verify links exist
+	links, _ := linksTable.Fetch(map[string]any{"ToID": trailID, "LinkType": types.LinkTypeBelongsTo})
+	if len(links) != 2 {
+		t.Fatalf("Expected 2 belongs_to links, got %d", len(links))
+	}
+
+	// Complete the trail
+	trail.Complete()
+	_, err := trailsTable.Set(trailID, trail)
+	if err != nil {
+		t.Fatalf("Set (complete) failed: %v", err)
+	}
+
+	// Verify links are removed
+	links, _ = linksTable.Fetch(map[string]any{"ToID": trailID, "LinkType": types.LinkTypeBelongsTo})
+	if len(links) != 0 {
+		t.Errorf("Expected 0 belongs_to links after completion, got %d", len(links))
+	}
+
+	// Verify individual links return ErrNotFound
+	_, err = linksTable.Get(linkID1)
+	if err != types.ErrNotFound {
+		t.Errorf("Expected ErrNotFound for deleted link, got %v", err)
+	}
+	_, err = linksTable.Get(linkID2)
+	if err != types.ErrNotFound {
+		t.Errorf("Expected ErrNotFound for deleted link, got %v", err)
+	}
+
+	// Verify crumbs still exist (made permanent)
+	_, err = crumbsTable.Get(crumbID1)
+	if err != nil {
+		t.Errorf("Crumb 1 should still exist after completion, got error: %v", err)
+	}
+	_, err = crumbsTable.Get(crumbID2)
+	if err != nil {
+		t.Errorf("Crumb 2 should still exist after completion, got error: %v", err)
+	}
+
+	// Verify JSONL files reflect the changes
+	verifyJSONLNotContains(t, filepath.Join(tmpDir, linksJSONL), "link_id", linkID1)
+	verifyJSONLNotContains(t, filepath.Join(tmpDir, linksJSONL), "link_id", linkID2)
+	verifyJSONLContains(t, filepath.Join(tmpDir, crumbsJSONL), "crumb_id", crumbID1)
+	verifyJSONLContains(t, filepath.Join(tmpDir, crumbsJSONL), "crumb_id", crumbID2)
+}
+
+// TestIntegration_TrailAbandonCascade tests that abandoning a trail deletes crumbs and their data.
+// Implements: prd-trails-interface R6.6, R6.7, R6.8; prd-sqlite-backend R5.6
+func TestIntegration_TrailAbandonCascade(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	backend := NewBackend()
+	config := types.Config{
+		Backend: types.BackendSQLite,
+		DataDir: tmpDir,
+	}
+	if err := backend.Attach(config); err != nil {
+		t.Fatalf("Attach failed: %v", err)
+	}
+	defer backend.Detach()
+
+	trailsTable, _ := backend.GetTable(types.TrailsTable)
+	crumbsTable, _ := backend.GetTable(types.CrumbsTable)
+	linksTable, _ := backend.GetTable(types.LinksTable)
+	metadataTable, _ := backend.GetTable(types.MetadataTable)
+
+	// Create trail in active state
+	trail := &types.Trail{State: types.TrailStateActive}
+	trailID, _ := trailsTable.Set("", trail)
+
+	// Create crumbs
+	crumb1 := &types.Crumb{Name: "Crumb 1", State: types.StateDraft}
+	crumb2 := &types.Crumb{Name: "Crumb 2", State: types.StateDraft}
+	crumbID1, _ := crumbsTable.Set("", crumb1)
+	crumbID2, _ := crumbsTable.Set("", crumb2)
+
+	// Create belongs_to links
+	link1 := &types.Link{LinkType: types.LinkTypeBelongsTo, FromID: crumbID1, ToID: trailID}
+	link2 := &types.Link{LinkType: types.LinkTypeBelongsTo, FromID: crumbID2, ToID: trailID}
+	linksTable.Set("", link1)
+	linksTable.Set("", link2)
+
+	// Create child_of link between crumbs
+	childLink := &types.Link{LinkType: types.LinkTypeChildOf, FromID: crumbID2, ToID: crumbID1}
+	linksTable.Set("", childLink)
+
+	// Create metadata for crumb1
+	meta := &types.Metadata{TableName: "comments", CrumbID: crumbID1, Content: "Test comment"}
+	metaID, _ := metadataTable.Set("", meta)
+
+	// Abandon the trail
+	trail.Abandon()
+	_, err := trailsTable.Set(trailID, trail)
+	if err != nil {
+		t.Fatalf("Set (abandon) failed: %v", err)
+	}
+
+	// Verify crumbs are deleted
+	_, err = crumbsTable.Get(crumbID1)
+	if err != types.ErrNotFound {
+		t.Errorf("Crumb 1 should be deleted after abandonment, got error: %v", err)
+	}
+	_, err = crumbsTable.Get(crumbID2)
+	if err != types.ErrNotFound {
+		t.Errorf("Crumb 2 should be deleted after abandonment, got error: %v", err)
+	}
+
+	// Verify metadata is deleted
+	_, err = metadataTable.Get(metaID)
+	if err != types.ErrNotFound {
+		t.Errorf("Metadata should be deleted after abandonment, got error: %v", err)
+	}
+
+	// Verify all links involving these crumbs are deleted
+	links, _ := linksTable.Fetch(nil)
+	for _, l := range links {
+		link := l.(*types.Link)
+		if link.FromID == crumbID1 || link.FromID == crumbID2 ||
+			link.ToID == crumbID1 || link.ToID == crumbID2 {
+			t.Errorf("Link involving deleted crumb should not exist: %+v", link)
+		}
+	}
+
+	// Verify trail still exists (for audit purposes)
+	entity, err := trailsTable.Get(trailID)
+	if err != nil {
+		t.Errorf("Trail should still exist after abandonment, got error: %v", err)
+	}
+	abandonedTrail := entity.(*types.Trail)
+	if abandonedTrail.State != types.TrailStateAbandoned {
+		t.Errorf("Trail state should be abandoned, got %q", abandonedTrail.State)
+	}
+
+	// Verify JSONL files reflect the changes
+	verifyJSONLNotContains(t, filepath.Join(tmpDir, crumbsJSONL), "crumb_id", crumbID1)
+	verifyJSONLNotContains(t, filepath.Join(tmpDir, crumbsJSONL), "crumb_id", crumbID2)
+	verifyJSONLNotContains(t, filepath.Join(tmpDir, metadataJSONL), "crumb_id", crumbID1)
+	verifyJSONLContains(t, filepath.Join(tmpDir, trailsJSONL), "trail_id", trailID)
+}
+
+// TestIntegration_TrailAbandon_RemovedCrumbSurvives tests that crumbs removed from trail before abandon survive.
+// Implements: rel03.0-uc001-trail-exploration S6
+func TestIntegration_TrailAbandon_RemovedCrumbSurvives(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	backend := NewBackend()
+	config := types.Config{
+		Backend: types.BackendSQLite,
+		DataDir: tmpDir,
+	}
+	if err := backend.Attach(config); err != nil {
+		t.Fatalf("Attach failed: %v", err)
+	}
+	defer backend.Detach()
+
+	trailsTable, _ := backend.GetTable(types.TrailsTable)
+	crumbsTable, _ := backend.GetTable(types.CrumbsTable)
+	linksTable, _ := backend.GetTable(types.LinksTable)
+
+	// Create trail in active state
+	trail := &types.Trail{State: types.TrailStateActive}
+	trailID, _ := trailsTable.Set("", trail)
+
+	// Create crumbs
+	crumb1 := &types.Crumb{Name: "Crumb to remove", State: types.StateDraft}
+	crumb2 := &types.Crumb{Name: "Crumb to delete", State: types.StateDraft}
+	crumbID1, _ := crumbsTable.Set("", crumb1)
+	crumbID2, _ := crumbsTable.Set("", crumb2)
+
+	// Create belongs_to links
+	link1 := &types.Link{LinkType: types.LinkTypeBelongsTo, FromID: crumbID1, ToID: trailID}
+	link2 := &types.Link{LinkType: types.LinkTypeBelongsTo, FromID: crumbID2, ToID: trailID}
+	linkID1, _ := linksTable.Set("", link1)
+	linksTable.Set("", link2)
+
+	// Remove crumb1 from trail (delete the link)
+	if err := linksTable.Delete(linkID1); err != nil {
+		t.Fatalf("Delete link failed: %v", err)
+	}
+
+	// Abandon the trail
+	trail.Abandon()
+	_, err := trailsTable.Set(trailID, trail)
+	if err != nil {
+		t.Fatalf("Set (abandon) failed: %v", err)
+	}
+
+	// Verify crumb1 still exists (was removed before abandon)
+	_, err = crumbsTable.Get(crumbID1)
+	if err != nil {
+		t.Errorf("Crumb 1 should survive abandonment (was removed from trail), got error: %v", err)
+	}
+
+	// Verify crumb2 is deleted (was still on trail)
+	_, err = crumbsTable.Get(crumbID2)
+	if err != types.ErrNotFound {
+		t.Errorf("Crumb 2 should be deleted after abandonment, got error: %v", err)
+	}
+}

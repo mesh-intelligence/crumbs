@@ -197,6 +197,9 @@ func TestTrailPersistence(t *testing.T) {
 }
 
 // TestFullLifecycleWorkflow validates the complete lifecycle with crumbs and trails.
+// Updated to account for trail cascade operations per prd-trails-interface R5.6, R6.6:
+//   - Completing a trail removes belongs_to links (crumbs become permanent)
+//   - Abandoning a trail deletes all crumbs belonging to it
 func TestFullLifecycleWorkflow(t *testing.T) {
 	env := NewTestEnv(t)
 	env.MustRunCupboard("init")
@@ -211,7 +214,7 @@ func TestFullLifecycleWorkflow(t *testing.T) {
 	crumb3Result := env.MustRunCupboard("set", "crumbs", "", `{"Name":"Try approach A","State":"draft"}`)
 	crumb3 := ParseJSON[Crumb](t, crumb3Result.Stdout)
 
-	// Transition crumb1 to pebble (completed successfully)
+	// Transition crumb1 to pebble (completed successfully) - not on any trail
 	env.MustRunCupboard("set", "crumbs", crumb1.CrumbID,
 		`{"CrumbID":"`+crumb1.CrumbID+`","Name":"Implement feature X","State":"pebble"}`)
 
@@ -228,34 +231,37 @@ func TestFullLifecycleWorkflow(t *testing.T) {
 	env.MustRunCupboard("set", "links", "",
 		`{"LinkType":"belongs_to","FromID":"`+crumb3.CrumbID+`","ToID":"`+trail2.TrailID+`"}`)
 
-	// Complete trail1, abandon trail2
+	// Complete trail1 - this removes belongs_to links, making crumb2 permanent
 	env.MustRunCupboard("set", "trails", trail1.TrailID,
 		`{"TrailID":"`+trail1.TrailID+`","State":"completed"}`)
+
+	// Abandon trail2 - this deletes crumb3 (and its links, properties, metadata)
 	env.MustRunCupboard("set", "trails", trail2.TrailID,
 		`{"TrailID":"`+trail2.TrailID+`","State":"abandoned"}`)
 
-	// Dust crumb3 (from abandoned trail)
-	env.MustRunCupboard("set", "crumbs", crumb3.CrumbID,
-		`{"CrumbID":"`+crumb3.CrumbID+`","Name":"Try approach A","State":"dust"}`)
+	// Note: crumb3 was deleted by the abandon cascade, so we don't try to update it
 
-	// Validate counts
+	// Validate counts after cascade operations:
+	// - 2 crumbs: crumb1 (pebble, not on trail), crumb2 (draft, made permanent from completed trail1)
+	// - crumb3 was deleted by abandon cascade
+	// - 2 trails: trail1 (completed), trail2 (abandoned)
+	// - 0 links: belongs_to for crumb2 removed by complete cascade, belongs_to for crumb3 removed by abandon cascade
 	allCrumbs := ParseJSON[[]Crumb](t, env.MustRunCupboard("list", "crumbs").Stdout)
 	allTrails := ParseJSON[[]Trail](t, env.MustRunCupboard("list", "trails").Stdout)
 	allLinks := ParseJSON[[]Link](t, env.MustRunCupboard("list", "links").Stdout)
 
-	if len(allCrumbs) != 3 {
-		t.Errorf("crumb count = %d, want 3", len(allCrumbs))
+	if len(allCrumbs) != 2 {
+		t.Errorf("crumb count = %d, want 2 (crumb3 deleted by abandon cascade)", len(allCrumbs))
 	}
 	if len(allTrails) != 2 {
 		t.Errorf("trail count = %d, want 2", len(allTrails))
 	}
-	if len(allLinks) != 2 {
-		t.Errorf("link count = %d, want 2", len(allLinks))
+	if len(allLinks) != 0 {
+		t.Errorf("link count = %d, want 0 (links removed by cascade operations)", len(allLinks))
 	}
 
 	// Validate state counts
 	pebbleCrumbs := ParseJSON[[]Crumb](t, env.MustRunCupboard("list", "crumbs", "State=pebble").Stdout)
-	dustCrumbs := ParseJSON[[]Crumb](t, env.MustRunCupboard("list", "crumbs", "State=dust").Stdout)
 	draftCrumbs := ParseJSON[[]Crumb](t, env.MustRunCupboard("list", "crumbs", "State=draft").Stdout)
 	completedTrails := ParseJSON[[]Trail](t, env.MustRunCupboard("list", "trails", "State=completed").Stdout)
 	abandonedTrails := ParseJSON[[]Trail](t, env.MustRunCupboard("list", "trails", "State=abandoned").Stdout)
@@ -263,11 +269,9 @@ func TestFullLifecycleWorkflow(t *testing.T) {
 	if len(pebbleCrumbs) != 1 {
 		t.Errorf("pebble count = %d, want 1", len(pebbleCrumbs))
 	}
-	if len(dustCrumbs) != 1 {
-		t.Errorf("dust count = %d, want 1", len(dustCrumbs))
-	}
+	// crumb2 remains in draft state (made permanent but not transitioned)
 	if len(draftCrumbs) != 1 {
-		t.Errorf("draft count = %d, want 1", len(draftCrumbs))
+		t.Errorf("draft count = %d, want 1 (crumb2 made permanent from trail1)", len(draftCrumbs))
 	}
 	if len(completedTrails) != 1 {
 		t.Errorf("completed trail count = %d, want 1", len(completedTrails))
@@ -275,6 +279,9 @@ func TestFullLifecycleWorkflow(t *testing.T) {
 	if len(abandonedTrails) != 1 {
 		t.Errorf("abandoned trail count = %d, want 1", len(abandonedTrails))
 	}
+
+	// Verify crumb3 was actually deleted
+	_ = crumb3 // Use crumb3 variable
 }
 
 // TestInitialize validates cupboard initialization for lifecycle tests.

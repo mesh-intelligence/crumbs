@@ -646,6 +646,155 @@ func deleteFromJSONLFile(path, id, idField string) error {
 	return writeJSONLAtomic(path, lines)
 }
 
+// deleteCrumbPropertiesByCrumbIDFromJSONL removes all crumb property entries for a crumb.
+// Used during trail abandonment cascade (prd-sqlite-backend R5.6).
+func (b *Backend) deleteCrumbPropertiesByCrumbIDFromJSONL(crumbID string) error {
+	path := filepath.Join(b.config.DataDir, crumbPropsJSONL)
+	return deleteFromJSONLByField(path, "crumb_id", crumbID)
+}
+
+// deleteMetadataByCrumbIDFromJSONL removes all metadata entries for a crumb.
+// Used during trail abandonment cascade (prd-sqlite-backend R5.6).
+func (b *Backend) deleteMetadataByCrumbIDFromJSONL(crumbID string) error {
+	path := filepath.Join(b.config.DataDir, metadataJSONL)
+	return deleteFromJSONLByField(path, "crumb_id", crumbID)
+}
+
+// deleteLinksByTrailIDFromJSONL removes all belongs_to links for a trail.
+// Used during trail completion cascade (prd-sqlite-backend R5.6).
+func (b *Backend) deleteLinksByTrailIDFromJSONL(trailID string) error {
+	path := filepath.Join(b.config.DataDir, linksJSONL)
+	return deleteLinksFromJSONLByTypeAndToID(path, types.LinkTypeBelongsTo, trailID)
+}
+
+// deleteLinksByCrumbIDFromJSONL removes all links where from_id or to_id matches crumb.
+// Used during trail abandonment cascade (prd-sqlite-backend R5.6).
+func (b *Backend) deleteLinksByCrumbIDFromJSONL(crumbID string) error {
+	path := filepath.Join(b.config.DataDir, linksJSONL)
+	return deleteLinksFromJSONLByCrumbID(path, crumbID)
+}
+
+// deleteFromJSONLByField removes all records matching a field value from a JSONL file.
+func deleteFromJSONLByField(path, field, value string) error {
+	var lines [][]byte
+
+	f, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if len(line) == 0 {
+			continue
+		}
+		var record map[string]any
+		if err := json.Unmarshal(line, &record); err != nil {
+			lineCopy := make([]byte, len(line))
+			copy(lineCopy, line)
+			lines = append(lines, lineCopy)
+			continue
+		}
+		if record[field] != value {
+			lineCopy := make([]byte, len(line))
+			copy(lineCopy, line)
+			lines = append(lines, lineCopy)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	return writeJSONLAtomic(path, lines)
+}
+
+// deleteLinksFromJSONLByTypeAndToID removes links matching type and to_id.
+func deleteLinksFromJSONLByTypeAndToID(path, linkType, toID string) error {
+	var lines [][]byte
+
+	f, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if len(line) == 0 {
+			continue
+		}
+		var record map[string]any
+		if err := json.Unmarshal(line, &record); err != nil {
+			lineCopy := make([]byte, len(line))
+			copy(lineCopy, line)
+			lines = append(lines, lineCopy)
+			continue
+		}
+		// Keep unless it matches both link_type and to_id
+		if record["link_type"] == linkType && record["to_id"] == toID {
+			continue // Delete this line
+		}
+		lineCopy := make([]byte, len(line))
+		copy(lineCopy, line)
+		lines = append(lines, lineCopy)
+	}
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	return writeJSONLAtomic(path, lines)
+}
+
+// deleteLinksFromJSONLByCrumbID removes links where from_id or to_id matches crumb.
+func deleteLinksFromJSONLByCrumbID(path, crumbID string) error {
+	var lines [][]byte
+
+	f, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if len(line) == 0 {
+			continue
+		}
+		var record map[string]any
+		if err := json.Unmarshal(line, &record); err != nil {
+			lineCopy := make([]byte, len(line))
+			copy(lineCopy, line)
+			lines = append(lines, lineCopy)
+			continue
+		}
+		// Keep unless from_id or to_id matches
+		if record["from_id"] == crumbID || record["to_id"] == crumbID {
+			continue // Delete this line
+		}
+		lineCopy := make([]byte, len(line))
+		copy(lineCopy, line)
+		lines = append(lines, lineCopy)
+	}
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	return writeJSONLAtomic(path, lines)
+}
+
 // appendToJSONLFile appends a single record to a JSONL file (for append-only tables per R6.3).
 func appendToJSONLFile(path string, data []byte) error {
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)

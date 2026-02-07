@@ -19,9 +19,22 @@ preconditions:
 
 test_cases:
 
-  # --- S1: Trail created via Table.Set starts in active state ---
+  # --- S1: Trail created via Table.Set starts in draft state by default ---
 
-  - name: Create trail starts in active state
+  - name: Create trail defaults to draft state
+    description: When no state is provided, new trails default to draft state per prd-trails-interface R2.2
+    inputs:
+      command: |
+        trail := &Trail{CreatedAt: time.Now()}
+        trailsTable.Set("", trail)
+    expected:
+      exit_code: 0
+      state:
+        trail_state: draft
+        trail_id_generated: true
+        created_at_set: true
+
+  - name: Create trail with explicit active state
     inputs:
       command: |
         trail := &Trail{State: "active", CreatedAt: time.Now()}
@@ -33,7 +46,7 @@ test_cases:
         trail_id_generated: true
         created_at_set: true
 
-  - name: Create trail in draft state
+  - name: Create trail in draft state explicitly
     inputs:
       command: |
         trail := &Trail{State: "draft", CreatedAt: time.Now()}
@@ -42,6 +55,47 @@ test_cases:
       exit_code: 0
       state:
         trail_state: draft
+
+  - name: Transition trail from draft to active via SetState
+    inputs:
+      setup:
+        - Create trail in draft state
+      steps:
+        - trail.SetState("active")
+        - trailsTable.Set(trail.TrailID, trail)
+    expected:
+      exit_code: 0
+      state:
+        trail_state: active
+
+  - name: Transition trail from draft to pending via SetState
+    inputs:
+      setup:
+        - Create trail in draft state
+      steps:
+        - trail.SetState("pending")
+        - trailsTable.Set(trail.TrailID, trail)
+    expected:
+      exit_code: 0
+      state:
+        trail_state: pending
+
+  - name: SetState rejects invalid transitions from draft
+    inputs:
+      setup:
+        - Create trail in draft state
+      command: trail.SetState("completed")
+    expected:
+      error: ErrInvalidState
+
+  - name: SetState rejects transitions from terminal states
+    inputs:
+      setup:
+        - Create trail in active state
+        - Complete the trail
+      command: trail.SetState("active")
+    expected:
+      error: ErrInvalidState
 
   # --- S2: belongs_to links associate crumbs with trails ---
 
