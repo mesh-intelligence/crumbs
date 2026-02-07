@@ -227,5 +227,39 @@ test_cases:
         abandoned_trail_count: 1
         link_count: 2
 
+  # --- crumb hard deletion ---
+
+  - name: Delete crumb removes from storage
+    description: Hard delete a crumb and verify it is gone from both SQLite and JSONL.
+    inputs:
+      setup:
+        - cupboard set crumbs "" '{"Name":"Delete target","State":"draft"}'
+      command: cupboard delete crumbs ${crumb_id}
+    expected:
+      exit_code: 0
+    verify:
+      command: cupboard get crumbs ${crumb_id}
+      exit_code: 1
+
+  - name: Delete nonexistent crumb fails
+    inputs:
+      command: cupboard delete crumbs nonexistent-id-12345
+    expected:
+      exit_code: 1
+
+  # --- error conditions ---
+
+  - name: Get nonexistent crumb fails
+    inputs:
+      command: cupboard get crumbs nonexistent-id-12345
+    expected:
+      exit_code: 1
+
+  - name: Get nonexistent trail fails
+    inputs:
+      command: cupboard get trails nonexistent-id-12345
+    expected:
+      exit_code: 1
+
 cleanup:
   - Remove temp config and data directories

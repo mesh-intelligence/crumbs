@@ -447,5 +447,80 @@ func TestCrumbPersistence(t *testing.T) {
 	}
 }
 
+// TestCrumbDelete validates crumb hard deletion via Table.Delete.
+func TestCrumbDelete(t *testing.T) {
+	env := NewTestEnv(t)
+	env.MustRunCupboard("init")
+
+	// Create a crumb
+	result := env.MustRunCupboard("set", "crumbs", "", `{"Name":"Delete target","State":"draft"}`)
+	crumb := ParseJSON[Crumb](t, result.Stdout)
+
+	// Verify crumb exists
+	getResult := env.MustRunCupboard("get", "crumbs", crumb.CrumbID)
+	if !strings.Contains(getResult.Stdout, "Delete target") {
+		t.Error("crumb should exist before deletion")
+	}
+
+	// Delete the crumb
+	deleteResult := env.RunCupboard("delete", "crumbs", crumb.CrumbID)
+	if deleteResult.ExitCode != 0 {
+		t.Errorf("delete should succeed, got exit code %d", deleteResult.ExitCode)
+	}
+
+	// Verify crumb no longer exists
+	getAfterDelete := env.RunCupboard("get", "crumbs", crumb.CrumbID)
+	if getAfterDelete.ExitCode == 0 {
+		t.Error("get should fail after crumb is deleted")
+	}
+
+	// Verify crumb is not in list
+	listResult := env.MustRunCupboard("list", "crumbs")
+	crumbs := ParseJSON[[]Crumb](t, listResult.Stdout)
+	for _, c := range crumbs {
+		if c.CrumbID == crumb.CrumbID {
+			t.Error("deleted crumb should not appear in list")
+		}
+	}
+}
+
+// TestErrorConditions validates error handling for invalid operations.
+func TestErrorConditions(t *testing.T) {
+	tests := []struct {
+		name         string
+		args         []string
+		wantExitCode int
+	}{
+		{
+			name:         "Get nonexistent crumb returns error",
+			args:         []string{"get", "crumbs", "nonexistent-id-12345"},
+			wantExitCode: 1,
+		},
+		{
+			name:         "Get nonexistent trail returns error",
+			args:         []string{"get", "trails", "nonexistent-id-12345"},
+			wantExitCode: 1,
+		},
+		{
+			name:         "Delete nonexistent crumb returns error",
+			args:         []string{"delete", "crumbs", "nonexistent-id-12345"},
+			wantExitCode: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			env := NewTestEnv(t)
+			env.MustRunCupboard("init")
+
+			result := env.RunCupboard(tt.args...)
+			if result.ExitCode != tt.wantExitCode {
+				t.Errorf("exit code = %d, want %d\nstdout: %s\nstderr: %s",
+					result.ExitCode, tt.wantExitCode, result.Stdout, result.Stderr)
+			}
+		})
+	}
+}
+
 // Suppress unused import warning for strings package.
 var _ = strings.Contains
