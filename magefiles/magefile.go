@@ -14,6 +14,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -50,7 +51,7 @@ func TestUnit() error {
 		return err
 	}
 	var unitPkgs []string
-	for _, pkg := range strings.Split(pkgs, "\n") {
+	for pkg := range strings.SplitSeq(pkgs, "\n") {
 		if pkg != "" && !strings.Contains(pkg, "/tests/") && !strings.HasSuffix(pkg, "/tests") {
 			unitPkgs = append(unitPkgs, pkg)
 		}
@@ -135,10 +136,17 @@ func Stats() error {
 		return err
 	}
 
-	fmt.Printf("go_production_loc: %d\n", prodLines)
-	fmt.Printf("go_test_loc: %d\n", testLines)
-	fmt.Printf("go_total_loc: %d\n", prodLines+testLines)
-	fmt.Printf("documentation_words: %d\n", docWords)
+	record := map[string]int{
+		"go_production_loc":  prodLines,
+		"go_test_loc":        testLines,
+		"go_total_loc":       prodLines + testLines,
+		"documentation_words": docWords,
+	}
+	line, err := json.Marshal(record)
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(line))
 	return nil
 }
 
