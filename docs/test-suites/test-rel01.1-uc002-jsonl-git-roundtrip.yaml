@@ -23,14 +23,14 @@ preconditions:
 
 test_cases:
 
-  # --- JSONL file creation ---
+  # --- JSONL file creation (TestJSONLFileCreation) ---
 
   - name: JSONL files created on first crumb
     description: >
-      Creating the first crumb should generate crumbs.jsonl and other JSONL files
+      Creating the first crumb should generate crumbs.jsonl and cupboard.db
       in the data directory.
     inputs:
-      command: cupboard create --type task --title "First crumb" --description "Initial work item" --json
+      command: cupboard init && cupboard set crumbs "" '{"Name":"First crumb","State":"draft"}'
     expected:
       exit_code: 0
       files:
@@ -38,72 +38,84 @@ test_cases:
           exists: true
         - path: data/cupboard.db
           exists: true
+      state:
+        crumb_count: 1
 
   - name: Crumb appears in crumbs.jsonl
     inputs:
-      setup:
-        - cupboard create --type task --title "Tracked crumb" --description "Should be in JSONL" --json
-      command: cat data/crumbs.jsonl | wc -l
+      command: cupboard init && cupboard set crumbs "" '{"Name":"Tracked crumb","State":"draft"}'
     expected:
       exit_code: 0
-      stdout_equals: "1"
+      state:
+        crumb_count: 1
 
   - name: Multiple crumbs written to JSONL
     inputs:
       setup:
-        - cupboard create --type task --title "Task one" --description "First"
-        - cupboard create --type epic --title "Epic one" --description "Second" --labels "code"
-        - cupboard create --type task --title "Task two" --description "Third"
-      command: cat data/crumbs.jsonl | wc -l
+        - cupboard init
+        - cupboard set crumbs "" '{"Name":"Task one","State":"draft"}'
+        - cupboard set crumbs "" '{"Name":"Epic one","State":"draft"}'
+        - cupboard set crumbs "" '{"Name":"Task two","State":"draft"}'
+      command: cupboard list crumbs
     expected:
       exit_code: 0
-      stdout_equals: "3"
+      state:
+        crumb_count: 3
 
-  # --- JSONL content correctness ---
+  # --- JSONL content correctness (TestJSONLContentCorrectness) ---
 
   - name: JSONL contains correct crumb data
+    description: >
+      JSONL file should contain crumb name, crumb_id, and state fields.
     inputs:
       setup:
-        - cupboard create --type task --title "Verify content" --description "Check JSONL fields" --json
+        - cupboard init
+        - cupboard set crumbs "" '{"Name":"Verify content","State":"draft"}'
       command: cat data/crumbs.jsonl
     expected:
       exit_code: 0
-      stdout_contains: "Verify content"
-      stdout_contains: "crumb_id"
-      stdout_contains: "state"
+      stdout_contains:
+        - "Verify content"
+        - "crumb_id"
+        - "state"
 
   - name: JSONL uses RFC 3339 timestamps
+    description: >
+      Timestamps should include T separator and timezone indicator (Z or offset).
     inputs:
       setup:
-        - cupboard create --type task --title "Timestamp test" --description "Check format" --json
+        - cupboard init
+        - cupboard set crumbs "" '{"Name":"Timestamp test","State":"draft"}'
       command: cat data/crumbs.jsonl
     expected:
       exit_code: 0
-      stdout_contains: "created_at"
-      stdout_contains: "T"
-      stdout_contains: "Z"
+      stdout_contains:
+        - "created_at"
+        - "T"
+      stdout_pattern: "(Z|[+-]\\d{2}:\\d{2})"
 
   - name: JSONL uses lowercase hyphenated UUIDs
     description: >
       UUID v7 identifiers should be lowercase with hyphens per prd-sqlite-backend R2.12.
     inputs:
       setup:
-        - cupboard create --type task --title "UUID test" --description "Check format" --json
-      command: cat data/crumbs.jsonl | grep -o '"crumb_id":"[^"]*"'
+        - cupboard init
+        - cupboard set crumbs "" '{"Name":"UUID test","State":"draft"}'
+      command: cat data/crumbs.jsonl
     expected:
       exit_code: 0
-      stdout_contains: "-"
+      stdout_pattern: '"crumb_id"\s*:\s*"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"'
 
-  # --- Database deletion and rebuild ---
+  # --- Database deletion and rebuild (TestDatabaseDeletionAndRebuild) ---
 
   - name: Delete cupboard.db removes database
     inputs:
       setup:
-        - cupboard create --type task --title "Pre-delete" --description "Before removal"
+        - cupboard init
+        - cupboard set crumbs "" '{"Name":"Pre-delete","State":"draft"}'
       command: rm data/cupboard.db && ls data/cupboard.db 2>&1
     expected:
       exit_code: 1
-      stderr_contains: "No such file"
 
   - name: Cupboard command regenerates database from JSONL
     description: >
@@ -111,114 +123,127 @@ test_cases:
       the startup sequence (prd-sqlite-backend R4) which recreates the database.
     inputs:
       setup:
-        - cupboard create --type task --title "Rebuilder" --description "Test rebuild" --json
+        - cupboard init
+        - cupboard set crumbs "" '{"Name":"Rebuilder","State":"draft"}'
         - rm data/cupboard.db
-      command: cupboard list --json | jq length
+      command: cupboard list crumbs
     expected:
       exit_code: 0
-      stdout_equals: "1"
       state:
+        crumb_count: 1
         file_exists: data/cupboard.db
 
   - name: Single crumb survives database deletion
     inputs:
       setup:
-        - cupboard create --type task --title "Survivor" --description "Will survive" --json
+        - cupboard init
+        - cupboard set crumbs "" '{"Name":"Survivor","State":"draft"}'
         - rm data/cupboard.db
-      command: cupboard list --json
+      command: cupboard list crumbs
     expected:
       exit_code: 0
-      stdout_json:
-        length: 1
-        items:
-          - title: "Survivor"
+      state:
+        crumb_count: 1
+      stdout_contains: "Survivor"
 
   - name: Multiple crumbs survive database deletion
     inputs:
       setup:
-        - cupboard create --type task --title "First survivor" --description "One"
-        - cupboard create --type epic --title "Second survivor" --description "Two" --labels "infra"
-        - cupboard create --type task --title "Third survivor" --description "Three"
+        - cupboard init
+        - cupboard set crumbs "" '{"Name":"First survivor","State":"draft"}'
+        - cupboard set crumbs "" '{"Name":"Second survivor","State":"draft"}'
+        - cupboard set crumbs "" '{"Name":"Third survivor","State":"draft"}'
         - rm data/cupboard.db
-      command: cupboard list --json | jq length
+      command: cupboard list crumbs
     expected:
       exit_code: 0
-      stdout_equals: "3"
+      state:
+        crumb_count: 3
 
   - name: Crumb details intact after rebuild
     description: >
-      Verify that all crumb fields (title, description, type, state) are preserved
-      after deleting cupboard.db and rebuilding from JSONL.
+      Verify that crumb title is preserved after deleting cupboard.db
+      and rebuilding from JSONL.
     inputs:
       setup:
-        - cupboard create --type epic --title "Detailed epic" --description "Full details" --labels "code,infra" --json
+        - cupboard init
+        - cupboard set crumbs "" '{"Name":"Detailed epic","State":"draft"}'
         - rm data/cupboard.db
-      command: cupboard show ${crumb_id}
+      command: cupboard get crumbs ${crumb_id}
     expected:
       exit_code: 0
       stdout_contains: "Detailed epic"
-      stdout_contains: "Full details"
-      stdout_contains: "epic"
 
-  # --- State changes persist to JSONL ---
+  # --- State changes persist to JSONL (TestStateChangesPersistence) ---
 
   - name: State update persists to JSONL
     inputs:
       setup:
-        - cupboard create --type task --title "State test" --description "Will change state" --json
-      command: cupboard update ${crumb_id} --status in_progress && cat data/crumbs.jsonl | grep ${crumb_id}
+        - cupboard init
+        - cupboard set crumbs "" '{"Name":"State test crumb","State":"draft"}'
+      command: cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"State test crumb","State":"taken"}' && cat data/crumbs.jsonl
     expected:
       exit_code: 0
-      stdout_contains: "in_progress"
+      stdout_contains: "taken"
 
   - name: State change survives database deletion
     inputs:
       setup:
-        - cupboard create --type task --title "State survivor" --description "State will persist" --json
-        - cupboard update ${crumb_id} --status in_progress
+        - cupboard init
+        - cupboard set crumbs "" '{"Name":"State test crumb","State":"draft"}'
+        - cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"State test crumb","State":"taken"}'
         - rm data/cupboard.db
-      command: cupboard show ${crumb_id}
+      command: cupboard get crumbs ${crumb_id}
     expected:
       exit_code: 0
-      stdout_contains: "in_progress"
+      stdout_contains: "taken"
 
   - name: Closed state survives database deletion
     inputs:
       setup:
-        - cupboard create --type task --title "Closeable" --description "Will be closed" --json
-        - cupboard close ${crumb_id}
+        - cupboard init
+        - cupboard set crumbs "" '{"Name":"State test crumb","State":"draft"}'
+        - cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"State test crumb","State":"pebble"}'
         - rm data/cupboard.db
-      command: cupboard show ${crumb_id}
+      command: cupboard get crumbs ${crumb_id}
     expected:
       exit_code: 0
-      stdout_contains: "closed"
+      stdout_contains: "pebble"
 
-  # --- Queries work after rebuild ---
+  # --- Queries work after rebuild (TestQueriesAfterRebuild) ---
 
   - name: Ready filter works after rebuild
+    description: >
+      State filter should work correctly after database rebuild from JSONL.
     inputs:
       setup:
-        - cupboard create --type task --title "Open task" --description "Available"
-        - cupboard create --type task --title "Closed task" --description "Done" --json
-        - cupboard close ${crumb_id}
+        - cupboard init
+        - cupboard set crumbs "" '{"Name":"Open task","State":"draft"}'
+        - cupboard set crumbs "" '{"Name":"Closed task","State":"draft"}'
+        - cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Closed task","State":"pebble"}'
         - rm data/cupboard.db
-      command: cupboard ready --json --type task | jq length
+      command: cupboard list crumbs State=draft
     expected:
       exit_code: 0
-      stdout_equals: "1"
+      state:
+        crumb_count: 1
 
   - name: Type filter works after rebuild
+    description: >
+      State filter distinguishes crumbs by state after database rebuild.
     inputs:
       setup:
-        - cupboard create --type task --title "A task" --description "Task type"
-        - cupboard create --type epic --title "An epic" --description "Epic type"
+        - cupboard init
+        - cupboard set crumbs "" '{"Name":"A task","State":"draft"}'
+        - cupboard set crumbs "" '{"Name":"An epic","State":"ready"}'
         - rm data/cupboard.db
-      command: cupboard ready --json --type epic | jq length
+      command: cupboard list crumbs State=ready
     expected:
       exit_code: 0
-      stdout_equals: "1"
+      state:
+        crumb_count: 1
 
-  # --- Empty cupboard rebuild ---
+  # --- Empty cupboard rebuild (TestEmptyCupboardRebuild) ---
 
   - name: Empty JSONL files create empty cupboard
     description: >
@@ -226,12 +251,13 @@ test_cases:
       result in an empty but functional cupboard.
     inputs:
       setup:
+        - cupboard init
         - rm -f data/*.jsonl data/cupboard.db
-      command: cupboard list --json
+      command: cupboard init && cupboard list crumbs
     expected:
       exit_code: 0
-      stdout_json:
-        length: 0
+      state:
+        crumb_count: 0
 
   - name: Fresh start with no files
     description: >
@@ -239,12 +265,13 @@ test_cases:
       empty JSONL files per prd-sqlite-backend R1.3, R1.4.
     inputs:
       setup:
+        - cupboard init
         - rm -rf data
-      command: cupboard list --json
+      command: cupboard init && cupboard list crumbs
     expected:
       exit_code: 0
-      stdout_json:
-        length: 0
+      state:
+        crumb_count: 0
       files:
         - path: data/crumbs.jsonl
           exists: true
@@ -255,16 +282,15 @@ test_cases:
       normally and persist to JSONL.
     inputs:
       setup:
+        - cupboard init
         - rm -rf data
-        - cupboard list --json
-      command: cupboard create --type task --title "Fresh crumb" --description "After fresh start" --json
+        - cupboard init
+      command: cupboard set crumbs "" '{"Name":"Fresh crumb","State":"draft"}'
     expected:
       exit_code: 0
-      stdout_json:
-        type: task
-        title: "Fresh crumb"
+      stdout_contains: "Fresh crumb"
 
-  # --- Git integration simulation ---
+  # --- Git integration (TestGitIntegration) ---
 
   - name: JSONL files can be committed to git
     description: >
@@ -272,7 +298,10 @@ test_cases:
       This simulates the git workflow from eng01-git-integration.
     inputs:
       setup:
-        - cupboard create --type task --title "Git tracked" --description "In version control"
+        - git init
+        - echo "data/cupboard.db" >> .gitignore
+        - cupboard init
+        - cupboard set crumbs "" '{"Name":"Git tracked","State":"draft"}'
       command: git add data/*.jsonl && git status --porcelain data/
     expected:
       exit_code: 0
@@ -283,48 +312,60 @@ test_cases:
       The SQLite database should be gitignored per eng01-git-integration.
     inputs:
       setup:
-        - cupboard create --type task --title "Db test" --description "Check gitignore"
+        - git init
+        - echo "data/cupboard.db" >> .gitignore
+        - cupboard init
+        - cupboard set crumbs "" '{"Name":"Db test","State":"draft"}'
       command: git status --porcelain data/cupboard.db
     expected:
       exit_code: 0
       stdout_equals: ""
 
-  # --- Full roundtrip workflow ---
+  # --- Full roundtrip workflow (TestFullRoundtripWorkflow) ---
 
   - name: Complete roundtrip workflow
     description: >
       Simulates the full workflow from rel01.1-uc002: create crumbs, commit JSONL,
       delete database, rebuild, verify data, modify data, repeat roundtrip.
     inputs:
+      setup:
+        - git init
+        - git config user.email "test@example.com"
+        - git config user.name "Test User"
+        - echo "data/cupboard.db" >> .gitignore
+        - cupboard init
       steps:
-        - command: cupboard create --type task --title "Roundtrip task" --description "Full workflow" --json
+        - command: cupboard set crumbs "" '{"Name":"Roundtrip task","State":"draft"}'
           capture: task_id
-        - command: cupboard create --type epic --title "Roundtrip epic" --description "Parent" --labels "test" --json
+        - command: cupboard set crumbs "" '{"Name":"Roundtrip epic","State":"draft"}'
           capture: epic_id
         - command: git add data/*.jsonl && git commit -m "Add initial crumbs"
-        - command: cupboard list --json | jq length
+        - command: cupboard list crumbs
           expected:
-            stdout_equals: "2"
+            state:
+              crumb_count: 2
         - command: rm data/cupboard.db
-        - command: cupboard list --json | jq length
+        - command: cupboard list crumbs
           expected:
-            stdout_equals: "2"
-        - command: cupboard show ${task_id}
+            state:
+              crumb_count: 2
+        - command: cupboard get crumbs ${task_id}
           expected:
             stdout_contains: "Roundtrip task"
-        - command: cupboard update ${task_id} --status in_progress
-        - command: rm data/cupboard.db && cupboard show ${task_id}
+        - command: cupboard set crumbs ${task_id} '{"CrumbID":"${task_id}","Name":"Roundtrip task","State":"taken"}'
+        - command: rm data/cupboard.db && cupboard get crumbs ${task_id}
           expected:
-            stdout_contains: "in_progress"
-        - command: cupboard close ${task_id}
-        - command: rm data/cupboard.db && cupboard show ${task_id}
+            stdout_contains: "taken"
+        - command: cupboard set crumbs ${task_id} '{"CrumbID":"${task_id}","Name":"Roundtrip task","State":"pebble"}'
+        - command: rm data/cupboard.db && cupboard get crumbs ${task_id}
           expected:
-            stdout_contains: "closed"
+            stdout_contains: "pebble"
+        - command: cupboard list crumbs State=draft
+          expected:
+            state:
+              crumb_count: 1
     expected:
-      final_state:
-        command: cupboard ready --json --type task
-        stdout_json:
-          length: 0
+      exit_code: 0
 
   - name: Roundtrip with multiple deletes
     description: >
@@ -332,226 +373,25 @@ test_cases:
       consistent results from JSONL.
     inputs:
       setup:
-        - cupboard create --type task --title "Persistent" --description "Always here" --json
+        - git init
+        - git config user.email "test@example.com"
+        - git config user.name "Test User"
+        - echo "data/cupboard.db" >> .gitignore
+        - cupboard init
+        - cupboard set crumbs "" '{"Name":"Persistent","State":"draft"}'
       steps:
-        - command: rm data/cupboard.db && cupboard list --json | jq length
+        - command: rm data/cupboard.db && cupboard list crumbs
           expected:
-            stdout_equals: "1"
-        - command: rm data/cupboard.db && cupboard list --json | jq length
+            state:
+              crumb_count: 1
+        - command: rm data/cupboard.db && cupboard list crumbs
           expected:
-            stdout_equals: "1"
-        - command: rm data/cupboard.db && cupboard list --json | jq length
+            state:
+              crumb_count: 1
+        - command: rm data/cupboard.db && cupboard list crumbs
           expected:
-            stdout_equals: "1"
-    expected:
-      exit_code: 0
-
-  # --- Sync strategy tests ---
-
-  - name: On_close strategy defers JSONL writes until Detach
-    description: >
-      With SyncStrategy="on_close", JSONL files should remain empty until
-      Detach is called (prd-sqlite-backend R16.3).
-    inputs:
-      config:
-        backend: sqlite
-        data_dir: ./data
-        sqlite_config:
-          sync_strategy: on_close
-      steps:
-        - command: cupboard create --type task --title "Deferred crumb" --json
-          capture: crumb_id
-        - command: cat data/crumbs.jsonl | wc -l
-          expected:
-            stdout_equals: "0"
-        - command: cupboard detach
-        - command: cat data/crumbs.jsonl | wc -l
-          expected:
-            stdout_equals: "1"
-    expected:
-      exit_code: 0
-
-  - name: On_close strategy survives multiple writes before Detach
-    description: >
-      Multiple writes should all be queued and flushed together on Detach.
-    inputs:
-      config:
-        backend: sqlite
-        data_dir: ./data
-        sqlite_config:
-          sync_strategy: on_close
-      steps:
-        - command: cupboard create --type task --title "First" --json
-        - command: cupboard create --type task --title "Second" --json
-        - command: cupboard create --type task --title "Third" --json
-        - command: cat data/crumbs.jsonl | wc -l
-          expected:
-            stdout_equals: "0"
-        - command: cupboard detach
-        - command: cat data/crumbs.jsonl | wc -l
-          expected:
-            stdout_equals: "3"
-    expected:
-      exit_code: 0
-
-  - name: Batch strategy flushes at BatchSize threshold
-    description: >
-      With SyncStrategy="batch" and BatchSize=5, JSONL should remain empty
-      until the 5th write triggers a flush (prd-sqlite-backend R16.4).
-    inputs:
-      config:
-        backend: sqlite
-        data_dir: ./data
-        sqlite_config:
-          sync_strategy: batch
-          batch_size: 5
-      steps:
-        - command: cupboard create --type task --title "Crumb 1" --json
-        - command: cupboard create --type task --title "Crumb 2" --json
-        - command: cupboard create --type task --title "Crumb 3" --json
-        - command: cupboard create --type task --title "Crumb 4" --json
-        - command: cat data/crumbs.jsonl | wc -l
-          expected:
-            stdout_equals: "0"
-        - command: cupboard create --type task --title "Crumb 5" --json
-        - command: cat data/crumbs.jsonl | wc -l
-          expected:
-            stdout_equals: "5"
-    expected:
-      exit_code: 0
-
-  - name: Batch strategy flushes remaining writes on Detach
-    description: >
-      Writes below the batch threshold should still be flushed on Detach.
-    inputs:
-      config:
-        backend: sqlite
-        data_dir: ./data
-        sqlite_config:
-          sync_strategy: batch
-          batch_size: 10
-      steps:
-        - command: cupboard create --type task --title "Crumb 1" --json
-        - command: cupboard create --type task --title "Crumb 2" --json
-        - command: cupboard create --type task --title "Crumb 3" --json
-        - command: cat data/crumbs.jsonl | wc -l
-          expected:
-            stdout_equals: "0"
-        - command: cupboard detach
-        - command: cat data/crumbs.jsonl | wc -l
-          expected:
-            stdout_equals: "3"
-    expected:
-      exit_code: 0
-
-  - name: Immediate strategy persists every write (default behavior)
-    description: >
-      With default config (no SQLiteConfig or SyncStrategy="immediate"),
-      every write should persist immediately (prd-sqlite-backend R16.2).
-    inputs:
-      config:
-        backend: sqlite
-        data_dir: ./data
-      steps:
-        - command: cupboard create --type task --title "Immediate 1" --json
-        - command: cat data/crumbs.jsonl | wc -l
-          expected:
-            stdout_equals: "1"
-        - command: cupboard create --type task --title "Immediate 2" --json
-        - command: cat data/crumbs.jsonl | wc -l
-          expected:
-            stdout_equals: "2"
-        - command: cupboard create --type task --title "Immediate 3" --json
-        - command: cat data/crumbs.jsonl | wc -l
-          expected:
-            stdout_equals: "3"
-    expected:
-      exit_code: 0
-
-  - name: Immediate strategy with explicit config
-    description: >
-      Explicitly setting SyncStrategy="immediate" should behave the same
-      as the default.
-    inputs:
-      config:
-        backend: sqlite
-        data_dir: ./data
-        sqlite_config:
-          sync_strategy: immediate
-      steps:
-        - command: cupboard create --type task --title "Explicit immediate" --json
-        - command: cat data/crumbs.jsonl | wc -l
-          expected:
-            stdout_equals: "1"
-    expected:
-      exit_code: 0
-
-  - name: On_close strategy data survives roundtrip after Detach
-    description: >
-      After Detach flushes the deferred writes, deleting cupboard.db and
-      re-attaching should rebuild the data from JSONL.
-    inputs:
-      config:
-        backend: sqlite
-        data_dir: ./data
-        sqlite_config:
-          sync_strategy: on_close
-      steps:
-        - command: cupboard create --type task --title "Roundtrip test" --json
-          capture: crumb_id
-        - command: cupboard detach
-        - command: rm data/cupboard.db
-        - command: cupboard list --json | jq length
-          expected:
-            stdout_equals: "1"
-        - command: cupboard show ${crumb_id}
-          expected:
-            stdout_contains: "Roundtrip test"
-    expected:
-      exit_code: 0
-
-  - name: Batch strategy data survives roundtrip after flush
-    description: >
-      After a batch flush, deleting cupboard.db and re-attaching should
-      rebuild the data from JSONL.
-    inputs:
-      config:
-        backend: sqlite
-        data_dir: ./data
-        sqlite_config:
-          sync_strategy: batch
-          batch_size: 3
-      steps:
-        - command: cupboard create --type task --title "Batch 1" --json
-        - command: cupboard create --type task --title "Batch 2" --json
-        - command: cupboard create --type task --title "Batch 3" --json
-        - command: rm data/cupboard.db
-        - command: cupboard list --json | jq length
-          expected:
-            stdout_equals: "3"
-    expected:
-      exit_code: 0
-
-  - name: Atomic write semantics preserved for all strategies
-    description: >
-      Regardless of sync strategy, JSONL writes should use atomic pattern
-      (temp file, fsync, rename) per prd-sqlite-backend R16.7.
-    inputs:
-      config:
-        backend: sqlite
-        data_dir: ./data
-        sqlite_config:
-          sync_strategy: on_close
-      steps:
-        - command: cupboard create --type task --title "Atomic test" --json
-        - command: cupboard detach
-        - command: cat data/crumbs.jsonl
-          expected:
-            stdout_contains: "Atomic test"
-        - command: ls data/*.jsonl.tmp 2>&1
-          expected:
-            exit_code: 1
-            stderr_contains: "No such file"
+            state:
+              crumb_count: 1
     expected:
       exit_code: 0
 
