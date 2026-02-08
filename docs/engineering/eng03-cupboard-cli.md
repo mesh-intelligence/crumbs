@@ -642,6 +642,227 @@ Table 11: bd to cupboard command mapping
 
 Data migration involves moving from `.beads/issues.jsonl` to the cupboard data directory. The `git add` in session completion commits JSONL files from the data directory instead of `.beads/` files.
 
+## Workflow Modes
+
+We support two workflow modes for tracking work: flat crumb tracking (without trails) and epic-style grouping (with trails). Choose the mode that fits your project's complexity.
+
+### When to Use Each Mode
+
+Table 12: Workflow mode selection
+
+| Scenario | Recommended Mode | Reason |
+|----------|------------------|--------|
+| Simple task list | Without trails | No grouping overhead |
+| Independent tasks | Without trails | Each crumb stands alone |
+| Related tasks that ship together | With trails | Trail completion finalizes all tasks |
+| Exploratory work that may be discarded | With trails | Trail abandonment cleans up atomically |
+| Sprint or milestone grouping | With trails | Trail acts as container |
+
+### Workflow Without Trails
+
+We use flat crumb tracking when tasks are independent and do not require grouping. Each crumb moves through its lifecycle independently: draft, taken, pebble (completed), or dust (discarded).
+
+#### Creating Tasks
+
+Create crumbs directly via the generic table command or issue-tracking commands.
+
+```bash
+# Generic table command (minimal fields)
+cupboard set crumbs "" '{"Name":"Implement feature X","State":"draft"}'
+
+# Issue-tracking command (with type and description)
+cupboard create --type task --title "Implement feature X" --description "Add the new widget"
+```
+
+#### Listing Available Work
+
+Find tasks ready for work by querying state.
+
+```bash
+# List all draft crumbs (ready for work)
+cupboard list crumbs State=draft
+
+# Using issue-tracking command with filters
+cupboard ready --type task
+```
+
+#### Working on a Task
+
+Claim a task by changing its state to taken, then close it when done.
+
+```bash
+# Claim the task
+cupboard set crumbs 01945a3b '{"CrumbID":"01945a3b","Name":"Implement feature X","State":"taken"}'
+
+# Or using update command
+cupboard update 01945a3b --status in_progress
+
+# ... do the work ...
+
+# Close the task
+cupboard set crumbs 01945a3b '{"CrumbID":"01945a3b","Name":"Implement feature X","State":"pebble"}'
+
+# Or using close command
+cupboard close 01945a3b
+```
+
+#### Scripted Workflow
+
+The do-work.sh script follows this pattern.
+
+```bash
+# Pick a draft task
+TASK=$(cupboard list crumbs State=draft --json | jq -r '.[0].CrumbID')
+
+# Claim it
+cupboard set crumbs $TASK "$(cupboard get crumbs $TASK | jq '.State = \"taken\"')"
+
+# Create worktree, invoke agent, merge changes...
+
+# Close it
+cupboard set crumbs $TASK "$(cupboard get crumbs $TASK | jq '.State = \"pebble\"')"
+
+# Commit JSONL changes
+git add data/*.jsonl && git commit -m "Complete $TASK"
+```
+
+### Workflow With Trails
+
+We use trails as epic equivalents when related tasks should be grouped. Completing a trail finalizes all associated crumbs; abandoning a trail deletes them atomically.
+
+#### Creating an Epic Trail
+
+Create a trail to act as a container for related tasks.
+
+```bash
+# Create the trail (starts in draft state)
+TRAIL=$(cupboard set trails "" '{"State":"draft"}' | jq -r '.TrailID')
+echo "Created epic: $TRAIL"
+
+# Activate the trail to begin adding crumbs
+cupboard set trails $TRAIL '{"TrailID":"'$TRAIL'","State":"active"}'
+```
+
+#### Adding Tasks to the Epic
+
+Create crumbs and link them to the trail via belongs_to links.
+
+```bash
+# Create tasks
+TASK1=$(cupboard set crumbs "" '{"Name":"Subtask 1","State":"draft"}' | jq -r '.CrumbID')
+TASK2=$(cupboard set crumbs "" '{"Name":"Subtask 2","State":"draft"}' | jq -r '.CrumbID')
+
+# Link tasks to the epic trail
+cupboard set links "" '{"LinkType":"belongs_to","FromID":"'$TASK1'","ToID":"'$TRAIL'"}'
+cupboard set links "" '{"LinkType":"belongs_to","FromID":"'$TASK2'","ToID":"'$TRAIL'"}'
+```
+
+#### Querying Tasks in an Epic
+
+Find all crumbs belonging to a trail by querying the links table.
+
+```bash
+# Get links for this trail
+cupboard list links LinkType=belongs_to ToID=$TRAIL
+
+# Extract crumb IDs and fetch each
+cupboard list links LinkType=belongs_to ToID=$TRAIL --json | \
+  jq -r '.[].FromID' | \
+  while read CRUMB_ID; do
+    cupboard get crumbs $CRUMB_ID
+  done
+```
+
+#### Completing an Epic
+
+When all tasks are done, complete the trail. The backend removes belongs_to links, and crumbs become permanent.
+
+```bash
+# Complete all tasks first
+cupboard set crumbs $TASK1 '{"CrumbID":"'$TASK1'","Name":"Subtask 1","State":"pebble"}'
+cupboard set crumbs $TASK2 '{"CrumbID":"'$TASK2'","Name":"Subtask 2","State":"pebble"}'
+
+# Complete the epic trail
+cupboard set trails $TRAIL '{"TrailID":"'$TRAIL'","State":"completed"}'
+
+# Verify links are removed (crumbs are now permanent)
+cupboard list links LinkType=belongs_to ToID=$TRAIL
+# Output: [] (empty)
+
+# Crumbs still exist and are queryable
+cupboard get crumbs $TASK1
+```
+
+After completion, crumbs persist in the database without trail associations. They appear the same as crumbs that were never part of a trail.
+
+#### Abandoning an Epic
+
+If an epic fails or is no longer needed, abandon the trail. The backend deletes all associated crumbs atomically.
+
+```bash
+# Abandon the epic trail
+cupboard set trails $TRAIL '{"TrailID":"'$TRAIL'","State":"abandoned"}'
+
+# Crumbs that belonged to the trail are deleted
+cupboard get crumbs $TASK1
+# Error: entity not found
+
+# The trail itself remains for audit purposes
+cupboard get trails $TRAIL
+# Output: {"TrailID":"...", "State":"abandoned", ...}
+```
+
+Abandonment removes crumbs that still have belongs_to links to the trail. Crumbs removed from the trail before abandonment survive.
+
+#### Scripted Epic Workflow
+
+The make-work.sh script can create epics and group related tasks.
+
+```bash
+# Create an epic for a feature
+TRAIL=$(cupboard set trails "" '{"State":"draft"}' | jq -r '.TrailID')
+cupboard set trails $TRAIL '{"TrailID":"'$TRAIL'","State":"active"}'
+
+# Create and link subtasks
+for NAME in "Design API" "Implement backend" "Write tests"; do
+  TASK=$(cupboard set crumbs "" '{"Name":"'"$NAME"'","State":"draft"}' | jq -r '.CrumbID')
+  cupboard set links "" '{"LinkType":"belongs_to","FromID":"'$TASK'","ToID":"'$TRAIL'"}'
+done
+
+# Commit the epic and its tasks
+git add data/*.jsonl && git commit -m "Create epic $TRAIL with subtasks"
+```
+
+The do-work.sh script can work on trail-scoped tasks.
+
+```bash
+# List tasks in a specific epic
+cupboard list links LinkType=belongs_to ToID=$TRAIL --json | jq -r '.[0].FromID' | \
+  xargs -I{} cupboard get crumbs {}
+
+# Complete all tasks then complete the trail
+# ... work on each task ...
+
+cupboard set trails $TRAIL '{"TrailID":"'$TRAIL'","State":"completed"}'
+git add data/*.jsonl && git commit -m "Complete epic $TRAIL"
+```
+
+### Comparing the Modes
+
+Table 13: Workflow mode comparison
+
+| Aspect | Without Trails | With Trails |
+|--------|----------------|-------------|
+| Setup | None | Create trail, activate it |
+| Task creation | Direct crumb creation | Create crumb, then link to trail |
+| Grouping | None | Trail contains related crumbs |
+| Completion | Close each crumb individually | Complete trail to finalize all |
+| Discard | Set crumb state to dust | Abandon trail to delete all atomically |
+| Audit | Crumb history only | Trail and crumb history |
+| Complexity | Low | Medium |
+
+Use flat tracking for quick tasks and independent work. Use trails when you need atomic completion or abandonment of related tasks.
+
 ## References
 
 - prd-cupboard-cli.yaml (formal CLI specification)
