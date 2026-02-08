@@ -63,16 +63,17 @@ To retrieve a previous generation's pre-state: `git checkout generation-2026-02-
 
 ## Script Interface
 
-The `do-work.sh` script implements this workflow with two flags.
+The generation lifecycle is handled by separate scripts.
 
-Table 3 Script flags
+Table 3 Generation scripts
 
-| Flag | Operation | Precondition |
-|------|-----------|-------------|
-| `--generate` | Start a new generation | Must be on main |
-| `--reset` | Close the current generation | Must be on a `generation-*` branch |
+| Script | Operation | Precondition |
+|--------|-----------|-------------|
+| `open-generation.sh` | Start a new generation | Must be on main |
+| `close-generation.sh` | Close the current generation | Must be on a `generation-*` branch |
+| `do-work.sh` | Pick and execute tasks | Works on any branch (main or generation) |
 
-Both flags run their operation and then proceed to the main do-work loop (for `--generate`) or exit (for `--reset`).
+`open-generation.sh` tags main, creates the generation branch, deletes Go files, and commits the clean slate. `close-generation.sh` tags the generation branch as closed, merges to main, and deletes the branch. `do-work.sh` handles the task loop only and is branch-agnostic.
 
 ## Constraints
 
@@ -83,4 +84,6 @@ Main must not receive direct commits while a generation is in progress. All work
 ## References
 
 - eng01-git-integration (task-level branching, JSONL merge behavior, commit conventions)
-- do-work.sh (script implementation)
+- open-generation.sh (start a generation)
+- close-generation.sh (close a generation)
+- do-work.sh (task loop)
