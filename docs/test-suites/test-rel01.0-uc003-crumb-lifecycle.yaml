@@ -1,11 +1,11 @@
-id: test-rel01.0-uc003-crud-operations
+id: test-rel01.0-uc003-crumb-lifecycle
 title: Crumb entity state machine and archival
 description: >
   Validates the crumb state machine (draft→pending→ready→taken→pebble and any→dust),
   timestamp behavior on state transitions, state-based filtering, and crumb archival.
   Covers Crumb entity methods SetState, Pebble, Dust.
 traces:
-  - rel01.0-uc003-crud-operations
+  - rel01.0-uc003-crumb-lifecycle
 tags:
   - cli
   - integration

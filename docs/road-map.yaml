@@ -33,7 +33,7 @@ releases:
       - id: rel01.0-uc002-sqlite-crud
         summary: "Table interface CRUD: Set, Get, Fetch, Delete across entity types with JSONL persistence"
         status: done
-      - id: rel01.0-uc003-crud-operations
+      - id: rel01.0-uc003-crumb-lifecycle
         summary: "Crumb entity: state machine (draft→pebble/dust), SetState, Pebble, Dust, state-based filtering"
         status: done
       - id: rel01.0-uc004-scaffolding-validation

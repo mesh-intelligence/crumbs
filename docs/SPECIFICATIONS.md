@@ -44,7 +44,7 @@ Table 3 Use Case Index
 |----------|-------|---------|--------|------------|
 | [rel01.0-uc001-cupboard-lifecycle](use-cases/rel01.0-uc001-cupboard-lifecycle.yaml) | Configuration and Cupboard Lifecycle | 01.0 | done | [test-rel01.0-uc001-cupboard-lifecycle](test-suites/test-rel01.0-uc001-cupboard-lifecycle.yaml) |
 | [rel01.0-uc002-sqlite-crud](use-cases/rel01.0-uc002-sqlite-crud.yaml) | Table Interface CRUD Operations | 01.0 | done | [test-rel01.0-uc002-sqlite-crud](test-suites/test-rel01.0-uc002-sqlite-crud.yaml) |
-| [rel01.0-uc003-crud-operations](use-cases/rel01.0-uc003-crud-operations.yaml) | Crumb Entity Operations | 01.0 | done | [test-rel01.0-uc003-crud-operations](test-suites/test-rel01.0-uc003-crud-operations.yaml) |
+| [rel01.0-uc003-crumb-lifecycle](use-cases/rel01.0-uc003-crumb-lifecycle.yaml) | Crumb Entity Operations | 01.0 | done | [test-rel01.0-uc003-crumb-lifecycle](test-suites/test-rel01.0-uc003-crumb-lifecycle.yaml) |
 | [rel01.0-uc004-scaffolding-validation](use-cases/rel01.0-uc004-scaffolding-validation.yaml) | Scaffolding Validation | 01.0 | done | [test-rel01.0-uc004-scaffolding-validation](test-suites/test-rel01.0-uc004-scaffolding-validation.yaml) |
 | [rel01.0-uc005-crumbs-table-benchmarks](use-cases/rel01.0-uc005-crumbs-table-benchmarks.yaml) | Crumbs Table Performance Benchmarks | 01.0 | done | [test-rel01.0-uc005-crumbs-table-benchmarks](test-suites/test-rel01.0-uc005-crumbs-table-benchmarks.yaml) |
 | [rel01.1-uc001-go-install](use-cases/rel01.1-uc001-go-install.yaml) | Go Install | 01.1 | not started | [test-rel01.1-uc001-go-install](test-suites/test-rel01.1-uc001-go-install.yaml) |
@@ -71,7 +71,7 @@ Table 4 Test Suite Index
 |------------|-------|--------|------------|
 | [test-rel01.0-uc001-cupboard-lifecycle](test-suites/test-rel01.0-uc001-cupboard-lifecycle.yaml) | Cupboard lifecycle and CRUD operations | rel01.0-uc001-cupboard-lifecycle | 19 |
 | [test-rel01.0-uc002-sqlite-crud](test-suites/test-rel01.0-uc002-sqlite-crud.yaml) | Table interface CRUD operations | rel01.0-uc002-sqlite-crud | 37 |
-| [test-rel01.0-uc003-crud-operations](test-suites/test-rel01.0-uc003-crud-operations.yaml) | Crumb entity state machine and archival | rel01.0-uc003-crud-operations | 22 |
+| [test-rel01.0-uc003-crumb-lifecycle](test-suites/test-rel01.0-uc003-crumb-lifecycle.yaml) | Crumb entity state machine and archival | rel01.0-uc003-crumb-lifecycle | 22 |
 | [test-rel01.0-uc004-scaffolding-validation](test-suites/test-rel01.0-uc004-scaffolding-validation.yaml) | Scaffolding validation (types, interfaces, CLI compile) | rel01.0-uc004-scaffolding-validation | 22 |
 | [test-rel01.0-uc005-crumbs-table-benchmarks](test-suites/test-rel01.0-uc005-crumbs-table-benchmarks.yaml) | Crumbs Table performance benchmarks | rel01.0-uc005-crumbs-table-benchmarks | 14 |
 | [test-rel01.1-uc001-go-install](test-suites/test-rel01.1-uc001-go-install.yaml) | Go install and basic operations | rel01.1-uc001-go-install | 22 |
@@ -99,8 +99,8 @@ Table 5 PRD-to-Use-Case Mapping
 | [rel01.0-uc001](use-cases/rel01.0-uc001-cupboard-lifecycle.yaml) | [prd-cupboard-core](product-requirements/prd-cupboard-core.yaml) | Validates Config, Attach, Detach, GetTable contract | Partial (R1, R2, R4-R7) |
 | [rel01.0-uc002](use-cases/rel01.0-uc002-sqlite-crud.yaml) | [prd-cupboard-core](product-requirements/prd-cupboard-core.yaml) | Uses Cupboard and Table interfaces for CRUD operations | Partial (R2) |
 | [rel01.0-uc002](use-cases/rel01.0-uc002-sqlite-crud.yaml) | [prd-sqlite-backend](product-requirements/prd-sqlite-backend.yaml) | Exercises UUID generation, hydration, JSONL persistence | Partial (R5, R14, R16) |
-| [rel01.0-uc003](use-cases/rel01.0-uc003-crud-operations.yaml) | [prd-cupboard-core](product-requirements/prd-cupboard-core.yaml) | Uses Table interface for persistence and retrieval | Partial (R2) |
-| [rel01.0-uc003](use-cases/rel01.0-uc003-crud-operations.yaml) | [prd-crumbs-interface](product-requirements/prd-crumbs-interface.yaml) | Exercises Crumb state machine, creation defaults, filtering | Partial (R1-R5, R9, R10) |
+| [rel01.0-uc003](use-cases/rel01.0-uc003-crumb-lifecycle.yaml) | [prd-cupboard-core](product-requirements/prd-cupboard-core.yaml) | Uses Table interface for persistence and retrieval | Partial (R2) |
+| [rel01.0-uc003](use-cases/rel01.0-uc003-crumb-lifecycle.yaml) | [prd-crumbs-interface](product-requirements/prd-crumbs-interface.yaml) | Exercises Crumb state machine, creation defaults, filtering | Partial (R1-R5, R9, R10) |
 | [rel01.0-uc004](use-cases/rel01.0-uc004-scaffolding-validation.yaml) | [prd-cupboard-core](product-requirements/prd-cupboard-core.yaml) | Compile-time verification of Cupboard and Table interfaces | Partial (R2, R2.5) |
 | [rel01.0-uc004](use-cases/rel01.0-uc004-scaffolding-validation.yaml) | [prd-sqlite-backend](product-requirements/prd-sqlite-backend.yaml) | Verifies NewBackend, Attach, Detach compile | Partial |
 | [rel01.0-uc004](use-cases/rel01.0-uc004-scaffolding-validation.yaml) | [prd-crumbs-interface](product-requirements/prd-crumbs-interface.yaml) | Compile-time verification of Crumb struct fields | Partial (R1) |
@@ -181,7 +181,7 @@ package "PRDs" {
 package "Use Cases - Release 01.0" {
   [rel01.0-uc001\ncupboard-lifecycle] as uc001
   [rel01.0-uc002\nsqlite-crud] as uc002
-  [rel01.0-uc003\ncrud-operations] as uc003
+  [rel01.0-uc003\ncrumb-lifecycle] as uc003
   [rel01.0-uc004\nscaffolding-validation] as uc004
   [rel01.0-uc005\ncrumbs-table-benchmarks] as uc005
 }
