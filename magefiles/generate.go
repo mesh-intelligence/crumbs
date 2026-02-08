@@ -128,7 +128,7 @@ func OpenGeneration() error {
 
 	// Commit the clean state.
 	fmt.Println("Committing clean state...")
-	exec.Command("git", "add", "-A").Run()
+	_ = exec.Command("git", "add", "-A").Run()
 	commitMsg := fmt.Sprintf("Open generation: %s\n\nDelete Go files, reinitialize module.\nTagged previous state as %s.", genName, genName)
 	if err := exec.Command("git", "commit", "-m", commitMsg).Run(); err != nil {
 		return fmt.Errorf("committing clean state: %w", err)
@@ -188,9 +188,9 @@ func CloseGeneration() error {
 
 	// Reinitialize Go module.
 	os.Remove("go.mod")
-	exec.Command("go", "mod", "init", "github.com/mesh-intelligence/crumbs").Run()
+	_ = exec.Command("go", "mod", "init", "github.com/mesh-intelligence/crumbs").Run()
 
-	exec.Command("git", "add", "-A").Run()
+	_ = exec.Command("git", "add", "-A").Run()
 	prepareMsg := fmt.Sprintf("Prepare main for generation merge: delete Go code\n\nDocumentation preserved for merge. Code will be replaced by %s.", branch)
 	if err := exec.Command("git", "commit", "-m", prepareMsg).Run(); err != nil {
 		return fmt.Errorf("committing prepare step: %w", err)
@@ -214,7 +214,7 @@ func CloseGeneration() error {
 
 	// Delete the generation branch.
 	fmt.Printf("Deleting branch %s...\n", branch)
-	exec.Command("git", "branch", "-d", branch).Run()
+	_ = exec.Command("git", "branch", "-d", branch).Run()
 
 	fmt.Println()
 	fmt.Println("Generation closed. Work is on main.")
@@ -224,7 +224,7 @@ func CloseGeneration() error {
 
 // deleteGoFiles removes all .go files except those in .git/.
 func deleteGoFiles(root string) {
-	filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+	_ = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -245,7 +245,7 @@ func removeEmptyDirs(root string) {
 	}
 	// Walk bottom-up by collecting dirs then removing in reverse.
 	var dirs []string
-	filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+	_ = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}

@@ -281,7 +281,7 @@ func runClaude(prompt string, silence bool) error {
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 		} else {
-			defer jq.Wait()
+			defer func() { _ = jq.Wait() }()
 		}
 	}
 
@@ -389,9 +389,9 @@ func importIssues(jsonFile string) error {
 
 	// Sync beads and commit.
 	fmt.Println("Syncing and committing beads changes...")
-	exec.Command("bd", "sync").Run()
-	exec.Command("git", "add", ".beads/").Run()
-	exec.Command("git", "commit", "-m", "Add issues from measure", "--allow-empty").Run()
+	_ = exec.Command("bd", "sync").Run()
+	_ = exec.Command("git", "add", ".beads/").Run()
+	_ = exec.Command("git", "commit", "-m", "Add issues from measure", "--allow-empty").Run()
 	fmt.Println("Changes committed.")
 
 	return nil
