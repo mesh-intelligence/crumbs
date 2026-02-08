@@ -96,7 +96,7 @@ func TestIntegration_CrumbCRUD(t *testing.T) {
 	}
 
 	// Step 6: Fetch
-	entities, err := table.Fetch(map[string]any{"State": types.StateReady})
+	entities, err := table.Fetch(map[string]any{"states": []string{types.StateReady}})
 	if err != nil {
 		t.Fatalf("Fetch failed: %v", err)
 	}

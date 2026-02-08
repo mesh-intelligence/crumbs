@@ -363,7 +363,7 @@ func benchmarkCrumbsFetchState(b *testing.B, dataSize int) {
 
 	for i := 0; i < b.N; i++ {
 		// Filter by state - exercises idx_crumbs_state index
-		filter := map[string]any{"State": types.StateDraft}
+		filter := map[string]any{"states": []string{types.StateDraft}}
 		_, err := table.Fetch(filter)
 		if err != nil {
 			b.Fatalf("Fetch with state filter failed: %v", err)
@@ -400,7 +400,7 @@ func benchmarkCrumbsFetchProperties(b *testing.B, dataSize int) {
 	for i := 0; i < b.N; i++ {
 		// Filter by state (since property filtering via Fetch is done via state for now)
 		// The crumb_properties table join is exercised during hydration
-		filter := map[string]any{"State": types.StateDraft}
+		filter := map[string]any{"states": []string{types.StateDraft}}
 		_, err := table.Fetch(filter)
 		if err != nil {
 			b.Fatalf("Fetch with properties filter failed: %v", err)

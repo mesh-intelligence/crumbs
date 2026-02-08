@@ -253,7 +253,7 @@ func testListCommand(t *testing.T) {
 				env.MustRunCupboard("set", "crumbs", "", `{"Name":"Ready task","State":"ready"}`)
 			},
 			table:        "crumbs",
-			filter:       []string{"State=draft"},
+			filter:       []string{"states=draft"},
 			wantExitCode: 0,
 			wantCount:    1,
 			checkResult: func(t *testing.T, items []map[string]any) {
@@ -488,7 +488,7 @@ func testCrossTableOperations(t *testing.T) {
 		env.MustRunCupboard("set", "crumbs", "", `{"Name":"Taken 1","State":"taken"}`)
 
 		// Filter by draft state
-		draftResult := env.MustRunCupboard("list", "crumbs", "State=draft")
+		draftResult := env.MustRunCupboard("list", "crumbs", "states=draft")
 		var draftItems []map[string]any
 		if err := json.Unmarshal([]byte(draftResult.Stdout), &draftItems); err != nil {
 			t.Fatalf("parse list output: %v", err)
@@ -498,7 +498,7 @@ func testCrossTableOperations(t *testing.T) {
 		}
 
 		// Filter by ready state
-		readyResult := env.MustRunCupboard("list", "crumbs", "State=ready")
+		readyResult := env.MustRunCupboard("list", "crumbs", "states=ready")
 		var readyItems []map[string]any
 		if err := json.Unmarshal([]byte(readyResult.Stdout), &readyItems); err != nil {
 			t.Fatalf("parse list output: %v", err)

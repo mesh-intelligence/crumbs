@@ -209,7 +209,7 @@ func TestCrumb_GetProperties(t *testing.T) {
 }
 
 func TestCrumb_ClearProperty(t *testing.T) {
-	t.Run("removes existing property", func(t *testing.T) {
+	t.Run("resets existing property to nil", func(t *testing.T) {
 		c := &Crumb{
 			Properties: map[string]any{"priority": int64(3)},
 			UpdatedAt:  time.Now().Add(-time.Hour),
@@ -221,8 +221,12 @@ func TestCrumb_ClearProperty(t *testing.T) {
 		if err != nil {
 			t.Errorf("ClearProperty() error = %v", err)
 		}
-		if _, ok := c.Properties["priority"]; ok {
-			t.Error("ClearProperty() should remove property")
+		val, ok := c.Properties["priority"]
+		if !ok {
+			t.Error("ClearProperty() must preserve map entry (R5.5)")
+		}
+		if val != nil {
+			t.Errorf("ClearProperty() value = %v, want nil", val)
 		}
 		if !c.UpdatedAt.After(before) {
 			t.Error("ClearProperty() should update UpdatedAt")

@@ -211,7 +211,7 @@ func TestCrumbTable_Fetch(t *testing.T) {
 	}
 
 	// Fetch with filter
-	results, err = tbl.Fetch(map[string]any{"State": types.StatePending})
+	results, err = tbl.Fetch(map[string]any{"states": []string{types.StatePending}})
 	if err != nil {
 		t.Fatalf("Fetch with filter failed: %v", err)
 	}

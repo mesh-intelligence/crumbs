@@ -390,7 +390,7 @@ func TestUC002_S5_FetchWithFilterReturnsMatching(t *testing.T) {
 			}
 
 			// Fetch with filter
-			listResult := env.MustRunCupboard("list", "crumbs", "State="+tt.filterState)
+			listResult := env.MustRunCupboard("list", "crumbs", "states="+tt.filterState)
 			crumbs := ParseJSON[[]Crumb](t, listResult.Stdout)
 
 			if len(crumbs) != tt.wantCount {

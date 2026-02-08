@@ -139,8 +139,8 @@ func TestUC001_CRUDOperations(t *testing.T) {
 		t.Errorf("Table.Fetch (all) expected 2 crumbs, got %d", len(entities))
 	}
 
-	// Step 8: Query with filter (state = draft)
-	entities, err = table.Fetch(map[string]any{"State": types.StateDraft})
+	// Step 8: Query with filter (states = [draft])
+	entities, err = table.Fetch(map[string]any{"states": []string{types.StateDraft}})
 	if err != nil {
 		t.Fatalf("Table.Fetch (filter) failed: %v", err)
 	}
@@ -475,11 +475,14 @@ func TestUC001_CrumbPropertyMethods(t *testing.T) {
 		t.Fatalf("ClearProperty failed: %v", err)
 	}
 
-	// After clear, property is removed from map (entity level)
-	// Note: Full default-value semantics require Table.Set to reinitialize
-	_, err = crumb.GetProperty(propID)
-	if err != types.ErrPropertyNotFound {
-		t.Errorf("GetProperty after clear expected ErrPropertyNotFound, got %v", err)
+	// After clear, property is nil (map entry preserved per R5.5)
+	// Type-based default is resolved by Table.Set during persistence (R5.7)
+	val, err = crumb.GetProperty(propID)
+	if err != nil {
+		t.Errorf("GetProperty after clear: unexpected error %v", err)
+	}
+	if val != nil {
+		t.Errorf("GetProperty after clear = %v, want nil", val)
 	}
 }
 
@@ -524,7 +527,7 @@ func TestUC001_FetchWithMultipleFilters(t *testing.T) {
 	}
 
 	// Fetch draft only
-	draft, err := table.Fetch(map[string]any{"State": types.StateDraft})
+	draft, err := table.Fetch(map[string]any{"states": []string{types.StateDraft}})
 	if err != nil {
 		t.Fatalf("Fetch draft failed: %v", err)
 	}
@@ -533,7 +536,7 @@ func TestUC001_FetchWithMultipleFilters(t *testing.T) {
 	}
 
 	// Fetch ready only
-	ready, err := table.Fetch(map[string]any{"State": types.StateReady})
+	ready, err := table.Fetch(map[string]any{"states": []string{types.StateReady}})
 	if err != nil {
 		t.Fatalf("Fetch ready failed: %v", err)
 	}
@@ -542,7 +545,7 @@ func TestUC001_FetchWithMultipleFilters(t *testing.T) {
 	}
 
 	// Fetch dust only
-	dust, err := table.Fetch(map[string]any{"State": types.StateDust})
+	dust, err := table.Fetch(map[string]any{"states": []string{types.StateDust}})
 	if err != nil {
 		t.Fatalf("Fetch dust failed: %v", err)
 	}
@@ -770,7 +773,7 @@ func TestUC001_FullUseCaseFlow(t *testing.T) {
 	}
 
 	// 9. Fetch with filter (only ready crumbs)
-	ready, err := crumbTable.Fetch(map[string]any{"State": types.StateReady})
+	ready, err := crumbTable.Fetch(map[string]any{"states": []string{types.StateReady}})
 	if err != nil {
 		t.Fatalf("Step 9 (Fetch ready): %v", err)
 	}

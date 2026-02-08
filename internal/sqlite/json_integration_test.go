@@ -533,7 +533,7 @@ func TestJSON_DataLoadingOnRestart(t *testing.T) {
 	}
 
 	// Verify filter still works after loading
-	readyCrumbs, _ := crumbTable2.Fetch(map[string]any{"State": types.StateReady})
+	readyCrumbs, _ := crumbTable2.Fetch(map[string]any{"states": []string{types.StateReady}})
 	if len(readyCrumbs) != 1 {
 		t.Errorf("Expected 1 ready crumb, got %d", len(readyCrumbs))
 	}

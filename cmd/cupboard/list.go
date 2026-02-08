@@ -25,10 +25,9 @@ An empty filter returns all entities in the table.
 Valid table names: crumbs, trails, properties, metadata, links, stashes
 
 Example:
-  crumbs list crumbs
-  crumbs list crumbs State=ready
-  crumbs list crumbs State=ready Name=MyTask
-  crumbs list trails State=active`,
+  cupboard list crumbs
+  cupboard list crumbs states=ready
+  cupboard list trails State=active`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: runList,
 }

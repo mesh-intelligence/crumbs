@@ -260,7 +260,7 @@ func TestCrumbFetchByState(t *testing.T) {
 			}
 
 			// Fetch by state
-			listResult := env.MustRunCupboard("list", "crumbs", "State="+tt.filterState)
+			listResult := env.MustRunCupboard("list", "crumbs", "states="+tt.filterState)
 			crumbs := ParseJSON[[]Crumb](t, listResult.Stdout)
 
 			if len(crumbs) != tt.wantCount {
@@ -405,19 +405,19 @@ func TestMixedTerminalStates(t *testing.T) {
 	}
 
 	// Verify counts by state
-	draftResult := env.MustRunCupboard("list", "crumbs", "State=draft")
+	draftResult := env.MustRunCupboard("list", "crumbs", "states=draft")
 	draftCrumbs := ParseJSON[[]Crumb](t, draftResult.Stdout)
 	if len(draftCrumbs) != 1 {
 		t.Errorf("draft count = %d, want 1", len(draftCrumbs))
 	}
 
-	pebbleResult := env.MustRunCupboard("list", "crumbs", "State=pebble")
+	pebbleResult := env.MustRunCupboard("list", "crumbs", "states=pebble")
 	pebbleCrumbs := ParseJSON[[]Crumb](t, pebbleResult.Stdout)
 	if len(pebbleCrumbs) != 1 {
 		t.Errorf("pebble count = %d, want 1", len(pebbleCrumbs))
 	}
 
-	dustResult := env.MustRunCupboard("list", "crumbs", "State=dust")
+	dustResult := env.MustRunCupboard("list", "crumbs", "states=dust")
 	dustCrumbs := ParseJSON[[]Crumb](t, dustResult.Stdout)
 	if len(dustCrumbs) != 1 {
 		t.Errorf("dust count = %d, want 1", len(dustCrumbs))

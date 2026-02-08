@@ -416,7 +416,7 @@ crumb.SetProperty("priority", "high")
 table.Set(crumb.CrumbID, crumb)
 
 // 5. Query with filter
-entities, _ := table.Fetch(map[string]any{"State": "ready"})
+entities, _ := table.Fetch(map[string]any{"states": []string{"ready"}})
 for _, e := range entities {
     c := e.(*Crumb)
     // process crumb

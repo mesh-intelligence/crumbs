@@ -262,7 +262,7 @@ func benchmarkCrumbsFetchStateUC005(b *testing.B, dataSize int) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		filter := map[string]any{"State": types.StateDraft}
+		filter := map[string]any{"states": []string{types.StateDraft}}
 		_, err := table.Fetch(filter)
 		if err != nil {
 			b.Fatalf("Fetch with state filter failed: %v", err)

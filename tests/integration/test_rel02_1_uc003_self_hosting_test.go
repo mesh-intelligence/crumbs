@@ -401,7 +401,7 @@ func TestReady(t *testing.T) {
 				env.MustRunCupboard("set", "crumbs", crumb.CrumbID,
 					`{"CrumbID":"`+crumb.CrumbID+`","Name":"Claimed task","State":"taken"}`)
 			},
-			filter:       "State=draft",
+			filter:       "states=draft",
 			wantExitCode: 0,
 			wantCount:    1,
 		},
@@ -413,7 +413,7 @@ func TestReady(t *testing.T) {
 				env.MustRunCupboard("set", "crumbs", crumb.CrumbID,
 					`{"CrumbID":"`+crumb.CrumbID+`","Name":"Only task","State":"pebble"}`)
 			},
-			filter:       "State=draft",
+			filter:       "states=draft",
 			wantExitCode: 0,
 			wantCount:    0,
 		},
@@ -469,7 +469,7 @@ func TestDoWorkCycle(t *testing.T) {
 	taskID := crumb.CrumbID
 
 	// Step 1: List ready tasks (draft state)
-	listResult := env.MustRunCupboard("list", "crumbs", "State=draft")
+	listResult := env.MustRunCupboard("list", "crumbs", "states=draft")
 	items := ParseJSON[[]Crumb](t, listResult.Stdout)
 	if len(items) != 1 {
 		t.Errorf("expected 1 ready task, got %d", len(items))

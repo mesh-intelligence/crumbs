@@ -115,11 +115,12 @@ func (c *Crumb) GetProperties() map[string]any {
 	return c.Properties
 }
 
-// ClearProperty resets a property to nil (removes it from the map).
+// ClearProperty resets a property to nil.
+// Per prd-crumbs-interface R5.5, the map entry is preserved (properties are
+// never unset). The type-based default is resolved by Table.Set during
+// persistence (per R5.7, validation is deferred to persist).
 // Returns ErrPropertyNotFound if the property does not exist.
 // Updates UpdatedAt. Caller must save via Table.Set.
-// Note: Full default-value semantics require property definition lookup;
-// this implementation removes the entry. Table.Set may reinitialize defaults.
 func (c *Crumb) ClearProperty(propertyID string) error {
 	if c.Properties == nil {
 		return ErrPropertyNotFound
@@ -127,7 +128,7 @@ func (c *Crumb) ClearProperty(propertyID string) error {
 	if _, ok := c.Properties[propertyID]; !ok {
 		return ErrPropertyNotFound
 	}
-	delete(c.Properties, propertyID)
+	c.Properties[propertyID] = nil
 	c.UpdatedAt = time.Now()
 	return nil
 }

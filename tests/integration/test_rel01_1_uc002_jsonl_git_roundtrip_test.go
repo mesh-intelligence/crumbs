@@ -352,7 +352,7 @@ func TestQueriesAfterRebuild(t *testing.T) {
 				env.MustRunCupboard("set", "crumbs", crumb.CrumbID,
 					`{"CrumbID":"`+crumb.CrumbID+`","Name":"Closed task","State":"pebble"}`)
 			},
-			filter:    "State=draft",
+			filter:    "states=draft",
 			wantCount: 1,
 		},
 		{
@@ -362,7 +362,7 @@ func TestQueriesAfterRebuild(t *testing.T) {
 				env.MustRunCupboard("set", "crumbs", "", `{"Name":"A task","State":"draft"}`)
 				env.MustRunCupboard("set", "crumbs", "", `{"Name":"An epic","State":"ready"}`)
 			},
-			filter:    "State=ready",
+			filter:    "states=ready",
 			wantCount: 1,
 		},
 	}
@@ -685,7 +685,7 @@ func TestFullRoundtripWorkflow(t *testing.T) {
 		}
 
 		// Final: Verify ready filter shows no tasks (only pebble exists for task type)
-		result = env.MustRunCupboard("list", "crumbs", "State=draft")
+		result = env.MustRunCupboard("list", "crumbs", "states=draft")
 		items = ParseJSON[[]Crumb](t, result.Stdout)
 		// Should have 1 (the epic is still draft)
 		if len(items) != 1 {

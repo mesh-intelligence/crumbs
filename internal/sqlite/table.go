@@ -309,34 +309,80 @@ func (t *Table) fetchCrumbs(filter map[string]any) ([]any, error) {
 	return results, rows.Err()
 }
 
+// buildCrumbQuery builds a SQL query for crumbs using PRD filter keys (R9.2).
+// Supported keys: "states" ([]string), "trail_id" (string), "parent_id" (string),
+// "properties" (map[string]any), "limit" (int), "offset" (int).
+// Unknown keys are ignored per R9.5. Results ordered by created_at DESC per R9.6.
 func buildCrumbQuery(filter map[string]any) (string, []any) {
 	query := "SELECT crumb_id, name, state, created_at, updated_at FROM crumbs"
 	var conditions []string
 	var args []any
+	var limit, offset int
 
-	for field, value := range filter {
-		col := crumbFieldToColumn(field)
-		if col != "" {
-			conditions = append(conditions, col+" = ?")
-			args = append(args, value)
+	for key, value := range filter {
+		switch key {
+		case "states":
+			var states []string
+			switch v := value.(type) {
+			case []string:
+				states = v
+			case string:
+				states = []string{v}
+			case []any:
+				for _, elem := range v {
+					if s, ok := elem.(string); ok {
+						states = append(states, s)
+					}
+				}
+			}
+			if len(states) > 0 {
+				placeholders := make([]string, len(states))
+				for i, s := range states {
+					placeholders[i] = "?"
+					args = append(args, s)
+				}
+				conditions = append(conditions, "state IN ("+strings.Join(placeholders, ", ")+")")
+			}
+		case "trail_id":
+			if trailID, ok := value.(string); ok && trailID != "" {
+				conditions = append(conditions, "crumb_id IN (SELECT from_id FROM links WHERE link_type = 'belongs_to' AND to_id = ?)")
+				args = append(args, trailID)
+			}
+		case "parent_id":
+			if parentID, ok := value.(string); ok && parentID != "" {
+				conditions = append(conditions, "crumb_id IN (SELECT from_id FROM links WHERE link_type = 'child_of' AND to_id = ?)")
+				args = append(args, parentID)
+			}
+		case "properties":
+			if props, ok := value.(map[string]any); ok {
+				for propID, propVal := range props {
+					conditions = append(conditions, "crumb_id IN (SELECT crumb_id FROM crumb_properties WHERE property_id = ? AND value = ?)")
+					args = append(args, propID, fmt.Sprintf("%v", propVal))
+				}
+			}
+		case "limit":
+			if v, ok := value.(int); ok && v > 0 {
+				limit = v
+			}
+		case "offset":
+			if v, ok := value.(int); ok && v > 0 {
+				offset = v
+			}
+		// Unknown keys ignored per R9.5
 		}
 	}
 
 	if len(conditions) > 0 {
 		query += " WHERE " + strings.Join(conditions, " AND ")
 	}
-	return query, args
-}
-
-func crumbFieldToColumn(field string) string {
-	mapping := map[string]string{
-		"CrumbID":   "crumb_id",
-		"Name":      "name",
-		"State":     "state",
-		"CreatedAt": "created_at",
-		"UpdatedAt": "updated_at",
+	query += " ORDER BY created_at DESC"
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT %d", limit)
 	}
-	return mapping[field]
+	if offset > 0 {
+		query += fmt.Sprintf(" OFFSET %d", offset)
+	}
+	return query, args
 }
 
 func hydrateCrumb(row *sql.Row) (*types.Crumb, error) {
