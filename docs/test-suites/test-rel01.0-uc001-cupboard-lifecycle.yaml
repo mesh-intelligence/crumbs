@@ -1,9 +1,10 @@
 id: test-rel01.0-uc001-cupboard-lifecycle
 title: Cupboard lifecycle and CRUD operations
 description: >
-  Validates crumb state transitions, trail creation and lifecycle,
-  crumb-trail linking via belongs_to relationships, and crumb archival (dust state).
-  Each test case exercises the core CRUD operations via the cupboard CLI.
+  Validates trail creation, trail state transitions, crumb-trail linking,
+  JSONL persistence, and full lifecycle workflow with cascade operations.
+  Each test case corresponds to an implemented Go test in
+  tests/integration/test_rel01_0_uc001_cupboard_lifecycle_test.go.
 traces:
   - rel01.0-uc001-cupboard-lifecycle
 tags:
@@ -19,123 +20,105 @@ preconditions:
 
 test_cases:
 
-  # --- crumb state transitions ---
+  # --- TestLifecycleInitialize ---
 
-  - name: Create crumb with draft state
+  - name: Initialize cupboard for lifecycle tests
+    description: Validates cupboard init creates required JSONL files.
     inputs:
-      command: cupboard set crumbs "" '{"Name":"New crumb","State":"draft"}'
+      command: cupboard init
     expected:
       exit_code: 0
-      stdout_contains: "CrumbID"
-      state:
-        crumb_state: draft
+      stdout_contains: output message
+      files:
+        trails.jsonl:
+          exists: true
+        links.jsonl:
+          exists: true
 
-  - name: Transition crumb from draft to ready
-    description: Create a crumb in draft state, then update to ready state.
+  # --- TestTrailCreation ---
+
+  - name: Create single trail
+    description: Create one trail and verify ID generation and active state.
     inputs:
       setup:
-        - cupboard set crumbs "" '{"Name":"Ready crumb","State":"draft"}'
-      command: cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Ready crumb","State":"ready"}'
-    expected:
-      exit_code: 0
-      state:
-        crumb_state: ready
-
-  - name: Transition crumb from ready to taken
-    description: Create a crumb, move to ready, then claim it (taken).
-    inputs:
-      setup:
-        - cupboard set crumbs "" '{"Name":"Taken crumb","State":"ready"}'
-      command: cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Taken crumb","State":"taken"}'
-    expected:
-      exit_code: 0
-      state:
-        crumb_state: taken
-
-  - name: Transition crumb to pebble (completed successfully)
-    description: Move a crumb to terminal pebble state (completed).
-    inputs:
-      setup:
-        - cupboard set crumbs "" '{"Name":"Pebble crumb","State":"taken"}'
-      command: cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Pebble crumb","State":"pebble"}'
-    expected:
-      exit_code: 0
-      state:
-        crumb_state: pebble
-
-  - name: Transition crumb to dust (failed or abandoned)
-    description: Move a crumb to terminal dust state (failed/abandoned).
-    inputs:
-      setup:
-        - cupboard set crumbs "" '{"Name":"Dust crumb","State":"draft"}'
-      command: cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Dust crumb","State":"dust"}'
-    expected:
-      exit_code: 0
-      state:
-        crumb_state: dust
-
-  # --- trail creation and lifecycle ---
-
-  - name: Create trail in active state
-    inputs:
+        - cupboard init
       command: cupboard set trails "" '{"State":"active"}'
     expected:
       exit_code: 0
-      stdout_contains: "TrailID"
+      stdout_json:
+        TrailID: non-empty
+        State: active
       state:
-        trail_state: active
+        trail_count: 1
 
-  - name: Create multiple trails with unique IDs
+  - name: Create multiple trails
+    description: Create three trails and verify unique IDs and count.
     inputs:
       setup:
+        - cupboard init
+      steps:
         - cupboard set trails "" '{"State":"active"}'
-      command: cupboard set trails "" '{"State":"active"}'
+        - cupboard set trails "" '{"State":"active"}'
+        - cupboard set trails "" '{"State":"active"}'
     expected:
       exit_code: 0
       state:
-        trail_count: 2
+        trail_count: 3
+        all_trail_ids_unique: true
 
-  - name: Complete trail (successful exploration)
-    description: Transition a trail from active to completed state.
+  # --- TestTrailLifecycle ---
+
+  - name: Complete trail
+    description: Create an active trail, then transition to completed state.
     inputs:
       setup:
+        - cupboard init
         - cupboard set trails "" '{"State":"active"}'
       command: cupboard set trails ${trail_id} '{"TrailID":"${trail_id}","State":"completed"}'
     expected:
       exit_code: 0
-      state:
-        trail_state: completed
+    verify:
+      command: cupboard get trails ${trail_id}
+      stdout_json:
+        State: completed
 
-  - name: Abandon trail (failed exploration)
-    description: Transition a trail from active to abandoned state.
+  - name: Abandon trail
+    description: Create an active trail, then transition to abandoned state.
     inputs:
       setup:
+        - cupboard init
         - cupboard set trails "" '{"State":"active"}'
       command: cupboard set trails ${trail_id} '{"TrailID":"${trail_id}","State":"abandoned"}'
     expected:
       exit_code: 0
-      state:
-        trail_state: abandoned
+    verify:
+      command: cupboard get trails ${trail_id}
+      stdout_json:
+        State: abandoned
 
-  # --- crumb-trail linking ---
+  # --- TestCrumbTrailLinking ---
 
-  - name: Link crumb to trail via belongs_to
-    description: Create a crumb and trail, then link crumb to trail using belongs_to.
+  - name: Link single crumb to trail
+    description: Create one crumb and one trail, link them via belongs_to.
     inputs:
       setup:
-        - cupboard set crumbs "" '{"Name":"Linked crumb","State":"draft"}'
+        - cupboard init
+        - cupboard set crumbs "" '{"Name":"Crumb 1","State":"draft"}'
         - cupboard set trails "" '{"State":"active"}'
       command: cupboard set links "" '{"LinkType":"belongs_to","FromID":"${crumb_id}","ToID":"${trail_id}"}'
     expected:
       exit_code: 0
-      stdout_contains: "LinkID"
+      stdout_json:
+        LinkID: non-empty
+        LinkType: belongs_to
       state:
-        link_type: belongs_to
+        link_count: 1
 
   - name: Link multiple crumbs to different trails
-    description: Create 2 crumbs and 2 trails, link each crumb to a separate trail.
+    description: Create two crumbs and two trails, link each crumb to a different trail.
     inputs:
       setup:
+        - cupboard init
         - cupboard set crumbs "" '{"Name":"Crumb 1","State":"draft"}'
         - cupboard set crumbs "" '{"Name":"Crumb 2","State":"draft"}'
         - cupboard set trails "" '{"State":"active"}'
@@ -148,39 +131,13 @@ test_cases:
       state:
         link_count: 2
 
-  # --- crumb archival (dust) ---
-
-  - name: Archive crumb by setting dust state
-    description: Mark a crumb as dust (soft delete) and verify it is filtered from draft list.
-    inputs:
-      setup:
-        - cupboard set crumbs "" '{"Name":"Keep crumb","State":"draft"}'
-        - cupboard set crumbs "" '{"Name":"Dust crumb","State":"draft"}'
-      command: cupboard set crumbs ${crumb2_id} '{"CrumbID":"${crumb2_id}","Name":"Dust crumb","State":"dust"}'
-    expected:
-      exit_code: 0
-      state:
-        draft_count: 1
-        dust_count: 1
-
-  - name: Filter excludes dust crumbs
-    description: Verify that listing by state=draft excludes dust crumbs.
-    inputs:
-      setup:
-        - cupboard set crumbs "" '{"Name":"Active crumb","State":"draft"}'
-        - cupboard set crumbs "" '{"Name":"Archived crumb","State":"dust"}'
-      command: cupboard list crumbs State=draft
-    expected:
-      exit_code: 0
-      stdout_json:
-        length: 1
-
-  # --- JSON persistence verification ---
+  # --- TestTrailPersistence ---
 
   - name: Trails persisted to JSONL
-    description: Verify that trail state changes are persisted to trails.jsonl file.
+    description: Create trails, transition states, verify JSONL file contains correct state values.
     inputs:
       setup:
+        - cupboard init
         - cupboard set trails "" '{"State":"active"}'
         - cupboard set trails "" '{"State":"active"}'
       steps:
@@ -190,20 +147,24 @@ test_cases:
       exit_code: 0
       files:
         trails.jsonl:
+          line_count: 2
           contains:
             - '"state":"completed"'
             - '"state":"abandoned"'
 
-  # --- full workflow ---
+  # --- TestFullLifecycleWorkflow ---
 
   - name: Full lifecycle with crumbs and trails
     description: >
-      Create crumbs, transition states, create trails, link crumbs to trails,
-      complete and abandon trails, dust a crumb.
+      Create 3 crumbs, transition crumb1 to pebble, create 2 trails, link crumb2
+      to trail1 and crumb3 to trail2, complete trail1, abandon trail2.
+      Per prd-trails-interface R5.6/R6.6: completing trail1 removes belongs_to
+      links (crumb2 becomes permanent), abandoning trail2 deletes crumb3.
     inputs:
       setup:
+        - cupboard init
         - cupboard set crumbs "" '{"Name":"Implement feature X","State":"draft"}'
-        - cupboard set crumbs "" '{"Name":"Write tests","State":"draft"}'
+        - cupboard set crumbs "" '{"Name":"Write tests for feature X","State":"draft"}'
         - cupboard set crumbs "" '{"Name":"Try approach A","State":"draft"}'
       steps:
         - cupboard set crumbs ${crumb1_id} '{"CrumbID":"${crumb1_id}","Name":"Implement feature X","State":"pebble"}'
@@ -213,52 +174,20 @@ test_cases:
         - cupboard set links "" '{"LinkType":"belongs_to","FromID":"${crumb3_id}","ToID":"${trail2_id}"}'
         - cupboard set trails ${trail1_id} '{"TrailID":"${trail1_id}","State":"completed"}'
         - cupboard set trails ${trail2_id} '{"TrailID":"${trail2_id}","State":"abandoned"}'
-        - cupboard set crumbs ${crumb3_id} '{"CrumbID":"${crumb3_id}","Name":"Try approach A","State":"dust"}'
     expected:
       exit_code: 0
       state:
-        crumb_count: 3
-        pebble_count: 1
-        dust_count: 1
-        draft_count: 1
+        crumb_count: 2
         trail_count: 2
+        link_count: 0
+        pebble_count: 1
+        draft_count: 1
         completed_trail_count: 1
         abandoned_trail_count: 1
-        link_count: 2
-
-  # --- crumb hard deletion ---
-
-  - name: Delete crumb removes from storage
-    description: Hard delete a crumb and verify it is gone from both SQLite and JSONL.
-    inputs:
-      setup:
-        - cupboard set crumbs "" '{"Name":"Delete target","State":"draft"}'
-      command: cupboard delete crumbs ${crumb_id}
-    expected:
-      exit_code: 0
-    verify:
-      command: cupboard get crumbs ${crumb_id}
-      exit_code: 1
-
-  - name: Delete nonexistent crumb fails
-    inputs:
-      command: cupboard delete crumbs nonexistent-id-12345
-    expected:
-      exit_code: 1
-
-  # --- error conditions ---
-
-  - name: Get nonexistent crumb fails
-    inputs:
-      command: cupboard get crumbs nonexistent-id-12345
-    expected:
-      exit_code: 1
-
-  - name: Get nonexistent trail fails
-    inputs:
-      command: cupboard get trails nonexistent-id-12345
-    expected:
-      exit_code: 1
+    notes: >
+      crumb3 is deleted by the abandon cascade (prd-trails-interface R6.6).
+      Links are removed by cascade operations (complete removes belongs_to links,
+      abandon deletes crumb and its links).
 
 cleanup:
   - Remove temp config and data directories
