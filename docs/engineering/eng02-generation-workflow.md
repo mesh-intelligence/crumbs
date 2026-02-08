@@ -14,7 +14,7 @@ Table 1 Generation lifecycle
 |-------|-------------|----------------|
 | Open | Tag main, create generation branch, delete Go files, reinitialize module | On generation branch with clean slate committed |
 | Generate | make-work creates tasks, do-work executes them in worktrees off the generation branch | Generation branch accumulates task merges |
-| Close | Tag generation branch as closed, merge to main, delete branch | On main with generation merged |
+| Close | Tag generation, delete code from main, merge generation, tag main, delete branch | On main with generation's code and merged docs |
 
 ## Open
 
@@ -47,15 +47,17 @@ If the process is interrupted, the generation branch persists. Unfinished task b
 
 ## Close
 
-Closing finishes the current generation and lands the work on main.
+Closing finishes the current generation and lands the work on main. We delete Go code from main before merging so the generation's code replaces it cleanly. Documentation is preserved on main so that doc changes from the generation merge normally.
 
 1. Verify we are on a `generation-*` branch. Refuse to close if on main or any other branch.
 2. Tag the current commit as `generation-YYYY-MM-DD-HH-mm-closed`. This marks the final state of the generation before merging.
 3. Switch to main.
-4. Merge the generation branch into main.
-5. Delete the generation branch.
+4. Delete all Go source files, empty source directories, build artifacts, and `go.sum` from main. Reinitialize `go.mod`. Commit this preparation step.
+5. Merge the generation branch into main. The generation's code arrives without conflicts because main no longer has competing Go files. Documentation merges normally.
+6. Tag main as `generation-YYYY-MM-DD-HH-mm-merged`.
+7. Delete the generation branch.
 
-After close, main contains the regenerated code and both tags (pre-generation baseline and closed generation) are preserved in the history.
+After close, main contains the generation's code, merged documentation, and three tags are preserved: the pre-generation baseline, the closed generation, and the merged result on main.
 
 ## Tags
 
@@ -67,8 +69,9 @@ Table 3 Tag conventions
 |-----|-----------|---------|
 | `generation-YYYY-MM-DD-HH-mm` | Main commit before generation started | Retrieve the pre-generation state |
 | `generation-YYYY-MM-DD-HH-mm-closed` | Final commit on the generation branch | Retrieve the completed generation before merge |
+| `generation-YYYY-MM-DD-HH-mm-merged` | Main commit after merge | Retrieve the post-merge state |
 
-To retrieve a previous generation's pre-state: `git checkout generation-2026-02-08-09-30`. To see what a generation produced: `git diff generation-2026-02-08-09-30...generation-2026-02-08-09-30-closed`.
+To retrieve a previous generation's pre-state: `git checkout generation-2026-02-08-09-30`. To see what a generation produced: `git diff generation-2026-02-08-09-30...generation-2026-02-08-09-30-closed`. To see main after the merge: `git checkout generation-2026-02-08-09-30-merged`.
 
 ## Script Interface
 
@@ -84,7 +87,7 @@ Table 4 Generation scripts
 | `do-work.sh` | Drain the task queue | Works on any branch |
 | `make-work.sh` | Create new tasks | Works on any branch |
 
-`open-generation.sh` tags main, creates the generation branch, deletes Go files, and commits the clean slate. `generate.sh` runs the generation loop: it calls `make-work.sh` to create tasks then `do-work.sh` to execute them, repeating for the requested number of cycles. `close-generation.sh` tags the generation branch as closed, merges to main, and deletes the branch. `do-work.sh` and `make-work.sh` can also be called independently outside of a generation.
+`open-generation.sh` tags main, creates the generation branch, deletes Go files, and commits the clean slate. `generate.sh` runs the generation loop: it calls `make-work.sh` to create tasks then `do-work.sh` to execute them, repeating for the requested number of cycles. `close-generation.sh` tags the generation branch, deletes Go code from main, merges the generation (code replaces cleanly, docs merge normally), tags main, and deletes the branch. `do-work.sh` and `make-work.sh` can also be called independently outside of a generation.
 
 ## Constraints
 
