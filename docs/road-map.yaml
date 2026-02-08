@@ -19,7 +19,7 @@ releases:
   - version: "01.0"
     name: Core Storage with SQLite Backend
     description: Implement the Cupboard and Table interfaces with SQLite backend. Validates core concepts and provides a working system for local use.
-    done_when: All four use cases pass. An agent can create, query, and manage crumbs via the Table interface.
+    done_when: All five use cases pass. An agent can create, query, and manage crumbs via the Table interface.
     deliverables:
       - Cupboard interface with Attach, Detach, GetTable
       - Table interface with Get, Set, Delete, Fetch
@@ -41,7 +41,7 @@ releases:
         status: done
       - id: rel01.0-uc005-crumbs-table-benchmarks
         summary: Benchmark crumbs Table operations (Get, Set, Delete, Fetch) at various scales
-        status: not_started
+        status: done
 
   - version: "01.1"
     name: Post-Core Validation
@@ -53,13 +53,13 @@ releases:
         status: not_started
       - id: rel01.1-uc002-jsonl-git-roundtrip
         summary: JSONL persistence survives database deletion
-        status: not_started
+        status: done
       - id: rel01.1-uc003-configuration-loading
         summary: "Config loading pipeline: platform defaults, env overrides, flag overrides, config.yaml lifecycle"
-        status: not_started
+        status: done
       - id: rel01.1-uc004-generic-table-cli
         summary: "Generic table CLI commands: get, set, list, delete across table types"
-        status: not_started
+        status: done
 
   - version: "02.0"
     name: Properties with Enforcement
@@ -89,13 +89,13 @@ releases:
         status: not_started
       - id: rel02.1-uc002-table-benchmarks
         summary: Benchmark Table operations at scale
-        status: not_started
+        status: done
       - id: rel02.1-uc003-self-hosting
         summary: Crumbs tracks its own development
-        status: not_started
+        status: done
       - id: rel02.1-uc004-metadata-lifecycle
         summary: "Metadata CRUD: comments, attachments, filtering, cascade delete"
-        status: not_started
+        status: done
 
   - version: "03.0"
     name: Trails and Stashes
@@ -112,10 +112,10 @@ releases:
         status: not_started
       - id: rel03.0-uc002-link-management
         summary: "Link CRUD: belongs_to, child_of, branches_from, scoped_to with graph queries"
-        status: not_started
+        status: done
       - id: rel03.0-uc003-stash-operations
         summary: "Stash system: value ops, counters, locks, versioning, history"
-        status: not_started
+        status: done
 
   - version: "99.0"
     name: Unscheduled
