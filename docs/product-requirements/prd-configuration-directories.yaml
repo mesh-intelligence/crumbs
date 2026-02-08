@@ -1,13 +1,11 @@
 id: prd-configuration-directories
 title: Configuration Directory Structure
 problem: |
-  The current architecture conflates CLI configuration with backend data storage. prd-cupboard-core defines a single DataDir field that serves as both the location for backend data files and implicitly for any CLI settings. This creates several problems.
+  The Cupboard CLI needs two distinct directory locations: one for application settings (backend selection, defaults) and one for backend data (crumbs, trails, links). These serve different purposes and have different lifecycles. Configuration is set once and rarely changes; data changes constantly. Separating them clarifies what to version-control versus what to treat as runtime state, and simplifies backup strategies.
 
-  First, CLI configuration (backend selection, default settings) and backend data (crumbs, trails, etc.) have different lifecycles. Configuration is typically set once and rarely changes; data changes constantly. Mixing them in one directory complicates backup strategies and makes it unclear what to version-control versus what to treat as runtime state.
+  Data files need a format suited to append-heavy workloads. JSONL (one JSON object per line) allows appending without rewriting, supports streaming reads, tolerates partial corruption (only the affected line is lost), and works with standard line-oriented tools (grep, head, tail). These properties also make JSONL files easy to merge in version control.
 
-  Second, prd-sqlite-backend specifies JSON arrays for data files (e.g., `[{...}, {...}]` in crumbs.json). JSON arrays require reading and parsing the entire file to add a record. For large datasets or append-heavy workloads, this is inefficient. Line-delimited JSON (JSONL) allows appending without rewriting and enables streaming reads.
-
-  Third, the current design lacks clear guidance on where configuration files live on different operating systems. We need a standard location for CLI configuration that follows platform conventions (XDG on Linux, Application Support on macOS, AppData on Windows).
+  Both directories need platform-appropriate default locations that follow OS conventions (XDG on Linux, Application Support on macOS, AppData on Windows) while remaining overridable via flags and environment variables.
 goals:
   - G1: Define a CLI configuration directory separate from backend data
   - G2: Define the backend data directory structure for SQLite backend
@@ -71,7 +69,7 @@ requirements:
   R3:
     title: JSONL File Format
     items:
-      - R3.1: The SQLite backend must use JSONL (JSON Lines) format for data files instead of JSON arrays
+      - R3.1: The SQLite backend must use JSONL (JSON Lines) format for data files
       - R3.2: "JSONL format rules: each line is a complete, valid JSON object; lines are separated by newline (\\n); no commas between lines; no enclosing array brackets; empty lines are ignored; UTF-8 encoding required"
       - R3.3: Example crumbs.jsonl format
         detail: |
@@ -109,13 +107,13 @@ requirements:
       - R4.2: "File naming convention: `{table_name}.jsonl` (lowercase, underscores for multi-word names)"
       - R4.3: If a JSONL file does not exist, the backend must create an empty file (zero bytes, not an empty array)
   R5:
-    title: Startup Sequence Updates
+    title: Startup Sequence
     items:
       - R5.1: "On Attach with SQLite backend: create data directory if it does not exist; create empty JSONL files if they do not exist; delete cupboard.db if it exists (ephemeral cache); create new cupboard.db with schema; load each JSONL file into corresponding SQLite table (line by line); skip empty lines and log warnings for malformed lines; validate foreign key relationships; return ready Cupboard instance"
       - R5.2: If a line in a JSONL file is malformed, the backend must log a warning with the file name, line number, and error, then skip that line. The startup continues with remaining valid records
       - R5.3: If foreign key validation fails, the backend must return an error listing the invalid references
   R6:
-    title: Write Operation Updates
+    title: Write Operations
     items:
       - R6.1: All write operations must persist to JSONL immediately after SQLite commit
       - R6.2: For updates and deletes, the backend must rewrite the entire JSONL file (read all, modify, write atomically). This is acceptable because JSONL files are small enough to fit in memory for typical workloads
@@ -128,9 +126,9 @@ requirements:
       - R7.2: The CLI must not require config.yaml to exist. Missing config.yaml uses all defaults
       - R7.3: The CLI must create config.yaml on first write (e.g., `crumbs config set backend sqlite`)
   R8:
-    title: Config Struct Updates
+    title: Config Struct
     items:
-      - R8.1: The Config struct in prd-cupboard-core must be updated to include Backend and DataDir
+      - R8.1: The Config struct must include Backend and DataDir
         detail: |
           ```go
           type Config struct {
@@ -141,8 +139,6 @@ requirements:
       - R8.2: DataDir holds the directory for the SQLite backend
       - R8.3: CLI configuration (config.yaml) is outside the Cupboard interface. The CLI reads config.yaml and constructs a Config struct to pass to Attach
 non_goals:
-  - This PRD does not define migration tooling from JSON arrays to JSONL. Manual migration or a separate utility may be needed.
-  - This PRD does not define backwards compatibility with existing JSON array files. The new format is JSONL only.
   - This PRD does not define configuration file encryption or secrets management.
   - This PRD does not define multi-workspace support (multiple data directories). One CLI instance operates on one data directory at a time.
   - This PRD does not define network-based configuration (e.g., fetching config from a server).
@@ -151,9 +147,9 @@ acceptance_criteria:
   - Backend data directory locations defined for Linux, macOS, Windows
   - Override mechanisms defined (flags, environment variables, config file)
   - JSONL format specified with examples
-  - Data directory file layout updated to use .jsonl extension
-  - Startup sequence updated for JSONL loading
-  - Write operation pattern updated for JSONL persistence
+  - Data directory file layout specified with .jsonl files
+  - Startup sequence defined for JSONL loading
+  - Write operation pattern defined for JSONL persistence
   - CLI configuration loading sequence defined
   - Config struct relationship to config.yaml documented
   - All requirements numbered and specific
@@ -163,10 +159,9 @@ constraints:
   - Atomic write pattern required for data integrity
   - SQLite database remains ephemeral (can be deleted and regenerated)
 open_questions:
-  - Q1: Should we support reading legacy JSON array files during a transition period? (Current answer is No, per Non-Goals)
-  - Q2: Should stash_history.jsonl use a different compaction strategy to avoid unbounded growth? (Deferred to a future PRD)
+  - Q1: Should stash_history.jsonl use a compaction strategy to avoid unbounded growth? (Deferred to a future PRD)
 references:
   - prd-cupboard-core (Cupboard interface, Config struct)
-  - prd-sqlite-backend (current JSON file layout, to be superseded by this PRD for file format)
+  - prd-sqlite-backend (SQLite backend, JSONL persistence)
   - XDG Base Directory Specification
   - JSON Lines specification (jsonlines.org)
