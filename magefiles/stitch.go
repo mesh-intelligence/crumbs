@@ -1,0 +1,332 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+)
+
+// Stitch picks ready tasks from beads and invokes Claude to execute them.
+func Stitch() error {
+	silence := os.Getenv("STITCH_SILENCE") == "true"
+
+	repoRoot, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("getting working directory: %w", err)
+	}
+
+	projectName := filepath.Base(repoRoot)
+	worktreeBase := filepath.Join(os.TempDir(), projectName+"-worktrees")
+
+	baseBranch, err := gitCurrentBranch()
+	if err != nil {
+		return fmt.Errorf("getting current branch: %w", err)
+	}
+	fmt.Printf("Base branch: %s\n", baseBranch)
+
+	if err := recoverStaleTasks(baseBranch, worktreeBase); err != nil {
+		return fmt.Errorf("recovery: %w", err)
+	}
+
+	totalTasks := 0
+	for {
+		task, err := pickTask(baseBranch, worktreeBase)
+		if err != nil {
+			break // No tasks available.
+		}
+
+		if err := doOneTask(task, baseBranch, repoRoot, silence); err != nil {
+			return fmt.Errorf("executing task %s: %w", task.id, err)
+		}
+
+		totalTasks++
+		fmt.Println()
+		fmt.Println("----------------------------------------")
+		fmt.Println()
+	}
+
+	fmt.Println()
+	fmt.Println("========================================")
+	fmt.Printf("Done. Completed %d task(s).\n", totalTasks)
+	fmt.Println("========================================")
+	return nil
+}
+
+type stitchTask struct {
+	id          string
+	title       string
+	description string
+	issueType   string
+	branchName  string
+	worktreeDir string
+}
+
+func gitCurrentBranch() (string, error) {
+	out, err := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD").Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// recoverStaleTasks cleans up task branches and orphaned in_progress issues
+// from a previous interrupted run.
+func recoverStaleTasks(baseBranch, worktreeBase string) error {
+	recovered := false
+
+	// 1. Find stale task branches under <base>/task/*.
+	out, _ := exec.Command("git", "branch", "--list", baseBranch+"/task/*").Output()
+	branches := parseBranchList(string(out))
+
+	for _, branch := range branches {
+		recovered = true
+		fmt.Printf("Recovering stale branch: %s\n", branch)
+
+		issueID := branch[strings.LastIndex(branch, "/")+1:]
+		worktreeDir := filepath.Join(worktreeBase, issueID)
+
+		if _, err := os.Stat(worktreeDir); err == nil {
+			fmt.Printf("  Removing worktree: %s\n", worktreeDir)
+			exec.Command("git", "worktree", "remove", worktreeDir, "--force").Run()
+		}
+
+		fmt.Printf("  Deleting branch: %s\n", branch)
+		exec.Command("git", "branch", "-D", branch).Run()
+
+		if issueID != "" {
+			fmt.Printf("  Resetting issue to ready: %s\n", issueID)
+			exec.Command("bd", "update", issueID, "--status", "ready").Run()
+		}
+	}
+
+	// 2. Reset orphaned in_progress issues with no task branch.
+	inProgressJSON, _ := exec.Command("bd", "list", "--json", "--status", "in_progress", "--type", "task").Output()
+	if len(inProgressJSON) > 0 && string(inProgressJSON) != "[]" {
+		var issues []struct {
+			ID string `json:"id"`
+		}
+		if err := json.Unmarshal(inProgressJSON, &issues); err == nil {
+			for _, issue := range issues {
+				ref := fmt.Sprintf("refs/heads/%s/task/%s", baseBranch, issue.ID)
+				if exec.Command("git", "show-ref", "--verify", "--quiet", ref).Run() != nil {
+					recovered = true
+					fmt.Printf("Resetting orphaned in_progress issue: %s\n", issue.ID)
+					exec.Command("bd", "update", issue.ID, "--status", "ready").Run()
+				}
+			}
+		}
+	}
+
+	exec.Command("git", "worktree", "prune").Run()
+
+	if recovered {
+		exec.Command("bd", "sync").Run()
+		exec.Command("git", "add", ".beads/").Run()
+		exec.Command("git", "commit", "-m", "Recover stale tasks from interrupted run", "--allow-empty").Run()
+		fmt.Println("Recovery complete.")
+		fmt.Println()
+	}
+
+	return nil
+}
+
+func parseBranchList(output string) []string {
+	var branches []string
+	for _, line := range strings.Split(output, "\n") {
+		line = strings.TrimSpace(line)
+		line = strings.TrimLeft(line, "* ")
+		if line != "" {
+			branches = append(branches, line)
+		}
+	}
+	return branches
+}
+
+func pickTask(baseBranch, worktreeBase string) (stitchTask, error) {
+	out, err := exec.Command("bd", "ready", "-n", "1", "--json", "--type", "task").Output()
+	if err != nil || len(out) == 0 || string(out) == "[]" {
+		return stitchTask{}, fmt.Errorf("no tasks available")
+	}
+
+	var issues []struct {
+		ID          string `json:"id"`
+		Title       string `json:"title"`
+		Description string `json:"description"`
+		Type        string `json:"type"`
+	}
+	if err := json.Unmarshal(out, &issues); err != nil || len(issues) == 0 {
+		return stitchTask{}, fmt.Errorf("failed to parse issue")
+	}
+
+	issue := issues[0]
+	task := stitchTask{
+		id:          issue.ID,
+		title:       issue.Title,
+		description: issue.Description,
+		issueType:   issue.Type,
+		branchName:  baseBranch + "/task/" + issue.ID,
+		worktreeDir: filepath.Join(worktreeBase, issue.ID),
+	}
+
+	if task.issueType == "" {
+		task.issueType = "task"
+	}
+
+	fmt.Printf("Picking up task: %s - %s\n", task.id, task.title)
+	return task, nil
+}
+
+func doOneTask(task stitchTask, baseBranch, repoRoot string, silence bool) error {
+	// Claim.
+	fmt.Println("Task claimed.")
+	exec.Command("bd", "update", task.id, "--status", "in_progress").Run()
+
+	// Create worktree.
+	if err := createWorktree(task); err != nil {
+		return fmt.Errorf("creating worktree: %w", err)
+	}
+
+	// Build and run prompt.
+	prompt := buildStitchPrompt(task)
+	if err := runClaudeInWorktree(prompt, task.worktreeDir, repoRoot, silence); err != nil {
+		return fmt.Errorf("running Claude: %w", err)
+	}
+
+	// Merge branch back.
+	if err := mergeBranch(task.branchName, baseBranch, repoRoot); err != nil {
+		return fmt.Errorf("merging branch: %w", err)
+	}
+
+	// Cleanup worktree.
+	cleanupWorktree(task)
+
+	// Close task.
+	closeStitchTask(task)
+
+	return nil
+}
+
+func createWorktree(task stitchTask) error {
+	fmt.Printf("Creating worktree at %s...\n", task.worktreeDir)
+
+	os.MkdirAll(filepath.Dir(task.worktreeDir), 0o755)
+
+	// Create branch from current HEAD if it doesn't exist.
+	ref := "refs/heads/" + task.branchName
+	if exec.Command("git", "show-ref", "--verify", "--quiet", ref).Run() != nil {
+		if err := exec.Command("git", "branch", task.branchName).Run(); err != nil {
+			return fmt.Errorf("creating branch %s: %w", task.branchName, err)
+		}
+	}
+
+	cmd := exec.Command("git", "worktree", "add", task.worktreeDir, task.branchName)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("adding worktree: %w", err)
+	}
+
+	fmt.Printf("Worktree created on branch %s\n\n", task.branchName)
+	return nil
+}
+
+func buildStitchPrompt(task stitchTask) string {
+	return fmt.Sprintf(`## Task: %s
+
+**Task ID:** %s
+**Type:** %s
+
+### Description
+
+%s
+
+---
+
+### Instructions
+
+1. Read VISION.md and ARCHITECTURE.md for context
+2. Read any PRDs, use cases, test suites, or engineering guidelines referenced in the description
+3. Complete the task according to the description and acceptance criteria
+4. Commit your changes with a message that includes the task ID (%s)
+
+Do not use beads (bd) commands - task tracking is handled externally.
+`, task.title, task.id, task.issueType, task.description, task.id)
+}
+
+func runClaudeInWorktree(prompt, worktreeDir, repoRoot string, silence bool) error {
+	fmt.Println("Running Claude in worktree...")
+
+	args := []string{"--dangerously-skip-permissions", "-p", "--verbose", "--output-format", "stream-json"}
+	cmd := exec.Command("claude", args...)
+	cmd.Dir = worktreeDir
+	cmd.Stdin = strings.NewReader(prompt)
+
+	if silence {
+		cmd.Stdout = nil
+		cmd.Stderr = nil
+	} else {
+		jq := exec.Command("jq")
+		jq.Stdout = os.Stdout
+		jq.Stderr = os.Stderr
+		var pipeErr error
+		jq.Stdin, pipeErr = cmd.StdoutPipe()
+		if pipeErr != nil {
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+		} else {
+			if err := jq.Start(); err != nil {
+				cmd.Stdout = os.Stdout
+				cmd.Stderr = os.Stderr
+			} else {
+				defer jq.Wait()
+			}
+		}
+	}
+
+	return cmd.Run()
+}
+
+func mergeBranch(branchName, baseBranch, repoRoot string) error {
+	fmt.Println()
+	fmt.Printf("Merging %s into %s...\n", branchName, baseBranch)
+
+	cmd := exec.Command("git", "checkout", baseBranch)
+	cmd.Dir = repoRoot
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("checking out %s: %w", baseBranch, err)
+	}
+
+	cmd = exec.Command("git", "merge", branchName, "--no-edit")
+	cmd.Dir = repoRoot
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("merging %s: %w", branchName, err)
+	}
+
+	fmt.Println("Branch merged.")
+	return nil
+}
+
+func cleanupWorktree(task stitchTask) {
+	fmt.Println("Cleaning up worktree...")
+	exec.Command("git", "worktree", "remove", task.worktreeDir, "--force").Run()
+	exec.Command("git", "branch", "-d", task.branchName).Run()
+	fmt.Println("Worktree removed.")
+}
+
+func closeStitchTask(task stitchTask) {
+	fmt.Println()
+	fmt.Printf("Closing task: %s\n", task.id)
+	exec.Command("bd", "close", task.id).Run()
+	exec.Command("bd", "sync").Run()
+
+	fmt.Println("Committing beads changes...")
+	exec.Command("git", "add", ".beads/").Run()
+	exec.Command("git", "commit", "-m", fmt.Sprintf("Close %s", task.id), "--allow-empty").Run()
+
+	fmt.Println("Done.")
+}
