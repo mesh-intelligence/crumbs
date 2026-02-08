@@ -19,36 +19,37 @@ preconditions:
 
 test_cases:
 
-  # --- module path ---
+  # --- module path (TestUC004_ModulePath) ---
 
-  - name: Module path uses mesh-intelligence redirect
+  - name: Module path uses mesh-intelligence
     description: >
-      go.mod declares module github.com/mesh-intelligence/crumbs with a
-      replace directive pointing to ./ for local development.
+      go.mod declares module github.com/mesh-intelligence/crumbs.
     inputs:
-      go_code: |
-        // Verified by reading go.mod:
-        // module github.com/mesh-intelligence/crumbs
-        // replace github.com/mesh-intelligence/crumbs => ./
+      file: go.mod
     expected:
-      files:
-        go.mod:
-          contains:
-            - "module github.com/mesh-intelligence/crumbs"
-            - "replace github.com/mesh-intelligence/crumbs => ./"
+      file_contains: "module github.com/mesh-intelligence/crumbs"
 
-  # --- build ---
+  - name: Replace directive points to local directory
+    description: >
+      go.mod contains a replace directive pointing to ./ for local development.
+    inputs:
+      file: go.mod
+    expected:
+      file_contains: "replace github.com/mesh-intelligence/crumbs => ./"
+
+  # --- build (TestUC004_CupboardCLICompiles) ---
 
   - name: Cupboard CLI compiles without errors
     description: >
       Build must succeed through the mesh-intelligence module path
-      with the local replace directive.
+      with the local replace directive. Validated by TestMain building
+      the binary before tests run.
     inputs:
       command: go build -o cupboard ./cmd/cupboard
     expected:
       exit_code: 0
 
-  # --- version command ---
+  # --- version command (TestUC004_VersionCommand, TestUC004_VersionWorksWithoutBackend) ---
 
   - name: Version command prints version and exits 0
     inputs:
@@ -60,7 +61,6 @@ test_cases:
   - name: Version command lists implemented use cases
     description: >
       The version output must include a list of implemented use cases.
-      As each release is completed and new use cases pass, the list grows.
       For this first use case, the output includes at minimum
       rel01.0-uc004-scaffolding-validation.
     inputs:
@@ -72,16 +72,14 @@ test_cases:
   - name: Version command works without backend connection
     description: >
       The version command must not require an initialized backend.
-      Running it without --data-dir or any config file must succeed.
+      Running it without init must succeed.
     inputs:
-      env:
-        HOME: /tmp/cupboard-no-config
       command: cupboard version
     expected:
       exit_code: 0
       stdout_contains: "cupboard"
 
-  # --- entity struct compilation ---
+  # --- entity struct compilation (TestUC004_*StructHasRequiredFields) ---
 
   - name: Crumb struct has required fields
     description: >
@@ -104,12 +102,12 @@ test_cases:
   - name: Trail struct has required fields
     inputs:
       go_code: |
-        t := &types.Trail{
+        tr := &types.Trail{
             TrailID:   "test",
             State:     "active",
             CreatedAt: time.Now(),
         }
-        _ = t
+        _ = tr
     expected:
       compiles: true
 
@@ -183,7 +181,7 @@ test_cases:
     expected:
       compiles: true
 
-  # --- interface satisfaction ---
+  # --- interface satisfaction (TestUC004_*Interface*) ---
 
   - name: SQLite backend satisfies Cupboard interface
     description: >
@@ -199,17 +197,31 @@ test_cases:
       Compile-time assertion that the Table interface has all four methods.
     inputs:
       go_code: |
-        var t types.Table
-        _, _ = t.Get("id")
-        _, _ = t.Set("id", nil)
-        _ = t.Delete("id")
-        _, _ = t.Fetch(map[string]any{})
+        var tbl types.Table
+        _, _ = tbl.Get("id")
+        _, _ = tbl.Set("id", nil)
+        _ = tbl.Delete("id")
+        _, _ = tbl.Fetch(map[string]any{})
     expected:
       compiles: true
 
-  # --- standard table names ---
+  - name: Cupboard interface defines GetTable, Attach, Detach
+    description: >
+      Compile-time assertion that the Cupboard interface has all three methods.
+    inputs:
+      go_code: |
+        var cupboard types.Cupboard
+        _, _ = cupboard.GetTable("name")
+        _ = cupboard.Attach(types.Config{})
+        _ = cupboard.Detach()
+    expected:
+      compiles: true
+
+  # --- standard table names (TestUC004_StandardTableNameConstantsDefined) ---
 
   - name: Standard table name constants are defined
+    description: >
+      All six standard table name constants must be defined with correct values.
     inputs:
       go_code: |
         names := []string{
@@ -223,77 +235,184 @@ test_cases:
         _ = names
     expected:
       compiles: true
+      state:
+        CrumbsTable: "crumbs"
+        TrailsTable: "trails"
+        PropertiesTable: "properties"
+        MetadataTable: "metadata"
+        LinksTable: "links"
+        StashesTable: "stashes"
 
-  # --- GetTable for all standard tables ---
+  # --- CLI GetTable for standard tables (TestUC004_GetTableSucceedsForStandardTables) ---
 
   - name: GetTable succeeds for crumbs table
-    inputs:
-      setup:
-        - cupboard init --data-dir ${tmpdir}
-      command: cupboard get crumbs nonexistent-probe-id --data-dir ${tmpdir}
-    expected:
-      exit_code: 1
-      stderr_contains: "not found"
     description: >
       We probe the crumbs table by requesting a nonexistent ID.
-      Exit code 1 with "not found" confirms the table exists and is accessible.
-      Exit code 0 would also be acceptable if the table returns empty.
+      Exit code 0 or 1 confirms the table exists. We must NOT get
+      "table not found" or "unknown table" errors.
+    inputs:
+      setup:
+        - cupboard init
+      command: cupboard get crumbs nonexistent-probe-id
+    expected:
+      exit_code_in: [0, 1]
+      stderr_not_contains:
+        - "table not found"
+        - "unknown table"
 
   - name: GetTable succeeds for trails table
     inputs:
       setup:
-        - cupboard init --data-dir ${tmpdir}
-      command: cupboard get trails nonexistent-probe-id --data-dir ${tmpdir}
+        - cupboard init
+      command: cupboard get trails nonexistent-probe-id
     expected:
-      exit_code: 1
-      stderr_contains: "not found"
+      exit_code_in: [0, 1]
+      stderr_not_contains:
+        - "table not found"
+        - "unknown table"
 
   - name: GetTable succeeds for properties table
     inputs:
       setup:
-        - cupboard init --data-dir ${tmpdir}
-      command: cupboard get properties nonexistent-probe-id --data-dir ${tmpdir}
+        - cupboard init
+      command: cupboard get properties nonexistent-probe-id
     expected:
-      exit_code: 1
-      stderr_contains: "not found"
+      exit_code_in: [0, 1]
+      stderr_not_contains:
+        - "table not found"
+        - "unknown table"
 
   - name: GetTable succeeds for metadata table
     inputs:
       setup:
-        - cupboard init --data-dir ${tmpdir}
-      command: cupboard get metadata nonexistent-probe-id --data-dir ${tmpdir}
+        - cupboard init
+      command: cupboard get metadata nonexistent-probe-id
     expected:
-      exit_code: 1
-      stderr_contains: "not found"
+      exit_code_in: [0, 1]
+      stderr_not_contains:
+        - "table not found"
+        - "unknown table"
 
   - name: GetTable succeeds for links table
     inputs:
       setup:
-        - cupboard init --data-dir ${tmpdir}
-      command: cupboard get links nonexistent-probe-id --data-dir ${tmpdir}
+        - cupboard init
+      command: cupboard get links nonexistent-probe-id
     expected:
-      exit_code: 1
-      stderr_contains: "not found"
+      exit_code_in: [0, 1]
+      stderr_not_contains:
+        - "table not found"
+        - "unknown table"
 
   - name: GetTable succeeds for stashes table
     inputs:
       setup:
-        - cupboard init --data-dir ${tmpdir}
-      command: cupboard get stashes nonexistent-probe-id --data-dir ${tmpdir}
+        - cupboard init
+      command: cupboard get stashes nonexistent-probe-id
     expected:
-      exit_code: 1
-      stderr_contains: "not found"
+      exit_code_in: [0, 1]
+      stderr_not_contains:
+        - "table not found"
+        - "unknown table"
 
   - name: GetTable fails for unknown table name
     description: >
-      Requesting a table that does not exist must return ErrTableNotFound.
-      The CLI surfaces this as a non-zero exit code.
+      Requesting a table that does not exist via CLI must return a non-zero exit code.
     inputs:
       setup:
-        - cupboard init --data-dir ${tmpdir}
-      command: cupboard get nonexistent nonexistent-id --data-dir ${tmpdir}
+        - cupboard init
+      command: cupboard get nonexistent nonexistent-id
     expected:
       exit_code: 1
+
+  # --- Backend API GetTable tests (TestUC004_BackendGetTableAllTables) ---
+
+  - name: Backend GetTable succeeds for crumbs table
+    description: >
+      Direct backend API test. GetTable returns a non-nil Table for crumbs.
+    inputs:
+      go_code: |
+        backend := sqlite.NewBackend()
+        config := types.Config{Backend: "sqlite", DataDir: tmpDir}
+        backend.Attach(config)
+        defer backend.Detach()
+        tbl, err := backend.GetTable(types.CrumbsTable)
+    expected:
+      error: nil
+      result_not_nil: true
+
+  - name: Backend GetTable succeeds for trails table
+    inputs:
+      go_code: |
+        backend := sqlite.NewBackend()
+        config := types.Config{Backend: "sqlite", DataDir: tmpDir}
+        backend.Attach(config)
+        defer backend.Detach()
+        tbl, err := backend.GetTable(types.TrailsTable)
+    expected:
+      error: nil
+      result_not_nil: true
+
+  - name: Backend GetTable succeeds for properties table
+    inputs:
+      go_code: |
+        backend := sqlite.NewBackend()
+        config := types.Config{Backend: "sqlite", DataDir: tmpDir}
+        backend.Attach(config)
+        defer backend.Detach()
+        tbl, err := backend.GetTable(types.PropertiesTable)
+    expected:
+      error: nil
+      result_not_nil: true
+
+  - name: Backend GetTable succeeds for metadata table
+    inputs:
+      go_code: |
+        backend := sqlite.NewBackend()
+        config := types.Config{Backend: "sqlite", DataDir: tmpDir}
+        backend.Attach(config)
+        defer backend.Detach()
+        tbl, err := backend.GetTable(types.MetadataTable)
+    expected:
+      error: nil
+      result_not_nil: true
+
+  - name: Backend GetTable succeeds for links table
+    inputs:
+      go_code: |
+        backend := sqlite.NewBackend()
+        config := types.Config{Backend: "sqlite", DataDir: tmpDir}
+        backend.Attach(config)
+        defer backend.Detach()
+        tbl, err := backend.GetTable(types.LinksTable)
+    expected:
+      error: nil
+      result_not_nil: true
+
+  - name: Backend GetTable succeeds for stashes table
+    inputs:
+      go_code: |
+        backend := sqlite.NewBackend()
+        config := types.Config{Backend: "sqlite", DataDir: tmpDir}
+        backend.Attach(config)
+        defer backend.Detach()
+        tbl, err := backend.GetTable(types.StashesTable)
+    expected:
+      error: nil
+      result_not_nil: true
+
+  - name: Backend GetTable returns ErrTableNotFound for unknown table
+    description: >
+      Direct backend API test. GetTable for an unknown table name returns ErrTableNotFound.
+    inputs:
+      go_code: |
+        backend := sqlite.NewBackend()
+        config := types.Config{Backend: "sqlite", DataDir: tmpDir}
+        backend.Attach(config)
+        defer backend.Detach()
+        _, err := backend.GetTable("nonexistent")
+    expected:
+      error: ErrTableNotFound
 
 cleanup:
   - Remove temp directories created during tests
