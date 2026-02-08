@@ -25,7 +25,7 @@ flow:
   - F12: "Get nonexistent entity: call table.Get with a nonexistent ID; the operation must return an error indicating the entity was not found"
   - F13: "Delete nonexistent entity: call table.Delete with a nonexistent ID; the operation must return an error"
   - F14: "Verify JSONL persistence: inspect the JSONL file to confirm that create, update, and delete operations are reflected; each line is valid JSON"
-  - F15: "Repeat on another table: call cupboard.GetTable(trails), create a Trail, retrieve it, and delete it; the same Table interface contract holds across entity types"
+  - F15: "Repeat on every standard table: for each of trails, properties, metadata, links, and stashes, call cupboard.GetTable(name), create an entity with Set (empty ID), retrieve it with Get, list with Fetch, and delete with Delete; the same Table interface contract holds across all six standard tables"
   - F16: "Detach: call cupboard.Detach() to release resources; subsequent Table operations return ErrCupboardDetached"
 touchpoints:
   - T1: "Cupboard interface: Attach, GetTable, Detach (prd-cupboard-core R2)"
@@ -44,7 +44,7 @@ success_criteria:
   - S5: Fetch with filter returns only matching entities
   - S6: Delete(id) removes the entity; subsequent Get returns an error
   - S7: Get and Delete on nonexistent IDs return errors
-  - S8: The same operations work on the crumbs table and the trails table
+  - S8: The same operations (Set, Get, Fetch, Delete) work on all six standard tables (crumbs, trails, properties, metadata, links, stashes)
   - S9: JSONL file reflects all create, update, and delete operations
   - S10: Detach prevents further operations with ErrCupboardDetached
 out_of_scope:
@@ -58,8 +58,12 @@ test_suite: test-rel01.0-uc002-sqlite-crud
 dependencies:
   - D1: prd-cupboard-core (Cupboard and Table interface definitions)
   - D2: prd-sqlite-backend (SQLite backend, JSONL persistence, hydration/dehydration)
-  - D3: prd-crumbs-interface (Crumb entity struct used as example entity)
-  - D4: prd-trails-interface (Trail entity struct used to verify cross-table behavior)
+  - D3: prd-crumbs-interface (Crumb entity struct)
+  - D4: prd-trails-interface (Trail entity struct)
+  - D5: prd-properties-interface (Property entity struct)
+  - D6: prd-metadata-interface (Metadata entity struct)
+  - D7: prd-links-interface (Link entity struct)
+  - D8: prd-stash-interface (Stash entity struct)
 risks:
   - K1: "JSONL file corruption on crash | Atomic write (temp file + rename) per prd-sqlite-backend R5.2"
   - K2: "Type assertion fails on Get | Callers must type-assert; document the pattern"
@@ -96,11 +100,14 @@ demo: |
   _, err := table.Get(id)
   // err != nil
 
-  // Same pattern on trails table
-  trails, _ := cupboard.GetTable("trails")
-  trail := &Trail{State: "active"}
-  tid, _ := trails.Set("", trail)
-  trails.Get(tid)
-  trails.Delete(tid)
+  // Same pattern on all other standard tables
+  for _, name := range []string{"trails", "properties", "metadata", "links", "stashes"} {
+    tbl, _ := cupboard.GetTable(name)
+    entity := newEntity(name) // create appropriate entity for the table
+    eid, _ := tbl.Set("", entity)
+    tbl.Get(eid)
+    tbl.Fetch(map[string]any{})
+    tbl.Delete(eid)
+  }
 
   cupboard.Detach()

@@ -18,7 +18,7 @@ preconditions:
   - Cupboard binary built from cmd/cupboard
   - Fresh temp directory for config and data
   - Config file points SQLite backend at the temp data directory
-  - No existing crumbs, trails, or links
+  - No existing entities in any standard table
 
 test_cases:
 
@@ -263,7 +263,35 @@ test_cases:
       exit_code: 1
       stderr_contains: "not found"
 
-  # --- S8: Same operations work on crumbs and trails tables ---
+  - name: Get nonexistent property returns error
+    inputs:
+      command: cupboard get properties nonexistent-uuid-12345
+    expected:
+      exit_code: 1
+      stderr_contains: "not found"
+
+  - name: Get nonexistent metadata returns error
+    inputs:
+      command: cupboard get metadata nonexistent-uuid-12345
+    expected:
+      exit_code: 1
+      stderr_contains: "not found"
+
+  - name: Get nonexistent link returns error
+    inputs:
+      command: cupboard get links nonexistent-uuid-12345
+    expected:
+      exit_code: 1
+      stderr_contains: "not found"
+
+  - name: Get nonexistent stash returns error
+    inputs:
+      command: cupboard get stashes nonexistent-uuid-12345
+    expected:
+      exit_code: 1
+      stderr_contains: "not found"
+
+  # --- S8: Same operations work on all six standard tables ---
 
   - name: Create trail with empty ID generates UUID v7
     description: Set on trails table with empty ID generates a UUID v7.
@@ -339,6 +367,199 @@ test_cases:
         trails.jsonl:
           contains:
             - '"state":"pending"'
+
+  # --- S8 continued: properties table ---
+
+  - name: Create property with empty ID generates UUID v7
+    description: Set on properties table with empty ID generates a UUID v7.
+    inputs:
+      command: cupboard set properties "" '{"Name":"priority","ValueType":"categorical"}'
+    expected:
+      exit_code: 0
+      stdout_contains: "PropertyID"
+      state:
+        property_id_format: uuid_v7
+
+  - name: Get property returns entity with matching fields
+    inputs:
+      setup:
+        - cupboard set properties "" '{"Name":"priority","ValueType":"categorical"}'
+      command: cupboard get properties ${property_id}
+    expected:
+      exit_code: 0
+      stdout_json:
+        Name: "priority"
+        ValueType: "categorical"
+
+  - name: Delete property removes from storage
+    inputs:
+      setup:
+        - cupboard set properties "" '{"Name":"priority","ValueType":"categorical"}'
+      command: cupboard delete properties ${property_id}
+    expected:
+      exit_code: 0
+    verify:
+      command: cupboard get properties ${property_id}
+      exit_code: 1
+
+  - name: Fetch properties with empty filter returns all
+    inputs:
+      setup:
+        - cupboard set properties "" '{"Name":"priority","ValueType":"categorical"}'
+        - cupboard set properties "" '{"Name":"labels","ValueType":"list"}'
+      command: cupboard list properties
+    expected:
+      exit_code: 0
+      stdout_json:
+        min_length: 2
+
+  # --- S8 continued: metadata table ---
+
+  - name: Create metadata with empty ID generates UUID v7
+    description: Set on metadata table with empty ID generates a UUID v7.
+    inputs:
+      setup:
+        - cupboard set crumbs "" '{"Name":"Parent crumb","State":"draft"}'
+      command: cupboard set metadata "" '{"CrumbID":"${crumb_id}","TableName":"comments","Content":"A comment"}'
+    expected:
+      exit_code: 0
+      stdout_contains: "MetadataID"
+      state:
+        metadata_id_format: uuid_v7
+
+  - name: Get metadata returns entity with matching fields
+    inputs:
+      setup:
+        - cupboard set crumbs "" '{"Name":"Parent crumb","State":"draft"}'
+        - cupboard set metadata "" '{"CrumbID":"${crumb_id}","TableName":"comments","Content":"A comment"}'
+      command: cupboard get metadata ${metadata_id}
+    expected:
+      exit_code: 0
+      stdout_json:
+        Content: "A comment"
+        TableName: "comments"
+
+  - name: Delete metadata removes from storage
+    inputs:
+      setup:
+        - cupboard set crumbs "" '{"Name":"Parent crumb","State":"draft"}'
+        - cupboard set metadata "" '{"CrumbID":"${crumb_id}","TableName":"comments","Content":"Delete me"}'
+      command: cupboard delete metadata ${metadata_id}
+    expected:
+      exit_code: 0
+    verify:
+      command: cupboard get metadata ${metadata_id}
+      exit_code: 1
+
+  - name: Fetch metadata with empty filter returns all
+    inputs:
+      setup:
+        - cupboard set crumbs "" '{"Name":"Parent crumb","State":"draft"}'
+        - cupboard set metadata "" '{"CrumbID":"${crumb_id}","TableName":"comments","Content":"Comment 1"}'
+        - cupboard set metadata "" '{"CrumbID":"${crumb_id}","TableName":"comments","Content":"Comment 2"}'
+      command: cupboard list metadata
+    expected:
+      exit_code: 0
+      stdout_json:
+        length: 2
+
+  # --- S8 continued: links table ---
+
+  - name: Create link with empty ID generates UUID v7
+    description: Set on links table with empty ID generates a UUID v7.
+    inputs:
+      setup:
+        - cupboard set crumbs "" '{"Name":"From crumb","State":"draft"}'
+        - cupboard set crumbs "" '{"Name":"To crumb","State":"draft"}'
+      command: cupboard set links "" '{"LinkType":"child_of","FromID":"${crumb1_id}","ToID":"${crumb2_id}"}'
+    expected:
+      exit_code: 0
+      stdout_contains: "LinkID"
+      state:
+        link_id_format: uuid_v7
+
+  - name: Get link returns entity with matching fields
+    inputs:
+      setup:
+        - cupboard set crumbs "" '{"Name":"From crumb","State":"draft"}'
+        - cupboard set crumbs "" '{"Name":"To crumb","State":"draft"}'
+        - cupboard set links "" '{"LinkType":"child_of","FromID":"${crumb1_id}","ToID":"${crumb2_id}"}'
+      command: cupboard get links ${link_id}
+    expected:
+      exit_code: 0
+      stdout_json:
+        LinkType: "child_of"
+
+  - name: Delete link removes from storage
+    inputs:
+      setup:
+        - cupboard set crumbs "" '{"Name":"From crumb","State":"draft"}'
+        - cupboard set crumbs "" '{"Name":"To crumb","State":"draft"}'
+        - cupboard set links "" '{"LinkType":"child_of","FromID":"${crumb1_id}","ToID":"${crumb2_id}"}'
+      command: cupboard delete links ${link_id}
+    expected:
+      exit_code: 0
+    verify:
+      command: cupboard get links ${link_id}
+      exit_code: 1
+
+  - name: Fetch links with empty filter returns all
+    inputs:
+      setup:
+        - cupboard set crumbs "" '{"Name":"From crumb","State":"draft"}'
+        - cupboard set crumbs "" '{"Name":"To crumb","State":"draft"}'
+        - cupboard set links "" '{"LinkType":"child_of","FromID":"${crumb1_id}","ToID":"${crumb2_id}"}'
+        - cupboard set links "" '{"LinkType":"belongs_to","FromID":"${crumb2_id}","ToID":"${crumb1_id}"}'
+      command: cupboard list links
+    expected:
+      exit_code: 0
+      stdout_json:
+        length: 2
+
+  # --- S8 continued: stashes table ---
+
+  - name: Create stash with empty ID generates UUID v7
+    description: Set on stashes table with empty ID generates a UUID v7.
+    inputs:
+      command: cupboard set stashes "" '{"Name":"build-count","StashType":"counter","Value":0}'
+    expected:
+      exit_code: 0
+      stdout_contains: "StashID"
+      state:
+        stash_id_format: uuid_v7
+
+  - name: Get stash returns entity with matching fields
+    inputs:
+      setup:
+        - cupboard set stashes "" '{"Name":"build-count","StashType":"counter","Value":0}'
+      command: cupboard get stashes ${stash_id}
+    expected:
+      exit_code: 0
+      stdout_json:
+        Name: "build-count"
+        StashType: "counter"
+
+  - name: Delete stash removes from storage
+    inputs:
+      setup:
+        - cupboard set stashes "" '{"Name":"build-count","StashType":"counter","Value":0}'
+      command: cupboard delete stashes ${stash_id}
+    expected:
+      exit_code: 0
+    verify:
+      command: cupboard get stashes ${stash_id}
+      exit_code: 1
+
+  - name: Fetch stashes with empty filter returns all
+    inputs:
+      setup:
+        - cupboard set stashes "" '{"Name":"build-count","StashType":"counter","Value":0}'
+        - cupboard set stashes "" '{"Name":"lock-a","StashType":"lock","Value":null}'
+      command: cupboard list stashes
+    expected:
+      exit_code: 0
+      stdout_json:
+        length: 2
 
   # --- S9: JSONL file reflects create, update, delete operations ---
 

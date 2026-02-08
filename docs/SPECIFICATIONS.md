@@ -70,7 +70,7 @@ Table 4 Test Suite Index
 | Test Suite | Title | Traces | Test Cases |
 |------------|-------|--------|------------|
 | [test-rel01.0-uc001-cupboard-lifecycle](test-suites/test-rel01.0-uc001-cupboard-lifecycle.yaml) | Cupboard lifecycle and CRUD operations | rel01.0-uc001-cupboard-lifecycle | 19 |
-| [test-rel01.0-uc002-sqlite-crud](test-suites/test-rel01.0-uc002-sqlite-crud.yaml) | Table interface CRUD operations | rel01.0-uc002-sqlite-crud | 37 |
+| [test-rel01.0-uc002-sqlite-crud](test-suites/test-rel01.0-uc002-sqlite-crud.yaml) | Table interface CRUD operations | rel01.0-uc002-sqlite-crud | 57 |
 | [test-rel01.0-uc003-crumb-lifecycle](test-suites/test-rel01.0-uc003-crumb-lifecycle.yaml) | Crumb entity state machine and archival | rel01.0-uc003-crumb-lifecycle | 22 |
 | [test-rel01.0-uc004-scaffolding-validation](test-suites/test-rel01.0-uc004-scaffolding-validation.yaml) | Scaffolding validation (types, interfaces, CLI compile) | rel01.0-uc004-scaffolding-validation | 22 |
 | [test-rel01.0-uc005-crumbs-table-benchmarks](test-suites/test-rel01.0-uc005-crumbs-table-benchmarks.yaml) | Crumbs Table performance benchmarks | rel01.0-uc005-crumbs-table-benchmarks | 14 |
