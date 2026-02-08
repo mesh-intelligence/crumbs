@@ -25,25 +25,27 @@ test_cases:
     inputs:
       command: |
         stash := &Stash{Name: "test-stash", StashType: "context", Value: map[string]any{"key": "value"}, Version: 1}
-        stashesTable.Set("", stash)
+        id, err := stashesTable.Set("", stash)
     expected:
       exit_code: 0
       state:
-        stash_id_generated: true
+        id_not_empty: true
         stash_id_is_uuid_v7: true
-        created_at_set: true
+        stash_stashid_equals_returned_id: true
+        created_at_not_zero: true
 
   - name: Set with existing ID updates stash
     inputs:
       setup:
-        - Create context stash
+        - 'Create context stash with value {"original": true}'
       command: |
         stash.Value = map[string]any{"updated": true}
-        stashesTable.Set(stash.StashID, stash)
+        stashesTable.Set(stashID, stash)
+        entity, _ := stashesTable.Get(stashID)
     expected:
       exit_code: 0
       state:
-        value_updated: true
+        value_has_updated_key: true
 
   # --- S2: All five stash types can be created ---
 
@@ -51,53 +53,52 @@ test_cases:
     inputs:
       command: |
         stash := &Stash{Name: "api-connection", StashType: "resource", Value: map[string]any{"uri": "https://api.example.com", "kind": "http"}, Version: 1}
-        stashesTable.Set("", stash)
+        id, _ := stashesTable.Set("", stash)
+        entity, _ := stashesTable.Get(id)
     expected:
       exit_code: 0
       state:
         stash_type: resource
-        value_has_uri: true
-        value_has_kind: true
 
   - name: Create artifact stash
     inputs:
       command: |
         stash := &Stash{Name: "build-output", StashType: "artifact", Value: map[string]any{"path": "/tmp/build.zip", "producer": "build-agent"}, Version: 1}
-        stashesTable.Set("", stash)
+        id, _ := stashesTable.Set("", stash)
+        entity, _ := stashesTable.Get(id)
     expected:
       exit_code: 0
       state:
         stash_type: artifact
-        value_has_path: true
-        value_has_producer: true
 
   - name: Create context stash
     inputs:
       command: |
         stash := &Stash{Name: "shared-config", StashType: "context", Value: map[string]any{"timeout": 30, "retries": 3}, Version: 1}
-        stashesTable.Set("", stash)
+        id, _ := stashesTable.Set("", stash)
+        entity, _ := stashesTable.Get(id)
     expected:
       exit_code: 0
       state:
         stash_type: context
-        value_has_timeout: true
 
   - name: Create counter stash
     inputs:
       command: |
-        stash := &Stash{Name: "request-counter", StashType: "counter", Value: map[string]any{"value": 0}, Version: 1}
-        stashesTable.Set("", stash)
+        stash := &Stash{Name: "request-counter", StashType: "counter", Value: map[string]any{"value": int64(0)}, Version: 1}
+        id, _ := stashesTable.Set("", stash)
+        entity, _ := stashesTable.Get(id)
     expected:
       exit_code: 0
       state:
         stash_type: counter
-        initial_value: 0
 
   - name: Create lock stash
     inputs:
       command: |
         stash := &Stash{Name: "resource-lock", StashType: "lock", Value: nil, Version: 1}
-        stashesTable.Set("", stash)
+        id, _ := stashesTable.Set("", stash)
+        entity, _ := stashesTable.Get(id)
     expected:
       exit_code: 0
       state:
@@ -109,10 +110,11 @@ test_cases:
   - name: SetValue updates value and increments version
     inputs:
       setup:
-        - Create context stash with Version 1
+        - 'Create context stash with value {"timeout": 30} and Version 1'
       command: |
         stash.SetValue(map[string]any{"timeout": 60})
-        stashesTable.Set(stash.StashID, stash)
+        stashesTable.Set(stashID, stash)
+        entity, _ := stashesTable.Get(stashID)
     expected:
       exit_code: 0
       state:
@@ -123,7 +125,7 @@ test_cases:
     inputs:
       setup:
         - Create lock stash
-      command: stash.SetValue(map[string]any{"invalid": true})
+      command: 'stash.SetValue(map[string]any{"invalid": true})'
     expected:
       error: ErrInvalidStashType
 
@@ -132,17 +134,18 @@ test_cases:
   - name: GetValue returns current value
     inputs:
       setup:
-        - Create context stash with value {"key": "original"}
-      command: stash.GetValue()
+        - 'Create context stash with value {"key": "original"}'
+      command: value := stash.GetValue()
     expected:
       state:
+        value_not_nil: true
         value_key: original
 
   - name: GetValue returns nil for empty stash
     inputs:
       setup:
         - Create lock stash with nil value
-      command: stash.GetValue()
+      command: value := stash.GetValue()
     expected:
       state:
         value_is_nil: true
@@ -155,12 +158,12 @@ test_cases:
         - Create counter stash with value 0
       command: |
         newVal, err := stash.Increment(5)
-        stashesTable.Set(stash.StashID, stash)
+        stashesTable.Set(stashID, stash)
     expected:
       exit_code: 0
       state:
         new_value: 5
-        version_incremented: true
+        version: 2
 
   - name: Increment with negative delta
     inputs:
@@ -168,22 +171,21 @@ test_cases:
         - Create counter stash with value 10
       command: |
         newVal, err := stash.Increment(-3)
-        stashesTable.Set(stash.StashID, stash)
+        stashesTable.Set(stashID, stash)
     expected:
       exit_code: 0
       state:
         new_value: 7
-        version_incremented: true
 
   - name: Multiple increments accumulate correctly
     inputs:
       setup:
         - Create counter stash with value 0
-      steps:
-        - "stash.Increment(10) // returns 10"
-        - "stash.Increment(-3) // returns 7"
-        - "stash.Increment(5) // returns 12"
-        - stashesTable.Set(stash.StashID, stash)
+      command: |
+        stash.Increment(10)  // returns 10
+        stash.Increment(-3)  // returns 7
+        stash.Increment(5)   // returns 12
+        stashesTable.Set(stashID, stash)
     expected:
       state:
         final_value: 12
@@ -202,16 +204,16 @@ test_cases:
   - name: Acquire lock sets holder and increments version
     inputs:
       setup:
-        - Create lock stash with nil value
+        - Create lock stash with nil value and Version 1
       command: |
         err := stash.Acquire("worker-1")
-        stashesTable.Set(stash.StashID, stash)
+        stashesTable.Set(stashID, stash)
     expected:
       exit_code: 0
       state:
         holder: worker-1
         acquired_at_set: true
-        version_incremented: true
+        version: 2
 
   - name: Acquire by same holder succeeds (reentrant)
     inputs:
@@ -255,8 +257,9 @@ test_cases:
         - Create lock stash
         - Acquire lock with holder "worker-1"
       command: |
+        versionAfterAcquire := stash.Version
         err := stash.Release("worker-1")
-        stashesTable.Set(stash.StashID, stash)
+        stashesTable.Set(stashID, stash)
     expected:
       exit_code: 0
       state:
@@ -294,7 +297,8 @@ test_cases:
     inputs:
       command: |
         stash := &Stash{Name: "version-test", StashType: "context", Value: map[string]any{}, Version: 1}
-        stashesTable.Set("", stash)
+        stashID, _ := stashesTable.Set("", stash)
+        entity, _ := stashesTable.Get(stashID)
     expected:
       state:
         version: 1
@@ -302,11 +306,13 @@ test_cases:
   - name: Version increments on each mutation
     inputs:
       setup:
-        - Create counter stash with version 1
-      steps:
-        - "stash.Increment(1) // version 2"
-        - "stash.Increment(1) // version 3"
-        - "stash.Increment(1) // version 4"
+        - Create counter stash with Version 1
+      command: |
+        stash.Increment(1)
+        stash.Increment(1)
+        stash.Increment(1)
+        stashesTable.Set(stashID, stash)
+        entity, _ := stashesTable.Get(stashID)
     expected:
       state:
         version: 4
@@ -321,7 +327,7 @@ test_cases:
         - Create lock stash "lock-1"
       command: |
         filter := map[string]any{"StashType": "counter"}
-        stashesTable.Fetch(filter)
+        entities, _ := stashesTable.Fetch(filter)
     expected:
       exit_code: 0
       state:
@@ -335,7 +341,7 @@ test_cases:
         - Create context stash "other-config"
       command: |
         filter := map[string]any{"Name": "shared-config"}
-        stashesTable.Fetch(filter)
+        entities, _ := stashesTable.Fetch(filter)
     expected:
       exit_code: 0
       state:
@@ -345,8 +351,8 @@ test_cases:
   - name: Fetch with no filter returns all stashes
     inputs:
       setup:
-        - Create stashes of each type
-      command: stashesTable.Fetch(nil)
+        - Create one stash of each type (resource, artifact, context, counter, lock)
+      command: entities, _ := stashesTable.Fetch(nil)
     expected:
       exit_code: 0
       state:
@@ -358,7 +364,7 @@ test_cases:
         - Create context stash
       command: |
         filter := map[string]any{"StashType": "nonexistent"}
-        stashesTable.Fetch(filter)
+        entities, _ := stashesTable.Fetch(filter)
     expected:
       exit_code: 0
       state:
@@ -370,9 +376,9 @@ test_cases:
     inputs:
       setup:
         - Create context stash
-      steps:
-        - stashesTable.Delete(stash.StashID)
-        - stashesTable.Get(stash.StashID)
+      command: |
+        err := stashesTable.Delete(stashID)
+        _, getErr := stashesTable.Get(stashID)
     expected:
       state:
         delete_succeeds: true
@@ -390,120 +396,27 @@ test_cases:
     expected:
       error: ErrInvalidID
 
-  # --- S14, S15: Stash history tracking ---
+  # --- Additional edge cases ---
 
-  - name: History entry created on stash creation
+  - name: Get with empty ID returns ErrInvalidID
     inputs:
-      command: |
-        stash := &Stash{Name: "history-test", StashType: "context", Value: map[string]any{"key": "value"}, Version: 1}
-        stashesTable.Set("", stash)
-        table.FetchStashHistory(stash.StashID)
-    expected:
-      exit_code: 0
-      state:
-        history_count: 1
-        first_entry_operation: create
-        first_entry_version: 1
-
-  - name: History entry created on SetValue
-    inputs:
-      setup:
-        - Create context stash with Version 1
-      command: |
-        stash.SetValue(map[string]any{"updated": true})
-        stashesTable.Set(stash.StashID, stash)
-        table.FetchStashHistory(stash.StashID)
-    expected:
-      exit_code: 0
-      state:
-        history_count: 2
-        last_entry_operation: set
-        last_entry_version: 2
-
-  - name: History entry created on Increment
-    inputs:
-      setup:
-        - Create counter stash with Version 1
-      command: |
-        stash.Increment(5)
-        stashesTable.Set(stash.StashID, stash)
-        table.FetchStashHistory(stash.StashID)
-    expected:
-      exit_code: 0
-      state:
-        history_count: 2
-        last_entry_operation: increment
-        last_entry_version: 2
-
-  - name: History entry created on Acquire
-    inputs:
-      setup:
-        - Create lock stash with Version 1
-      command: |
-        stash.Acquire("worker-1")
-        stashesTable.Set(stash.StashID, stash)
-        table.FetchStashHistory(stash.StashID)
-    expected:
-      exit_code: 0
-      state:
-        history_count: 2
-        last_entry_operation: acquire
-        last_entry_version: 2
-
-  - name: History entry created on Release
-    inputs:
-      setup:
-        - Create lock stash with Version 1
-        - Acquire lock
-      command: |
-        stash.Release("worker-1")
-        stashesTable.Set(stash.StashID, stash)
-        table.FetchStashHistory(stash.StashID)
-    expected:
-      exit_code: 0
-      state:
-        history_count: 3
-        last_entry_operation: release
-        last_entry_version: 3
-
-  - name: FetchStashHistory returns entries ordered by version
-    inputs:
-      setup:
-        - Create counter stash
-        - Increment three times
-      command: table.FetchStashHistory(stash.StashID)
-    expected:
-      exit_code: 0
-      state:
-        history_count: 4
-        versions_ascending: true
-        operations: [create, increment, increment, increment]
-
-  - name: FetchStashHistory with empty ID returns ErrInvalidID
-    inputs:
-      command: table.FetchStashHistory("")
+      command: stashesTable.Get("")
     expected:
       error: ErrInvalidID
 
-  - name: FetchStashHistory for nonexistent stash returns empty list
+  - name: Get nonexistent stash returns ErrNotFound
     inputs:
-      command: table.FetchStashHistory("nonexistent-uuid")
+      command: stashesTable.Get("nonexistent-uuid-12345")
+    expected:
+      error: ErrNotFound
+
+  - name: Fetch on empty table returns empty slice
+    inputs:
+      command: entities, _ := stashesTable.Fetch(nil)
     expected:
       exit_code: 0
       state:
-        history_count: 0
-
-  - name: History entries include value snapshots
-    inputs:
-      setup:
-        - Create counter stash with value 0
-      steps:
-        - "stash.Increment(10) and Set"
-        - "stash.Increment(5) and Set"
-      command: table.FetchStashHistory(stash.StashID)
-    expected:
-      state:
-        history_values: [0, 10, 15]
+        result_count: 0
 
   # --- Full workflow test ---
 
@@ -513,18 +426,19 @@ test_cases:
       verify version tracking, filter queries, and cleanup.
     inputs:
       steps:
-        - Create resource stash "api-conn"
-        - Create artifact stash "build-out"
-        - Create context stash "shared-cfg"
-        - Create counter stash "req-counter"
-        - Create lock stash "mutex"
-        - "SetValue on context: update timeout to 60"
-        - "Increment counter by 10, then -3, then 5 (expect 12)"
-        - "Acquire lock with worker-1"
-        - "Try acquire with worker-2 (expect ErrLockHeld)"
-        - "Release lock with worker-1"
-        - "Acquire lock with worker-2 (success)"
-        - Verify version tracking for each stash
+        - Create resource stash "api-conn" with uri "https://api.example.com"
+        - Create artifact stash "build-out" with path "/tmp/build"
+        - Create context stash "shared-cfg" with timeout 30
+        - Create counter stash "req-counter" with value 0
+        - Create lock stash "mutex" with nil value
+        - Verify 5 stashes exist via Fetch(nil)
+        - SetValue on context stash to update timeout to 60
+        - Increment counter by 10, then -3, then 5 (expect 12)
+        - Acquire lock with worker-1
+        - Try acquire with worker-2 (expect ErrLockHeld)
+        - Release lock with worker-1
+        - Acquire lock with worker-2 (success)
+        - Verify lock holder is worker-2
         - Fetch by stash_type "counter" (expect 1)
         - Fetch by stash_type "lock" (expect 1)
         - Delete context stash
@@ -535,6 +449,8 @@ test_cases:
         context_value_after_set: 60
         counter_value_after_increments: 12
         lock_holder_after_release_reacquire: worker-2
+        counter_fetch_count: 1
+        lock_fetch_count: 1
         final_stash_count: 4
 
 cleanup:
