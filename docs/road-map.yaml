@@ -119,6 +119,9 @@ releases:
       - id: rel03.0-uc003-stash-operations
         summary: "Stash system: value ops, counters, locks, versioning, history"
         status: done
+      - id: rel03.0-uc004-trail-crumb-lifecycle
+        summary: "Trail-crumb lifecycle: container semantics, completion makes permanent, abandon cascades deletion"
+        status: not_started
 
   - version: "99.0"
     name: Unscheduled
