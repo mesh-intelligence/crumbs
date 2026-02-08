@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Pick the top task from beads and invoke Claude to do the work.
+# Pick tasks from beads and invoke Claude to do the work until the queue is empty.
 #
 # The script handles task picking, reservation, and git worktree management.
 # Claude receives a clean prompt focused on the work itself.
@@ -9,12 +9,6 @@
 #
 # Options:
 #   --silence-claude       Suppress Claude's output
-#   --make-work-limit N    Number of issues to create when no tasks (default: 5)
-#   --cycles N             Number of make-work cycles (default: 0)
-#
-# Generation lifecycle is handled by separate scripts:
-#   open-generation.sh     Open a new generation branch
-#   close-generation.sh    Close generation branch (merge to main)
 #
 # See docs/engineering/eng02-generation-workflow.md for the full workflow.
 #
@@ -24,16 +18,13 @@
 # 3. Run Claude in the worktree
 # 4. Merge the branch back to the current branch
 # 5. Clean up the worktree
-# 6. When no tasks left, call make-work.sh to create more
-# 7. Repeat for specified number of cycles
+# 6. Repeat until the queue is empty
 #
 
 set -e
 
 # Parse arguments
 SILENCE_CLAUDE=false
-MAKE_WORK_LIMIT=5
-CYCLES=0
 REPO_ARG=""
 
 while [[ $# -gt 0 ]]; do
@@ -41,14 +32,6 @@ while [[ $# -gt 0 ]]; do
     --silence-claude)
       SILENCE_CLAUDE=true
       shift
-      ;;
-    --make-work-limit)
-      MAKE_WORK_LIMIT="$2"
-      shift 2
-      ;;
-    --cycles)
-      CYCLES="$2"
-      shift 2
       ;;
     *)
       REPO_ARG="$1"
@@ -61,7 +44,6 @@ REPO_ROOT="${REPO_ARG:-$(dirname "$0")/..}"
 cd "$REPO_ROOT" || exit 1
 REPO_ROOT=$(pwd)
 
-SCRIPT_DIR="$REPO_ROOT/scripts"
 PROJECT_NAME=$(basename "$REPO_ROOT")
 WORKTREE_BASE="/tmp/${PROJECT_NAME}-worktrees"
 
@@ -210,54 +192,20 @@ do_one_task() {
   close_task
 }
 
-call_make_work() {
-  echo ""
-  echo "========================================"
-  echo "No tasks available. Creating new work..."
-  echo "========================================"
-  echo ""
-
-  local make_work_args="--limit $MAKE_WORK_LIMIT"
-  if [ "$SILENCE_CLAUDE" = true ]; then
-    make_work_args="$make_work_args --silence-claude"
-  fi
-
-  "$SCRIPT_DIR/make-work.sh" $make_work_args
-}
-
 main() {
   local total_tasks=0
-  local make_work_calls=0
 
-  while true; do
-    # Do all available tasks
-    while pick_task; do
-      do_one_task
-      total_tasks=$((total_tasks + 1))
-      echo ""
-      echo "----------------------------------------"
-      echo ""
-    done
-
-    echo "Queue empty. Completed $total_tasks task(s) so far."
-
-    # Check if we should create more work
-    if [ "$make_work_calls" -lt "$CYCLES" ]; then
-      make_work_calls=$((make_work_calls + 1))
-      echo ""
-      echo "========================================"
-      echo "Make-work call $make_work_calls of $CYCLES"
-      echo "========================================"
-      call_make_work
-    else
-      break
-    fi
+  while pick_task; do
+    do_one_task
+    total_tasks=$((total_tasks + 1))
+    echo ""
+    echo "----------------------------------------"
+    echo ""
   done
 
   echo ""
   echo "========================================"
-  echo "Done. Total tasks completed: $total_tasks"
-  echo "Make-work calls: $make_work_calls"
+  echo "Done. Completed $total_tasks task(s)."
   echo "========================================"
 }
 

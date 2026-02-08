@@ -70,10 +70,12 @@ Table 3 Generation scripts
 | Script | Operation | Precondition |
 |--------|-----------|-------------|
 | `open-generation.sh` | Open a new generation | Must be on main |
+| `generate.sh` | Run make-work/do-work cycles | Works on any branch |
 | `close-generation.sh` | Close the current generation | Must be on a `generation-*` branch |
-| `do-work.sh` | Pick and execute tasks (generate phase) | Works on any branch (main or generation) |
+| `do-work.sh` | Drain the task queue | Works on any branch |
+| `make-work.sh` | Create new tasks | Works on any branch |
 
-`open-generation.sh` tags main, creates the generation branch, deletes Go files, and commits the clean slate. `close-generation.sh` tags the generation branch as closed, merges to main, and deletes the branch. `do-work.sh` handles the task loop only and is branch-agnostic.
+`open-generation.sh` tags main, creates the generation branch, deletes Go files, and commits the clean slate. `generate.sh` runs the generation loop: it calls `make-work.sh` to create tasks then `do-work.sh` to execute them, repeating for the requested number of cycles. `close-generation.sh` tags the generation branch as closed, merges to main, and deletes the branch. `do-work.sh` and `make-work.sh` can also be called independently outside of a generation.
 
 ## Constraints
 
@@ -85,5 +87,7 @@ Main must not receive direct commits while a generation is in progress. All work
 
 - eng01-git-integration (task-level branching, JSONL merge behavior, commit conventions)
 - open-generation.sh (open a generation)
+- generate.sh (make-work/do-work loop)
 - close-generation.sh (close a generation)
-- do-work.sh (task loop)
+- do-work.sh (drain task queue)
+- make-work.sh (create tasks)
