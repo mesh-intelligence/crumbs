@@ -16,7 +16,7 @@ go_test=$(find . -type f -name "*_test.go" ! -path "*/vendor/*" -print0 2>/dev/n
 # Count words in markdown documentation
 doc_wc=$(cat README.md docs/*.md docs/**/*.md 2>/dev/null | wc -w | awk '{print $1}')
 
-printf "Lines of code (Go, production): %s\n" "${go_prod:-0}"
-printf "Lines of code (Go, tests):      %s\n" "${go_test:-0}"
-printf "Lines of code (Go, total):      %s\n" "$((${go_prod:-0} + ${go_test:-0}))"
-printf "Words (documentation):          %s\n" "${doc_wc:-0}"
+printf "go_production_loc: %s\n" "${go_prod:-0}"
+printf "go_test_loc: %s\n" "${go_test:-0}"
+printf "go_total_loc: %s\n" "$((${go_prod:-0} + ${go_test:-0}))"
+printf "documentation_words: %s\n" "${doc_wc:-0}"

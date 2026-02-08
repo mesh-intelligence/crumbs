@@ -135,10 +135,10 @@ func Stats() error {
 		return err
 	}
 
-	fmt.Printf("Lines of code (Go, production): %d\n", prodLines)
-	fmt.Printf("Lines of code (Go, tests):      %d\n", testLines)
-	fmt.Printf("Lines of code (Go, total):      %d\n", prodLines+testLines)
-	fmt.Printf("Words (documentation):          %d\n", docWords)
+	fmt.Printf("go_production_loc: %d\n", prodLines)
+	fmt.Printf("go_test_loc: %d\n", testLines)
+	fmt.Printf("go_total_loc: %d\n", prodLines+testLines)
+	fmt.Printf("documentation_words: %d\n", docWords)
 	return nil
 }
 
