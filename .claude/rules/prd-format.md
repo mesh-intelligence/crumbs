@@ -1,6 +1,6 @@
 # PRD Format
 
-PRDs are YAML files stored at `/docs/product-requirements/prd-[feature-name].yaml`.
+PRDs are YAML files stored at `/docs/specs/product-requirements/prd-[feature-name].yaml`.
 
 ## Top-Level Fields
 
@@ -199,4 +199,4 @@ Ask 3-5 clarifying questions if the request is ambiguous:
 - [ ] Each requirement is specific and actionable
 - [ ] non_goals define what is out of scope
 - [ ] acceptance_criteria are checkable without ambiguity
-- [ ] File saved as `prd-[feature-name].yaml` in `/docs/product-requirements/`
+- [ ] File saved as `prd-[feature-name].yaml` in `/docs/specs/product-requirements/`

@@ -14,9 +14,9 @@ go_test=$(find . -type f -name "*_test.go" ! -path "*/vendor/*" -print0 2>/dev/n
   xargs -0 wc -l 2>/dev/null | tail -1 | awk '{print $1}')
 
 # Count words in spec files by category
-spec_prd=$(cat docs/product-requirements/*.yaml 2>/dev/null | wc -w | awk '{print $1}')
-spec_uc=$(cat docs/use-cases/*.yaml 2>/dev/null | wc -w | awk '{print $1}')
-spec_test=$(cat docs/test-suites/*.yaml 2>/dev/null | wc -w | awk '{print $1}')
+spec_prd=$(cat docs/specs/product-requirements/*.yaml 2>/dev/null | wc -w | awk '{print $1}')
+spec_uc=$(cat docs/specs/use-cases/*.yaml 2>/dev/null | wc -w | awk '{print $1}')
+spec_test=$(cat docs/specs/test-suites/*.yaml 2>/dev/null | wc -w | awk '{print $1}')
 
 printf '{"go_loc_prod":%s,"go_loc_test":%s,"go_loc":%s,"spec_wc_prd":%s,"spec_wc_uc":%s,"spec_wc_test":%s}\n' \
   "${go_prod:-0}" "${go_test:-0}" "$((${go_prod:-0} + ${go_test:-0}))" \

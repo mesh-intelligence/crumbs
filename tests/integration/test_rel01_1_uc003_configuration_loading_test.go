@@ -1,8 +1,8 @@
 // CLI integration tests for configuration loading and path resolution.
 // Validates test-rel01.1-uc003-configuration-loading.yaml test cases.
-// Implements: docs/test-suites/test-rel01.1-uc003-configuration-loading.yaml;
+// Implements: docs/specs/test-suites/test-rel01.1-uc003-configuration-loading.yaml;
 //
-//	docs/use-cases/rel01.1-uc003-configuration-loading.yaml;
+//	docs/specs/use-cases/rel01.1-uc003-configuration-loading.yaml;
 //	prd-configuration-directories R1, R2, R7;
 //	prd-cupboard-cli R6.
 package integration

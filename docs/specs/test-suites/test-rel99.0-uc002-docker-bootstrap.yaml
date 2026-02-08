@@ -89,7 +89,7 @@ test_cases:
 
   - name: Read all PRDs in product-requirements
     inputs:
-      command: ls /workspace/docs/product-requirements/prd-*.yaml | wc -l
+      command: ls /workspace/docs/specs/product-requirements/prd-*.yaml | wc -l
     expected:
       exit_code: 0
       state:

@@ -214,8 +214,8 @@ bd sync               # Sync with git
 | ------------ | -------------------------------------------------------- |
 | Vision       | [docs/VISION.md](docs/VISION.md)                         |
 | Architecture | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)             |
-| PRDs         | [docs/product-requirements/](docs/product-requirements/) |
-| Use Cases    | [docs/use-cases/](docs/use-cases/)                       |
+| PRDs         | [docs/specs/product-requirements/](docs/specs/product-requirements/) |
+| Use Cases    | [docs/specs/use-cases/](docs/specs/use-cases/)                       |
 
 ## Validation
 

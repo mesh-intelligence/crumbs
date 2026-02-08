@@ -1,7 +1,7 @@
 // Go API integration tests for stash operations.
 // Validates test-rel03.0-uc003-stash-operations.yaml test cases.
-// Implements: docs/test-suites/test-rel03.0-uc003-stash-operations.yaml;
-//             docs/use-cases/rel03.0-uc003-stash-operations.yaml;
+// Implements: docs/specs/test-suites/test-rel03.0-uc003-stash-operations.yaml;
+//             docs/specs/use-cases/rel03.0-uc003-stash-operations.yaml;
 //             prd-stash-interface R1-R12.
 package integration
 

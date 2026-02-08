@@ -12,7 +12,7 @@ Read VISION.md and ARCHITECTURE.md for context.
 
 ## 2. Before implementing
 
-1. **Identify related PRDs and docs** from the issue (deliverable path, component, requirements). See `docs/product-requirements/prd-*.yaml` and `docs/ARCHITECTURE.md`.
+1. **Identify related PRDs and docs** from the issue (deliverable path, component, requirements). See `docs/specs/product-requirements/prd-*.yaml` and `docs/ARCHITECTURE.md`.
 2. **Read** the relevant sections so behaviour, data shapes, and contracts are clear.
 3. Read the issue description (Requirements, Design Decisions, Acceptance Criteria) in full.
 4. **Read existing code** that you will modify or extend:
@@ -61,7 +61,7 @@ When you close the **last issue in an epic** (all child tasks complete), perform
 6. **Check for doc updates needed**: if implementation revealed design changes or clarifications, **ask the user** before updating architecture or PRD docs
 7. **Evaluate use case completion**:
    - Identify which use case(s) this epic contributes to
-   - Review success criteria in `docs/use-cases/`
+   - Review success criteria in `docs/specs/use-cases/`
    - If all criteria are met, update road-map.yaml to mark the use case status as "Complete"
    - If not complete, note what remains and ensure follow-up tasks exist
 8. **Summarize epic completion**: run `./scripts/stats.sh` and report:

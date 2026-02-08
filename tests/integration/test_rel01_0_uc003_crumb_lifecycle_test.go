@@ -1,7 +1,7 @@
 // CLI integration tests for crumb entity state machine and archival.
 // Validates test-rel01.0-uc003-crumb-lifecycle.yaml test cases.
-// Implements: docs/test-suites/test-rel01.0-uc003-crumb-lifecycle.yaml;
-//             docs/use-cases/rel01.0-uc003-crumb-lifecycle.yaml.
+// Implements: docs/specs/test-suites/test-rel01.0-uc003-crumb-lifecycle.yaml;
+//             docs/specs/use-cases/rel01.0-uc003-crumb-lifecycle.yaml.
 package integration
 
 import (

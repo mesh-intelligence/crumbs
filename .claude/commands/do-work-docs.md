@@ -2,18 +2,18 @@
 
 Use this command when the work is **documentation** (markdown in `docs/`): PRDs, use cases, invention disclosures, ARCHITECTURE updates, or other docs. Follow the **crumb-format** rule for output location and format; use the format rule named in the issue (prd-format, use-case-format, patent-disclosure-format, documentation-standards).
 
-Read VISION.md and ARCHITECTURE.md for context. For PRDs also scan existing `docs/product-requirements/`; for use cases `docs/use-cases/`; for invention disclosures `docs/invention-disclosures/`.
+Read VISION.md and ARCHITECTURE.md for context. For PRDs also scan existing `docs/specs/product-requirements/`; for use cases `docs/specs/use-cases/`; for invention disclosures `docs/invention-disclosures/`.
 
 ## 1. Select a documentation task
 
 1. Run `bd ready` to see available work.
-2. **Pick a documentation issue**: one whose description specifies a **documentation** deliverable (output path under `docs/`, e.g. `docs/product-requirements/prd-*.yaml`, `docs/use-cases/rel*-uc*-*.yaml`, `docs/invention-disclosures/`, or `docs/ARCHITECTURE.md`). If the issue lists "File location", "PRD location", "Output path", or "Required sections" from a doc format rule, it is a documentation task.
+2. **Pick a documentation issue**: one whose description specifies a **documentation** deliverable (output path under `docs/`, e.g. `docs/specs/product-requirements/prd-*.yaml`, `docs/specs/use-cases/rel*-uc*-*.yaml`, `docs/invention-disclosures/`, or `docs/ARCHITECTURE.md`). If the issue lists "File location", "PRD location", "Output path", or "Required sections" from a doc format rule, it is a documentation task.
 3. Run `bd update <issue-id> --status in_progress` to claim it.
 
 ## 2. Before writing
 
 1. **Read the issue** and note:
-   - **Output path** (exact file or directory, e.g. `docs/product-requirements/prd-task-tracking-auditing.yaml`).
+   - **Output path** (exact file or directory, e.g. `docs/specs/product-requirements/prd-task-tracking-auditing.yaml`).
    - **Format rule** (e.g. prd-format, use-case-format, patent-disclosure-format, documentation-standards) and **required sections**.
    - **Scope or content hints** (Problem, Goals, requirements bullets, non-goals, etc.).
 2. **Open the format rule** (e.g. `.claude/rules/prd-format.md`, `.claude/rules/use-case-format.md`) and follow its structure and checklist.
@@ -36,7 +36,7 @@ Read VISION.md and ARCHITECTURE.md for context. For PRDs also scan existing `doc
    bd comments add <issue-id> "tokens: <count>, loc: <lines_added>+<lines_modified>"
    bd close <issue-id>
    ```
-4. **Commit** changes and `.beads/issues.jsonl`. **Commit message must state the deliverable and path** (e.g. `Add prd-task-tracking-auditing (docs/product-requirements/prd-task-tracking-auditing.yaml)`):
+4. **Commit** changes and `.beads/issues.jsonl`. **Commit message must state the deliverable and path** (e.g. `Add prd-task-tracking-auditing (docs/specs/product-requirements/prd-task-tracking-auditing.yaml)`):
    ```bash
    git add -A
    git commit -m "Add <doc name> (<output path>)"
@@ -51,7 +51,7 @@ When you close the **last issue in an epic** (all child tasks complete):
 2. **Verify epic-level acceptance criteria** (from the epic issue description)
 3. **Evaluate use case completion**:
    - Identify which use case(s) this epic contributes to
-   - Review success criteria in `docs/use-cases/`
+   - Review success criteria in `docs/specs/use-cases/`
    - If all criteria are met, update road-map.yaml to mark the use case status as "Complete"
    - If not complete, note what remains and ensure follow-up tasks exist
 4. **File follow-up issues** for any gaps discovered

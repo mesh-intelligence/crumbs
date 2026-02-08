@@ -16,7 +16,7 @@ When selecting from available issues, **prefer documentation issues over code is
 ## Quick selection
 
 1. Run `bd ready` and look at the issue titles and descriptions.
-2. If the deliverable is **markdown in docs/** (path like `docs/product-requirements/...`, `docs/use-cases/...`, `docs/invention-disclosures/...`, or `docs/ARCHITECTURE.md`) → use **do-work-docs**.
+2. If the deliverable is **markdown in docs/** (path like `docs/specs/product-requirements/...`, `docs/specs/use-cases/...`, `docs/invention-disclosures/...`, or `docs/ARCHITECTURE.md`) → use **do-work-docs**.
 3. If the deliverable is **code** (Go, tests, `pkg/`, `internal/`, `cmd/`, `workers/`) → use **do-work-code**.
 
 Then run the chosen command and follow its steps (select task, follow rules, implement, close issue, commit).

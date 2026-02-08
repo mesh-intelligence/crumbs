@@ -1,6 +1,6 @@
 // Crumbs Table performance benchmarks for core operations.
-// Validates: docs/test-suites/test-rel01.0-uc005-crumbs-table-benchmarks.yaml
-// Implements: docs/use-cases/rel01.0-uc005-crumbs-table-benchmarks.yaml;
+// Validates: docs/specs/test-suites/test-rel01.0-uc005-crumbs-table-benchmarks.yaml
+// Implements: docs/specs/use-cases/rel01.0-uc005-crumbs-table-benchmarks.yaml;
 //             prd-cupboard-core R3 (Table interface);
 //             prd-sqlite-backend R14, R15 (entity hydration, JSONL persistence).
 //

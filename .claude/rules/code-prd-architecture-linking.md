@@ -5,10 +5,10 @@ When implementing code (e.g. via the **do-work** command), code must correspond 
 ## Before Implementing
 
 1. **Identify related docs** from the issue, component, or area you are changing:
-   - **PRDs**: `docs/product-requirements/prd-*.yaml`
+   - **PRDs**: `docs/specs/product-requirements/prd-*.yaml`
    - **Architecture**: `docs/ARCHITECTURE.md` (components, interfaces, protocols)
-   - **Use cases**: `docs/use-cases/rel*-uc*-*.yaml`
-   - **Test suites**: `docs/test-suites/test*.yaml`
+   - **Use cases**: `docs/specs/use-cases/rel*-uc*-*.yaml`
+   - **Test suites**: `docs/specs/test-suites/test*.yaml`
    - **Engineering guidelines**: `docs/engineering/eng*.md`
    - **Vision** (if relevant): `docs/VISION.md`
 2. **Read** the relevant sections of those docs so behaviour, data shapes, and contracts are clear.
@@ -66,9 +66,9 @@ When **do-work** is invoked:
 | Doc | Path | Use |
 |-----|------|-----|
 | Architecture | `docs/ARCHITECTURE.md` | Components, interfaces, protocols |
-| PRDs | `docs/product-requirements/prd-*.yaml` | Requirements, operations, data structures |
-| Use cases | `docs/use-cases/rel*-uc*-*.yaml` | Tracer-bullet flows, demo criteria |
-| Test suites | `docs/test-suites/test*.yaml` | Test cases with inputs and expected outputs |
+| PRDs | `docs/specs/product-requirements/prd-*.yaml` | Requirements, operations, data structures |
+| Use cases | `docs/specs/use-cases/rel*-uc*-*.yaml` | Tracer-bullet flows, demo criteria |
+| Test suites | `docs/specs/test-suites/test*.yaml` | Test cases with inputs and expected outputs |
 | Engineering guidelines | `docs/engineering/eng*.md` | Conventions and practices |
 | Vision | `docs/VISION.md` | Goals and context |
 

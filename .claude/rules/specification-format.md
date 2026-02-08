@@ -22,7 +22,7 @@ A specifications document is a human-readable summary that ties together the pro
    | 01.0 | Core Storage with SQLite Backend | 3 / 4 | in progress |
    | 01.1 | Post-Core Validation | 0 / 2 | not started |
 
-3. **PRD Index** -- A table listing every PRD in `docs/product-requirements/`. Columns: PRD ID, title, and a one-sentence summary of the problem it solves. Link each ID to the file path.
+3. **PRD Index** -- A table listing every PRD in `docs/specs/product-requirements/`. Columns: PRD ID, title, and a one-sentence summary of the problem it solves. Link each ID to the file path.
 
    Example
 
@@ -32,7 +32,7 @@ A specifications document is a human-readable summary that ties together the pro
    |-----|-------|---------|
    | [prd-cupboard-core](product-requirements/prd-cupboard-core.yaml) | Cupboard Core Interface | Defines the Cupboard and Table interfaces for backend-agnostic storage access |
 
-4. **Use Case Index** -- A table listing every use case in `docs/use-cases/`. Columns: use case ID, title, release, status, and test suite ID. Link each ID to the file path and each test suite ID to its file.
+4. **Use Case Index** -- A table listing every use case in `docs/specs/use-cases/`. Columns: use case ID, title, release, status, and test suite ID. Link each ID to the file path and each test suite ID to its file.
 
    Example
 
@@ -42,7 +42,7 @@ A specifications document is a human-readable summary that ties together the pro
    |----------|-------|---------|--------|------------|
    | [rel01.0-uc001](use-cases/rel01.0-uc001-cupboard-lifecycle.yaml) | Cupboard Lifecycle | 01.0 | done | [test004](test-suites/test004-cupboard-lifecycle.yaml) |
 
-5. **Test Suite Index** -- A table listing every test suite in `docs/test-suites/`. Columns: test suite ID, title, traces (which use cases or PRDs it validates), and number of test cases.
+5. **Test Suite Index** -- A table listing every test suite in `docs/specs/test-suites/`. Columns: test suite ID, title, traces (which use cases or PRDs it validates), and number of test cases.
 
    Example
 
@@ -131,7 +131,7 @@ We treat SPECIFICATIONS.md as a generated artifact. Regenerate it whenever any o
 - A test suite is added or its traces change
 - The roadmap changes (new release, status update)
 
-When regenerating, read all files in `docs/product-requirements/`, `docs/use-cases/`, `docs/test-suites/`, and `docs/road-map.yaml` to build the tables and diagram from current data. Do not rely on stale content from a previous version of SPECIFICATIONS.md.
+When regenerating, read all files in `docs/specs/product-requirements/`, `docs/specs/use-cases/`, `docs/specs/test-suites/`, and `docs/road-map.yaml` to build the tables and diagram from current data. Do not rely on stale content from a previous version of SPECIFICATIONS.md.
 
 ## Writing Guidelines
 
@@ -140,15 +140,15 @@ When regenerating, read all files in `docs/product-requirements/`, `docs/use-cas
 - **Scope**: Summarize and link; do not duplicate. Each table entry should be one or two sentences at most. The detail lives in the linked files.
 - **Tables**: Name all tables per documentation-standards.
 - **Figures**: Per documentation-standards. Define PlantUML inline; do not create separate `.puml` files.
-- **Links**: Use relative paths from `docs/` (e.g. `product-requirements/prd-cupboard-core.yaml`, not absolute paths).
+- **Links**: Use relative paths from `docs/` (e.g. `specs/product-requirements/prd-cupboard-core.yaml`, not absolute paths).
 
 ## Completeness Checklist
 
 - [ ] Overview references VISION.md and ARCHITECTURE.md
 - [ ] Roadmap Summary table covers every release in road-map.yaml
-- [ ] PRD Index lists every file in docs/product-requirements/
-- [ ] Use Case Index lists every file in docs/use-cases/
-- [ ] Test Suite Index lists every file in docs/test-suites/
+- [ ] PRD Index lists every file in docs/specs/product-requirements/
+- [ ] Use Case Index lists every file in docs/specs/use-cases/
+- [ ] Test Suite Index lists every file in docs/specs/test-suites/
 - [ ] PRD-to-Use-Case Mapping lists every use case / PRD pair with why required and coverage
 - [ ] Traceability Diagram shows PRD-to-use-case and use-case-to-test-suite relationships
 - [ ] Coverage Gaps section identifies missing test suites or untraced PRDs

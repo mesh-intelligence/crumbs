@@ -1,7 +1,7 @@
 // CLI integration tests for Table interface CRUD operations.
 // Validates test-rel01.0-uc002-table-crud.yaml test cases.
-// Implements: docs/test-suites/test-rel01.0-uc002-table-crud.yaml;
-//             docs/use-cases/rel01.0-uc002-table-crud.yaml.
+// Implements: docs/specs/test-suites/test-rel01.0-uc002-table-crud.yaml;
+//             docs/specs/use-cases/rel01.0-uc002-table-crud.yaml.
 package integration
 
 import (

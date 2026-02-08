@@ -131,15 +131,15 @@ func Stats() error {
 		return err
 	}
 
-	prdWords, err := countWordsInGlob("docs/product-requirements/*.yaml")
+	prdWords, err := countWordsInGlob("docs/specs/product-requirements/*.yaml")
 	if err != nil {
 		return err
 	}
-	ucWords, err := countWordsInGlob("docs/use-cases/*.yaml")
+	ucWords, err := countWordsInGlob("docs/specs/use-cases/*.yaml")
 	if err != nil {
 		return err
 	}
-	testWords, err := countWordsInGlob("docs/test-suites/*.yaml")
+	testWords, err := countWordsInGlob("docs/specs/test-suites/*.yaml")
 	if err != nil {
 		return err
 	}

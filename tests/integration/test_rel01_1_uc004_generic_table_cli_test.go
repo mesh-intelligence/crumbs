@@ -1,8 +1,8 @@
 // CLI integration tests for generic table operations.
 // Validates test-rel01.1-uc004-generic-table-cli.yaml test cases.
-// Implements: docs/test-suites/test-rel01.1-uc004-generic-table-cli.yaml;
+// Implements: docs/specs/test-suites/test-rel01.1-uc004-generic-table-cli.yaml;
 //
-//	docs/use-cases/rel01.1-uc004-generic-table-cli.yaml;
+//	docs/specs/use-cases/rel01.1-uc004-generic-table-cli.yaml;
 //	prd-cupboard-cli R3 (generic table commands);
 //	prd-cupboard-core R3 (Table interface).
 package integration

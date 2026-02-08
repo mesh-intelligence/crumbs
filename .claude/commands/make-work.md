@@ -1,6 +1,6 @@
 # Command: Make Work
 
-Read VISION.md, ARCHITECTURE.md, road-map.yaml, docs/product-requirements/README.md, and docs/use-cases/README.md if they exist.
+Read VISION.md, ARCHITECTURE.md, road-map.yaml, docs/specs/product-requirements/README.md, and docs/specs/use-cases/README.md if they exist.
 
 First, check the current state of work:
 

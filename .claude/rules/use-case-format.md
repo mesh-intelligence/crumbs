@@ -1,10 +1,10 @@
 # Use Case Format
 
-Use cases are YAML files stored at `docs/use-cases/rel[NN].[N]-uc[NNN]-[short-name].yaml`.
+Use cases are YAML files stored at `docs/specs/use-cases/rel[NN].[N]-uc[NNN]-[short-name].yaml`.
 
 A **use case** describes a concrete usage of the architecture. It specifies a **tracer bullet**: one end-to-end path of functionality through the system. Use cases lead to a **proof of concept** or **demo** and guide **how we develop software**—what to build next and in what order.
 
-Every use case must have a corresponding **test suite** in `docs/test-suites/`. When creating a new use case, also create or update the test suite that validates its success criteria. See the test-case-format rule for the test suite structure.
+Every use case must have a corresponding **test suite** in `docs/specs/test-suites/`. When creating a new use case, also create or update the test suite that validates its success criteria. See the test-case-format rule for the test suite structure.
 
 ## Top-Level Fields
 
@@ -144,7 +144,7 @@ out_of_scope:
 
 ### test_suite
 
-The ID of the corresponding test suite in `docs/test-suites/`. Every use case must have a test suite. When creating a new use case, also create the test suite YAML file.
+The ID of the corresponding test suite in `docs/specs/test-suites/`. Every use case must have a test suite. When creating a new use case, also create the test suite YAML file.
 
 ```yaml
 test_suite: test-rel01.0-uc004-scaffolding-validation
@@ -213,7 +213,7 @@ Numbers are sequential within their scope. Do not skip numbers.
 
 ## File and Naming
 
-- **Location**: `docs/use-cases/rel[NN].[N]-uc[NNN]-[short-name].yaml`
+- **Location**: `docs/specs/use-cases/rel[NN].[N]-uc[NNN]-[short-name].yaml`
 - **Release prefix**: Major and minor release (e.g., 01.0, 01.1, 02.0). A release delivers all use cases in that release. Minor releases add functionality discovered later.
 - **Use case number**: Three-digit sequence number within the release (e.g., 001, 002, 003).
 - **Short name**: Lowercase, hyphenated, verb or scenario describing the use case.
@@ -237,7 +237,7 @@ Minor releases (e.g., 01.1, 02.1) validate completed major releases without renu
 
 Every use case must have a corresponding test suite. The test suite:
 
-- Lives in `docs/test-suites/test-[use-case-id].yaml`
+- Lives in `docs/specs/test-suites/test-[use-case-id].yaml`
 - Traces back to the use case via the `traces` field
 - Contains test cases that validate the success criteria (`S1`, `S2`, ...)
 - Follows the test-case-format rule
@@ -279,6 +279,6 @@ Every new use case must have an entry in `docs/road-map.yaml`. When creating a n
 - [ ] success_criteria are numbered (S1, S2, ...) and checkable without ambiguity
 - [ ] out_of_scope keeps the use case focused
 - [ ] test_suite references a corresponding test suite ID
-- [ ] Test suite YAML exists in `docs/test-suites/` and traces back to this use case
+- [ ] Test suite YAML exists in `docs/specs/test-suites/` and traces back to this use case
 - [ ] Use case added to the appropriate release in `docs/road-map.yaml`
-- [ ] File saved as `rel[NN].[N]-uc[NNN]-[short-name].yaml` in `docs/use-cases/`
+- [ ] File saved as `rel[NN].[N]-uc[NNN]-[short-name].yaml` in `docs/specs/use-cases/`

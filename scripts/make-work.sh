@@ -216,7 +216,7 @@ build_prompt() {
   cat <<'PROMPT_START'
 # Make Work
 
-Read VISION.md, ARCHITECTURE.md, road-map.yaml, docs/product-requirements/, docs/use-cases/, docs/test-suites/, and docs/engineering/ if they exist.
+Read VISION.md, ARCHITECTURE.md, road-map.yaml, docs/specs/product-requirements/, docs/specs/use-cases/, docs/specs/test-suites/, and docs/engineering/ if they exist.
 
 ## Existing Work
 

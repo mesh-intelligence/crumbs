@@ -1,7 +1,7 @@
 // CLI integration tests for scaffolding validation.
 // Validates test-rel01.0-uc004-scaffolding-validation.yaml test cases.
-// Implements: docs/test-suites/test-rel01.0-uc004-scaffolding-validation.yaml;
-//             docs/use-cases/rel01.0-uc004-scaffolding-validation.yaml.
+// Implements: docs/specs/test-suites/test-rel01.0-uc004-scaffolding-validation.yaml;
+//             docs/specs/use-cases/rel01.0-uc004-scaffolding-validation.yaml.
 package integration
 
 import (
