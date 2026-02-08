@@ -13,10 +13,11 @@ Table 1 Roadmap Summary
 | Release | Name | Use Cases (done / total) | Status |
 |---------|------|--------------------------|--------|
 | 01.0 | Core Storage with SQLite Backend | 5 / 5 | done |
-| 01.1 | Post-Core Validation | 3 / 4 | in progress |
+| 01.1 | Post-Core Validation | 3 / 5 | in progress |
 | 02.0 | Properties with Enforcement | 0 / 2 | not started |
 | 02.1 | Issue-Tracking and Self-Hosting | 3 / 4 | in progress |
-| 03.0 | Trails and Stashes | 2 / 3 | in progress |
+| 03.0 | Trails and Stashes | 2 / 4 | in progress |
+| 03.1 | Post-Trails Validation | 0 / 1 | not started |
 | 99.0 | Unscheduled | 0 / 2 | not started |
 
 ## PRD Index
@@ -51,6 +52,7 @@ Table 3 Use Case Index
 | [rel01.1-uc002-jsonl-git-roundtrip](use-cases/rel01.1-uc002-jsonl-git-roundtrip.yaml) | JSONL Git Roundtrip | 01.1 | done | [test-rel01.1-uc002-jsonl-git-roundtrip](test-suites/test-rel01.1-uc002-jsonl-git-roundtrip.yaml) |
 | [rel01.1-uc003-configuration-loading](use-cases/rel01.1-uc003-configuration-loading.yaml) | Configuration and Path Resolution | 01.1 | done | [test-rel01.1-uc003-configuration-loading](test-suites/test-rel01.1-uc003-configuration-loading.yaml) |
 | [rel01.1-uc004-generic-table-cli](use-cases/rel01.1-uc004-generic-table-cli.yaml) | Generic Table CLI Operations | 01.1 | done | [test-rel01.1-uc004-generic-table-cli](test-suites/test-rel01.1-uc004-generic-table-cli.yaml) |
+| [rel01.1-uc005-flat-self-hosting](use-cases/rel01.1-uc005-flat-self-hosting.yaml) | Flat Self-Hosting | 01.1 | not started | [test-rel01.1-uc005-flat-self-hosting](test-suites/test-rel01.1-uc005-flat-self-hosting.yaml) |
 | [rel02.0-uc001-property-enforcement](use-cases/rel02.0-uc001-property-enforcement.yaml) | Property Enforcement | 02.0 | not started | [test-rel02.0-uc001-property-enforcement](test-suites/test-rel02.0-uc001-property-enforcement.yaml) |
 | [rel02.0-uc002-regeneration-compatibility](use-cases/rel02.0-uc002-regeneration-compatibility.yaml) | Regeneration Compatibility | 02.0 | not started | [test-rel02.0-uc002-regeneration-compatibility](test-suites/test-rel02.0-uc002-regeneration-compatibility.yaml) |
 | [rel02.1-uc001-issue-tracking-cli](use-cases/rel02.1-uc001-issue-tracking-cli.yaml) | Issue-Tracking CLI | 02.1 | not started | [test-rel02.1-uc001-issue-tracking-cli](test-suites/test-rel02.1-uc001-issue-tracking-cli.yaml) |
@@ -60,6 +62,8 @@ Table 3 Use Case Index
 | [rel03.0-uc001-trail-exploration](use-cases/rel03.0-uc001-trail-exploration.yaml) | Trail-Based Exploration | 03.0 | not started | [test-rel03.0-uc001-trail-exploration](test-suites/test-rel03.0-uc001-trail-exploration.yaml) |
 | [rel03.0-uc002-link-management](use-cases/rel03.0-uc002-link-management.yaml) | Link Management | 03.0 | done | [test-rel03.0-uc002-link-management](test-suites/test-rel03.0-uc002-link-management.yaml) |
 | [rel03.0-uc003-stash-operations](use-cases/rel03.0-uc003-stash-operations.yaml) | Stash Operations | 03.0 | done | [test-rel03.0-uc003-stash-operations](test-suites/test-rel03.0-uc003-stash-operations.yaml) |
+| [rel03.0-uc004-trail-crumb-lifecycle](use-cases/rel03.0-uc004-trail-crumb-lifecycle.yaml) | Trail-Crumb Lifecycle Control | 03.0 | not started | [test-rel03.0-uc004-trail-crumb-lifecycle](test-suites/test-rel03.0-uc004-trail-crumb-lifecycle.yaml) |
+| [rel03.1-uc001-self-hosting-with-epics](use-cases/rel03.1-uc001-self-hosting-with-epics.yaml) | Self-Hosting with Epics via Trails | 03.1 | not started | [test-rel03.1-uc001-self-hosting-with-epics](test-suites/test-rel03.1-uc001-self-hosting-with-epics.yaml) |
 | [rel99.0-uc001-blazes-templates](use-cases/rel99.0-uc001-blazes-templates.yaml) | Agent Uses Blazes (Workflow Templates) | 99.0 | not started | [test-rel99.0-uc001-blazes-templates](test-suites/test-rel99.0-uc001-blazes-templates.yaml) |
 | [rel99.0-uc002-docker-bootstrap](use-cases/rel99.0-uc002-docker-bootstrap.yaml) | Docker Bootstrap (Docs to Working System) | 99.0 | not started | [test-rel99.0-uc002-docker-bootstrap](test-suites/test-rel99.0-uc002-docker-bootstrap.yaml) |
 
@@ -78,6 +82,7 @@ Table 4 Test Suite Index
 | [test-rel01.1-uc002-jsonl-git-roundtrip](test-suites/test-rel01.1-uc002-jsonl-git-roundtrip.yaml) | JSONL git roundtrip persistence | rel01.1-uc002-jsonl-git-roundtrip | 32 |
 | [test-rel01.1-uc003-configuration-loading](test-suites/test-rel01.1-uc003-configuration-loading.yaml) | Configuration and path resolution | rel01.1-uc003-configuration-loading | 12 |
 | [test-rel01.1-uc004-generic-table-cli](test-suites/test-rel01.1-uc004-generic-table-cli.yaml) | Generic Table CLI operations | rel01.1-uc004-generic-table-cli | 18 |
+| [test-rel01.1-uc005-flat-self-hosting](test-suites/test-rel01.1-uc005-flat-self-hosting.yaml) | Flat self-hosting issue-tracking workflow | rel01.1-uc005-flat-self-hosting | 29 |
 | [test-rel02.0-uc001-property-enforcement](test-suites/test-rel02.0-uc001-property-enforcement.yaml) | Property enforcement operations | rel02.0-uc001-property-enforcement | 50 |
 | [test-rel02.0-uc002-regeneration-compatibility](test-suites/test-rel02.0-uc002-regeneration-compatibility.yaml) | Regeneration compatibility validation | rel02.0-uc002-regeneration-compatibility | 33 |
 | [test-rel02.1-uc001-issue-tracking-cli](test-suites/test-rel02.1-uc001-issue-tracking-cli.yaml) | Issue-tracking CLI commands | rel02.1-uc001-issue-tracking-cli | 26 |
@@ -87,6 +92,8 @@ Table 4 Test Suite Index
 | [test-rel03.0-uc001-trail-exploration](test-suites/test-rel03.0-uc001-trail-exploration.yaml) | Trail-based exploration and lifecycle | rel03.0-uc001-trail-exploration | 26 |
 | [test-rel03.0-uc002-link-management](test-suites/test-rel03.0-uc002-link-management.yaml) | Link management CRUD and filtering | rel03.0-uc002-link-management | 28 |
 | [test-rel03.0-uc003-stash-operations](test-suites/test-rel03.0-uc003-stash-operations.yaml) | Stash operations for all stash types | rel03.0-uc003-stash-operations | 43 |
+| [test-rel03.0-uc004-trail-crumb-lifecycle](test-suites/test-rel03.0-uc004-trail-crumb-lifecycle.yaml) | Trail-crumb lifecycle control and cascade operations | rel03.0-uc004-trail-crumb-lifecycle | 28 |
+| [test-rel03.1-uc001-self-hosting-with-epics](test-suites/test-rel03.1-uc001-self-hosting-with-epics.yaml) | Self-Hosting with Epics via Trails | rel03.1-uc001-self-hosting-with-epics | 24 |
 | [test-rel99.0-uc001-blazes-templates](test-suites/test-rel99.0-uc001-blazes-templates.yaml) | Agent uses blazes (workflow templates) | rel99.0-uc001-blazes-templates | 21 |
 | [test-rel99.0-uc002-docker-bootstrap](test-suites/test-rel99.0-uc002-docker-bootstrap.yaml) | Docker bootstrap (docs to working system) | rel99.0-uc002-docker-bootstrap | 35 |
 
@@ -119,6 +126,10 @@ Table 5 PRD-to-Use-Case Mapping
 | [rel01.1-uc003](use-cases/rel01.1-uc003-configuration-loading.yaml) | [prd-cupboard-cli](product-requirements/prd-cupboard-cli.yaml) | Tests global flags --config-dir and --data-dir | Partial (R6.2, R6.3) |
 | [rel01.1-uc004](use-cases/rel01.1-uc004-generic-table-cli.yaml) | [prd-cupboard-core](product-requirements/prd-cupboard-core.yaml) | GetTable returns Table for any standard table name | Partial (R2, R3) |
 | [rel01.1-uc004](use-cases/rel01.1-uc004-generic-table-cli.yaml) | [prd-cupboard-cli](product-requirements/prd-cupboard-cli.yaml) | Generic get, set, list, delete commands with JSON output | Partial (R3.1-R3.4, R7-R9) |
+| [rel01.1-uc005](use-cases/rel01.1-uc005-flat-self-hosting.yaml) | [prd-cupboard-core](product-requirements/prd-cupboard-core.yaml) | Uses Cupboard and Table interfaces for crumb storage | Partial (R2, R3) |
+| [rel01.1-uc005](use-cases/rel01.1-uc005-flat-self-hosting.yaml) | [prd-cupboard-cli](product-requirements/prd-cupboard-cli.yaml) | Generic table commands get, set, list, delete | Partial (R3) |
+| [rel01.1-uc005](use-cases/rel01.1-uc005-flat-self-hosting.yaml) | [prd-crumbs-interface](product-requirements/prd-crumbs-interface.yaml) | Crumb Name and State fields for basic tracking | Partial (R1) |
+| [rel01.1-uc005](use-cases/rel01.1-uc005-flat-self-hosting.yaml) | [prd-sqlite-backend](product-requirements/prd-sqlite-backend.yaml) | Storage, JSONL persistence, query engine | Partial (R1-R5) |
 | [rel02.0-uc001](use-cases/rel02.0-uc001-property-enforcement.yaml) | [prd-cupboard-core](product-requirements/prd-cupboard-core.yaml) | Uses Cupboard and Table interfaces for property storage | Partial (R2) |
 | [rel02.0-uc001](use-cases/rel02.0-uc001-property-enforcement.yaml) | [prd-crumbs-interface](product-requirements/prd-crumbs-interface.yaml) | Exercises property operations on crumbs | Partial (R3, R5) |
 | [rel02.0-uc001](use-cases/rel02.0-uc001-property-enforcement.yaml) | [prd-properties-interface](product-requirements/prd-properties-interface.yaml) | Validates property definition, auto-init, backfill, seeding | Partial (R2, R4, R7-R9) |
@@ -146,6 +157,13 @@ Table 5 PRD-to-Use-Case Mapping
 | [rel03.0-uc002](use-cases/rel03.0-uc002-link-management.yaml) | [prd-stash-interface](product-requirements/prd-stash-interface.yaml) | scoped_to link semantics | Partial (R13) |
 | [rel03.0-uc003](use-cases/rel03.0-uc003-stash-operations.yaml) | [prd-cupboard-core](product-requirements/prd-cupboard-core.yaml) | Uses Cupboard and Table interfaces for stash storage | Partial (R2, R3) |
 | [rel03.0-uc003](use-cases/rel03.0-uc003-stash-operations.yaml) | [prd-stash-interface](product-requirements/prd-stash-interface.yaml) | Validates stash types, value ops, counters, locks, history | Partial (R1, R2, R4-R7, R9) |
+| [rel03.0-uc004](use-cases/rel03.0-uc004-trail-crumb-lifecycle.yaml) | [prd-cupboard-core](product-requirements/prd-cupboard-core.yaml) | Uses Cupboard and Table interfaces for trail, crumb, and link storage | Partial (R2, R3) |
+| [rel03.0-uc004](use-cases/rel03.0-uc004-trail-crumb-lifecycle.yaml) | [prd-trails-interface](product-requirements/prd-trails-interface.yaml) | Trail lifecycle Complete and Abandon with cascade operations | Partial (R2, R5, R6) |
+| [rel03.0-uc004](use-cases/rel03.0-uc004-trail-crumb-lifecycle.yaml) | [prd-links-interface](product-requirements/prd-links-interface.yaml) | belongs_to links and cardinality constraints | Partial (R2.1, R6.1) |
+| [rel03.1-uc001](use-cases/rel03.1-uc001-self-hosting-with-epics.yaml) | [prd-cupboard-core](product-requirements/prd-cupboard-core.yaml) | Uses Cupboard and Table interfaces for trail, crumb, and link storage | Partial (R2, R3) |
+| [rel03.1-uc001](use-cases/rel03.1-uc001-self-hosting-with-epics.yaml) | [prd-trails-interface](product-requirements/prd-trails-interface.yaml) | Trail lifecycle for epic-style grouping | Partial (R2, R5, R6) |
+| [rel03.1-uc001](use-cases/rel03.1-uc001-self-hosting-with-epics.yaml) | [prd-links-interface](product-requirements/prd-links-interface.yaml) | belongs_to links associate crumbs with trails | Partial (R2.1) |
+| [rel03.1-uc001](use-cases/rel03.1-uc001-self-hosting-with-epics.yaml) | [prd-sqlite-backend](product-requirements/prd-sqlite-backend.yaml) | Storage, JSONL persistence for trails and links | Partial (R1-R5) |
 | [rel99.0-uc001](use-cases/rel99.0-uc001-blazes-templates.yaml) | [prd-crumbs-interface](product-requirements/prd-crumbs-interface.yaml) | Crumb struct fields referenced in template definitions | Partial (R1) |
 | [rel99.0-uc001](use-cases/rel99.0-uc001-blazes-templates.yaml) | [prd-trails-interface](product-requirements/prd-trails-interface.yaml) | Trail creation and belongs_to links for instantiation | Partial (R3, R7) |
 | [rel99.0-uc002](use-cases/rel99.0-uc002-docker-bootstrap.yaml) | [prd-cupboard-core](product-requirements/prd-cupboard-core.yaml) | Core storage abstraction with Attach/Detach lifecycle | Partial (R1-R3) |
@@ -191,6 +209,7 @@ package "Use Cases - Release 01.1" {
   [rel01.1-uc002\njsonl-git-roundtrip] as uc102
   [rel01.1-uc003\nconfiguration-loading] as uc103
   [rel01.1-uc004\ngeneric-table-cli] as uc104
+  [rel01.1-uc005\nflat-self-hosting] as uc105
 }
 
 package "Use Cases - Release 02.0" {
@@ -209,6 +228,11 @@ package "Use Cases - Release 03.0" {
   [rel03.0-uc001\ntrail-exploration] as uc301
   [rel03.0-uc002\nlink-management] as uc302
   [rel03.0-uc003\nstash-operations] as uc303
+  [rel03.0-uc004\ntrail-crumb-lifecycle] as uc304
+}
+
+package "Use Cases - Release 03.1" {
+  [rel03.1-uc001\nself-hosting-with-epics] as uc311
 }
 
 package "Use Cases - Unscheduled" {
@@ -226,6 +250,7 @@ package "Test Suites" {
   [test-rel01.1-uc002] as ts_102
   [test-rel01.1-uc003] as ts_103
   [test-rel01.1-uc004] as ts_104
+  [test-rel01.1-uc005] as ts_105
   [test-rel02.0-uc001] as ts_201
   [test-rel02.0-uc002] as ts_202
   [test-rel02.1-uc001] as ts_211
@@ -235,6 +260,8 @@ package "Test Suites" {
   [test-rel03.0-uc001] as ts_301
   [test-rel03.0-uc002] as ts_302
   [test-rel03.0-uc003] as ts_303
+  [test-rel03.0-uc004] as ts_304
+  [test-rel03.1-uc001] as ts_311
   [test-rel99.0-uc001] as ts_901
   [test-rel99.0-uc002] as ts_902
 }
@@ -264,6 +291,10 @@ uc103 --> prd_config
 uc103 --> prd_cli
 uc104 --> prd_core
 uc104 --> prd_cli
+uc105 --> prd_core
+uc105 --> prd_cli
+uc105 --> prd_crumbs
+uc105 --> prd_sqlite
 
 uc201 --> prd_core
 uc201 --> prd_crumbs
@@ -294,6 +325,14 @@ uc302 --> prd_trails
 uc302 --> prd_stash
 uc303 --> prd_core
 uc303 --> prd_stash
+uc304 --> prd_core
+uc304 --> prd_trails
+uc304 --> prd_links
+
+uc311 --> prd_core
+uc311 --> prd_trails
+uc311 --> prd_links
+uc311 --> prd_sqlite
 
 uc901 --> prd_crumbs
 uc901 --> prd_trails
@@ -312,6 +351,7 @@ ts_101 --> uc101
 ts_102 --> uc102
 ts_103 --> uc103
 ts_104 --> uc104
+ts_105 --> uc105
 ts_201 --> uc201
 ts_202 --> uc202
 ts_211 --> uc211
@@ -321,6 +361,8 @@ ts_214 --> uc214
 ts_301 --> uc301
 ts_302 --> uc302
 ts_303 --> uc303
+ts_304 --> uc304
+ts_311 --> uc311
 ts_901 --> uc901
 ts_902 --> uc902
 
@@ -331,4 +373,4 @@ ts_902 --> uc902
 
 ## Coverage Gaps
 
-No gaps identified. All 20 use cases have corresponding test suites, and all 10 PRDs are referenced by at least one use case.
+No gaps identified. All 23 use cases have corresponding test suites, and all 10 PRDs are referenced by at least one use case.
