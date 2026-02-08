@@ -1,4 +1,4 @@
-id: test-rel01.0-uc002-sqlite-crud
+id: test-rel01.0-uc002-table-crud
 title: Table interface CRUD operations
 description: >
   Validates the Table interface CRUD operations (Get, Set, Delete, Fetch) through the
@@ -7,7 +7,7 @@ description: >
   entities, error handling for nonexistent IDs, cross-table behavior, JSONL persistence,
   and post-detach error handling.
 traces:
-  - rel01.0-uc002-sqlite-crud
+  - rel01.0-uc002-table-crud
 tags:
   - cli
   - integration

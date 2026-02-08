@@ -1,7 +1,7 @@
-// CLI integration tests for Table interface CRUD operations via SQLite backend.
-// Validates test-rel01.0-uc002-sqlite-crud.yaml test cases.
-// Implements: docs/test-suites/test-rel01.0-uc002-sqlite-crud.yaml;
-//             docs/use-cases/rel01.0-uc002-sqlite-crud.yaml.
+// CLI integration tests for Table interface CRUD operations.
+// Validates test-rel01.0-uc002-table-crud.yaml test cases.
+// Implements: docs/test-suites/test-rel01.0-uc002-table-crud.yaml;
+//             docs/use-cases/rel01.0-uc002-table-crud.yaml.
 package integration
 
 import (
@@ -854,7 +854,7 @@ func TestUC002_S9_JSONLLinesAreValidJSON(t *testing.T) {
 // --- S10: Detach prevents further operations with ErrCupboardDetached ---
 // NOTE: The detach command is not yet implemented in the CLI. These tests are
 // skipped until the detach command is added. The test cases mirror the YAML spec
-// (test-rel01.0-uc002-sqlite-crud.yaml) and should be enabled when the command exists.
+// (test-rel01.0-uc002-table-crud.yaml) and should be enabled when the command exists.
 
 // TestUC002_S10_OperationsAfterDetachReturnError validates that Table operations
 // after Detach return ErrCupboardDetached.

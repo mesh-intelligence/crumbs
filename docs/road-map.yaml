@@ -30,7 +30,7 @@ releases:
       - id: rel01.0-uc001-cupboard-lifecycle
         summary: Config, attach, detach, error handling
         status: done
-      - id: rel01.0-uc002-sqlite-crud
+      - id: rel01.0-uc002-table-crud
         summary: "Table interface CRUD: Set, Get, Fetch, Delete across entity types with JSONL persistence"
         status: done
       - id: rel01.0-uc003-crumb-lifecycle

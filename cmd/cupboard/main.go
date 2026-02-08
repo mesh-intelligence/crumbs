@@ -83,8 +83,8 @@ var versionCmd = &cobra.Command{
 		fmt.Println()
 		fmt.Println("Implemented use cases:")
 		fmt.Println("  rel01.0-uc001  cupboard-lifecycle")
-		fmt.Println("  rel01.0-uc002  sqlite-crud")
-		fmt.Println("  rel01.0-uc003  crud-operations")
+		fmt.Println("  rel01.0-uc002  table-crud")
+		fmt.Println("  rel01.0-uc003  crumb-lifecycle")
 		fmt.Println("  rel01.0-uc004  scaffolding-validation")
 	},
 }

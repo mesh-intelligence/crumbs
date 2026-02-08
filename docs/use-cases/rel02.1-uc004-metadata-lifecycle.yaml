@@ -59,7 +59,7 @@ dependencies:
   - D1: prd-cupboard-core (Cupboard and Table interface definitions)
   - D2: prd-metadata-interface (Metadata struct, Schema struct, built-in schemas)
   - D3: prd-sqlite-backend (SQLite backend, metadata table schema)
-  - D4: rel01.0-uc002-sqlite-crud (Table CRUD must work)
+  - D4: rel01.0-uc002-table-crud (Table CRUD must work)
 risks:
   - K1: "Cascade delete not implemented | Test will fail until R6.5 is implemented; track as gap"
   - K2: "Built-in schemas not seeded | Backend must pre-register comments and attachments"

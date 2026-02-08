@@ -49,7 +49,7 @@ dependencies:
   - D1: prd-cupboard-core (Cupboard and Table interface definitions)
   - D2: prd-cupboard-cli (generic table command specifications)
   - D3: rel01.0-uc001-cupboard-lifecycle (Cupboard lifecycle must work)
-  - D4: rel01.0-uc002-sqlite-crud (Table CRUD operations must work)
+  - D4: rel01.0-uc002-table-crud (Table CRUD operations must work)
 risks:
   - K1: "JSON parsing differences across entity types | parseEntityJSON handles each type"
   - K2: "Filter syntax edge cases | Tests cover malformed filters"

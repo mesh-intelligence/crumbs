@@ -54,7 +54,7 @@ test_suite: test-rel01.0-uc005-crumbs-table-benchmarks
 dependencies:
   - D1: prd-cupboard-core (Table interface definition)
   - D2: prd-sqlite-backend (SQLite backend, indexes, hydration)
-  - D3: rel01.0-uc002-sqlite-crud (Table CRUD must work before benchmarking)
+  - D3: rel01.0-uc002-table-crud (Table CRUD must work before benchmarking)
 risks:
   - K1: "Benchmark variability | Run multiple iterations; use benchstat for statistical comparison"
   - K2: "Temp directory I/O noise | Use consistent temp directory across runs"
@@ -71,5 +71,5 @@ demo: |
 references:
   - prd-cupboard-core
   - prd-sqlite-backend
-  - rel01.0-uc002-sqlite-crud
+  - rel01.0-uc002-table-crud
   - docs/ARCHITECTURE.md
