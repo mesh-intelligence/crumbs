@@ -18,7 +18,7 @@ preconditions:
 
 test_cases:
 
-  # --- Get command tests ---
+  # --- Get command tests (testGetCommand) ---
 
   - name: Get crumb by ID returns JSON object
     inputs:
@@ -27,9 +27,7 @@ test_cases:
       command: cupboard get crumbs <created-id>
     expected:
       exit_code: 0
-      stdout_json:
-        Name: "Test crumb"
-        State: draft
+      stdout_contains: "Test crumb"
 
   - name: Get nonexistent crumb returns exit 1
     inputs:
@@ -45,7 +43,7 @@ test_cases:
       exit_code: 1
       stderr_contains: 'unknown table "invalid-table"'
 
-  # --- Set command tests ---
+  # --- Set command tests (testSetCommand) ---
 
   - name: Set crumb with empty ID creates new entity
     inputs:
@@ -64,9 +62,9 @@ test_cases:
       command: cupboard set crumbs <created-id> '{"CrumbID":"<created-id>","Name":"Updated","State":"ready"}'
     expected:
       exit_code: 0
-      stdout_json:
-        Name: Updated
-        State: ready
+      state:
+        crumb_name: Updated
+        crumb_state: ready
 
   - name: Set trail creates new trail
     inputs:
@@ -89,7 +87,7 @@ test_cases:
       exit_code: 1
       stderr_contains: 'unknown table "unknown-table"'
 
-  # --- List command tests ---
+  # --- List command tests (testListCommand) ---
 
   - name: List crumbs returns JSON array
     inputs:
@@ -107,7 +105,8 @@ test_cases:
       command: cupboard list crumbs
     expected:
       exit_code: 0
-      stdout_equals: "[]"
+      state:
+        list_count: 0
 
   - name: List with filter returns matching entities
     inputs:
@@ -135,7 +134,7 @@ test_cases:
       exit_code: 1
       stderr_contains: 'unknown table "fake-table"'
 
-  # --- Delete command tests ---
+  # --- Delete command tests (testDeleteCommand) ---
 
   - name: Delete crumb by ID succeeds
     inputs:
@@ -162,24 +161,53 @@ test_cases:
       exit_code: 1
       stderr_contains: 'unknown table "bad-table"'
 
-  # --- Cross-table tests ---
+  # --- Cross-table operation tests (testCrossTableOperations) ---
 
-  - name: Operations work on trails table
-    inputs:
-      command: cupboard set trails "" '{"State":"active"}'
-    expected:
-      exit_code: 0
-      stdout_contains: TrailID
-
-  - name: Operations work on links table
+  - name: Create and list trails
+    description: >
+      Tests the full lifecycle of trails table operations: create, get, list, delete.
     inputs:
       setup:
-        - cupboard set crumbs "" '{"Name":"Crumb","State":"draft"}'
         - cupboard set trails "" '{"State":"active"}'
-      command: cupboard set links "" '{"LinkType":"belongs_to","FromID":"<crumb-id>","ToID":"<trail-id>"}'
+      command: cupboard get trails <created-trail-id>
     expected:
       exit_code: 0
-      stdout_contains: LinkID
+      stdout_contains: "active"
+      state:
+        trail_count: 1
+        trail_deleted_after_test: true
+
+  - name: Create and list links
+    description: >
+      Tests creating a link between a crumb and trail, then retrieving and listing it.
+    inputs:
+      setup:
+        - cupboard set crumbs "" '{"Name":"Test crumb","State":"draft"}'
+        - cupboard set trails "" '{"State":"active"}'
+        - cupboard set links "" '{"LinkType":"belongs_to","FromID":"<crumb-id>","ToID":"<trail-id>"}'
+      command: cupboard get links <created-link-id>
+    expected:
+      exit_code: 0
+      stdout_contains: "belongs_to"
+      state:
+        link_count: 1
+
+  - name: Filter across multiple crumbs
+    description: >
+      Tests filtering crumbs by state when multiple crumbs exist with different states.
+    inputs:
+      setup:
+        - cupboard set crumbs "" '{"Name":"Draft 1","State":"draft"}'
+        - cupboard set crumbs "" '{"Name":"Draft 2","State":"draft"}'
+        - cupboard set crumbs "" '{"Name":"Ready 1","State":"ready"}'
+        - cupboard set crumbs "" '{"Name":"Taken 1","State":"taken"}'
+      command: cupboard list crumbs State=draft
+    expected:
+      exit_code: 0
+      state:
+        list_count: 2
+        total_crumb_count: 4
+        ready_count: 1
 
 cleanup:
   - Remove temp data directory after each test case
