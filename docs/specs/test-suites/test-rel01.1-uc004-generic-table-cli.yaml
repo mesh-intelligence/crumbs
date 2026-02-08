@@ -3,7 +3,7 @@ title: Generic Table CLI Operations test suite
 description: >
   Validates the generic table CLI commands (get, set, list, delete) across
   multiple table types. Tests exercise JSON input/output, error handling,
-  filter parsing, and cross-table uniformity per prd-cupboard-cli R3.
+  filter parsing, and cross-table uniformity per prd009-cupboard-cli R3.
 traces:
   - rel01.1-uc004-generic-table-cli
 tags:

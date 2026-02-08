@@ -1,5 +1,5 @@
 // Crumb delete command removes a work item by ID.
-// Implements: prd-crumbs-interface R8 (deleting crumbs);
+// Implements: prd003-crumbs-interface R8 (deleting crumbs);
 //
 //	docs/ARCHITECTURE § CLI.
 package main

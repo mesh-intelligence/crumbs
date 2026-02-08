@@ -1,13 +1,13 @@
 # PRD Format
 
-PRDs are YAML files stored at `/docs/specs/product-requirements/prd-[feature-name].yaml`.
+PRDs are YAML files stored at `/docs/specs/product-requirements/prd[NNN]-[feature-name].yaml`.
 
 ## Top-Level Fields
 
 Every PRD has these top-level fields in this order.
 
 ```yaml
-id: prd-feature-name
+id: prd001-feature-name
 title: Human-readable title
 problem: |
   Multi-line text explaining the problem.
@@ -37,7 +37,7 @@ acceptance_criteria:
 The PRD identifier, matching the filename without extension. Lowercase, hyphenated.
 
 ```yaml
-id: prd-cupboard-core
+id: prd001-cupboard-core
 ```
 
 ### title
@@ -160,8 +160,8 @@ A list of related documents or external references.
 
 ```yaml
 references:
-  - prd-cupboard-core
-  - prd-sqlite-backend
+  - prd001-cupboard-core
+  - prd002-sqlite-backend
   - "XDG Base Directory Specification"
 ```
 
@@ -199,4 +199,4 @@ Ask 3-5 clarifying questions if the request is ambiguous:
 - [ ] Each requirement is specific and actionable
 - [ ] non_goals define what is out of scope
 - [ ] acceptance_criteria are checkable without ambiguity
-- [ ] File saved as `prd-[feature-name].yaml` in `/docs/specs/product-requirements/`
+- [ ] File saved as `prd[NNN]-[feature-name].yaml` in `/docs/specs/product-requirements/`

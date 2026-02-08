@@ -3,7 +3,7 @@ title: Configuration and path resolution test suite
 description: >
   Validates the configuration loading pipeline: platform-specific defaults,
   environment variable overrides, config.yaml values, and CLI flag overrides.
-  Tests exercise the precedence chain defined in prd-configuration-directories.
+  Tests exercise the precedence chain defined in prd010-configuration-directories.
 traces:
   - rel01.1-uc003-configuration-loading
 tags:

@@ -1,5 +1,5 @@
 // Crumb add command creates a new work item.
-// Implements: prd-crumbs-interface R3 (creating crumbs);
+// Implements: prd003-crumbs-interface R3 (creating crumbs);
 //
 //	docs/ARCHITECTURE § CLI.
 package main
@@ -46,7 +46,7 @@ func runCrumbAdd(cmd *cobra.Command, args []string) error {
 
 	crumb := &types.Crumb{
 		Name:  crumbName,
-		State: types.StateDraft, // Default state per prd-crumbs-interface R2.2
+		State: types.StateDraft, // Default state per prd003-crumbs-interface R2.2
 	}
 
 	// Override state if provided

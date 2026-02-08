@@ -1,5 +1,5 @@
 // Property and Category entities for extensible attributes on crumbs.
-// Implements: prd-properties-interface R1, R2, R3, R7, R8 (Property, Category, value types, entity methods);
+// Implements: prd004-properties-interface R1, R2, R3, R7, R8 (Property, Category, value types, entity methods);
 //
 //	docs/ARCHITECTURE § Main Interface.
 package types
@@ -67,7 +67,7 @@ type CategoryDefiner interface {
 }
 
 // DefineCategory creates a new category for this categorical property.
-// Per prd-properties-interface R7.
+// Per prd004-properties-interface R7.
 //
 // Validates that the property's ValueType is "categorical" (ErrInvalidValueType if not).
 // Validates that name is non-empty (ErrInvalidName if empty).
@@ -84,7 +84,7 @@ func (p *Property) DefineCategory(definer CategoryDefiner, name string, ordinal 
 }
 
 // GetCategories retrieves all categories for this categorical property.
-// Per prd-properties-interface R8.
+// Per prd004-properties-interface R8.
 //
 // Validates that the property's ValueType is "categorical" (ErrInvalidValueType if not).
 // Returns categories ordered by ordinal ascending, then name ascending for ties.

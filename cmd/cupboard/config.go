@@ -1,7 +1,7 @@
 // Config file loading for crumbs CLI.
-// Implements: prd-configuration-directories R1, R2, R7;
+// Implements: prd010-configuration-directories R1, R2, R7;
 //
-//	prd-cupboard-core R1;
+//	prd001-cupboard-core R1;
 //	docs/ARCHITECTURE § Configuration.
 package main
 
@@ -23,7 +23,7 @@ const (
 )
 
 // loadConfig loads configuration with precedence rules.
-// Per prd-configuration-directories R7:
+// Per prd010-configuration-directories R7:
 //  1. Determine configuration directory (flag > env > platform default)
 //  2. Load config.yaml if it exists; use defaults otherwise
 //  3. Determine data directory (flag > config > platform default)
@@ -126,7 +126,7 @@ func writeDefaultConfig(configDir string) error {
 	}
 
 	defaultContent := fmt.Sprintf(`# Crumbs CLI Configuration
-# See prd-configuration-directories for full specification
+# See prd010-configuration-directories for full specification
 
 # Backend selection
 backend: sqlite

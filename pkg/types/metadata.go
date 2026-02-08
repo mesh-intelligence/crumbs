@@ -1,5 +1,5 @@
 // Metadata and Schema entities for supplementary information on crumbs.
-// Implements: prd-metadata-interface R1, R2 (Metadata, Schema);
+// Implements: prd005-metadata-interface R1, R2 (Metadata, Schema);
 //
 //	docs/ARCHITECTURE § Main Interface.
 package types

@@ -1,12 +1,12 @@
 // JSON record structures for SQLite backend persistence.
 // These structures define the JSON/JSONL record format for data files.
-// Implements: prd-configuration-directories R3;
+// Implements: prd010-configuration-directories R3;
 //
-//	prd-sqlite-backend R2;
+//	prd002-sqlite-backend R2;
 //	docs/ARCHITECTURE § SQLite Backend.
 package sqlite
 
-// JSON record structures that mirror the file format per prd-sqlite-backend R2.
+// JSON record structures that mirror the file format per prd002-sqlite-backend R2.
 
 // crumbJSON represents a crumb in crumbs.jsonl.
 type crumbJSON struct {

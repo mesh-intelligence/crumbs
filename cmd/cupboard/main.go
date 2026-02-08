@@ -1,7 +1,7 @@
 // Package main provides the cupboard CLI.
-// Implements: prd-configuration-directories R1, R2, R7;
+// Implements: prd010-configuration-directories R1, R2, R7;
 //
-//	prd-cupboard-core R2, R4, R5;
+//	prd001-cupboard-core R2, R4, R5;
 //	docs/ARCHITECTURE § CLI.
 package main
 

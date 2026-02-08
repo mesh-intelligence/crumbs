@@ -1,5 +1,5 @@
 // Delete command removes an entity by ID from a table.
-// Implements: prd-cupboard-core R3 (Table.Delete);
+// Implements: prd001-cupboard-core R3 (Table.Delete);
 //
 //	docs/ARCHITECTURE § CLI.
 package main

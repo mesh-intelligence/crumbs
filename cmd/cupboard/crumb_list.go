@@ -1,5 +1,5 @@
 // Crumb list command queries all work items.
-// Implements: prd-crumbs-interface R10 (querying crumbs);
+// Implements: prd003-crumbs-interface R10 (querying crumbs);
 //
 //	docs/ARCHITECTURE § CLI.
 package main

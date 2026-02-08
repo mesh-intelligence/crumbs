@@ -1,7 +1,7 @@
-id: prd-cupboard-cli
+id: prd009-cupboard-cli
 title: Cupboard CLI Interface
 problem: |
-  The CLI design is scattered across multiple documents. prd-cupboard-core defines the Cupboard and Table interfaces but does not specify CLI commands. prd-configuration-directories defines configuration flags but not command structure. prd-crumbs-interface defines the Crumb entity but not crumb-specific CLI commands. eng02-beads-migration lists issue-tracking commands but not their full specification.
+  The CLI design is scattered across multiple documents. prd001-cupboard-core defines the Cupboard and Table interfaces but does not specify CLI commands. prd010-configuration-directories defines configuration flags but not command structure. prd003-crumbs-interface defines the Crumb entity but not crumb-specific CLI commands. eng02-beads-migration lists issue-tracking commands but not their full specification.
 
   Agents building the CLI must read four documents and infer the CLI contract. Without a single specification, implementations diverge on command naming, flag conventions, output formats, and error handling. We need one document that defines the complete CLI interface so developers and agents can implement commands consistently.
 goals:
@@ -260,14 +260,14 @@ requirements:
           ```
           Flag: --config-dir <path>
           Precedence: flag > CRUMBS_CONFIG_DIR env > platform default
-          Default: Platform-specific (see prd-configuration-directories R1.2)
+          Default: Platform-specific (see prd010-configuration-directories R1.2)
           ```
       - R6.3: "--data-dir must override the data directory"
         detail: |
           ```
           Flag: --data-dir <path>
           Precedence: flag > config.yaml data_dir > platform default
-          Default: Platform-specific (see prd-configuration-directories R2.2)
+          Default: Platform-specific (see prd010-configuration-directories R2.2)
           ```
       - R6.4: "--help must print usage information for any command"
         detail: |
@@ -330,7 +330,7 @@ requirements:
       - R10.1: "cupboard init must initialize the storage backend"
       - R10.2: Init must create the data directory if it does not exist
       - R10.3: Init must create empty JSONL files if they do not exist
-      - R10.4: Init must seed built-in properties (priority, type, description, owner, labels) per prd-properties-interface R8
+      - R10.4: Init must seed built-in properties (priority, type, description, owner, labels) per prd004-properties-interface R8
       - R10.5: Init must be idempotent (running init twice must not error or duplicate data)
       - R10.6: Init must print "Cupboard initialized successfully" on completion
 non_goals:
@@ -353,13 +353,13 @@ acceptance_criteria:
   - Init command behavior documented (directory creation, property seeding, idempotence)
 constraints:
   - Commands must work offline (no network access required)
-  - Configuration and data directory overrides must follow prd-configuration-directories precedence rules
+  - Configuration and data directory overrides must follow prd010-configuration-directories precedence rules
   - Output must be valid UTF-8
   - JSON output must be parseable by standard JSON parsers
 references:
-  - prd-cupboard-core (Cupboard interface, Table interface, standard table names)
-  - prd-crumbs-interface (Crumb entity, state values, property methods)
-  - prd-configuration-directories (directory structure, config loading, JSONL format)
-  - prd-properties-interface (built-in properties, property types)
+  - prd001-cupboard-core (Cupboard interface, Table interface, standard table names)
+  - prd003-crumbs-interface (Crumb entity, state values, property methods)
+  - prd010-configuration-directories (directory structure, config loading, JSONL format)
+  - prd004-properties-interface (built-in properties, property types)
   - eng02-beads-migration (issue-tracking command parity)
   - "docs/ARCHITECTURE § CLI"

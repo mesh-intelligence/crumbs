@@ -1,5 +1,5 @@
 // Package paths provides platform-specific directory path handling.
-// Implements: prd-configuration-directories R1, R2;
+// Implements: prd010-configuration-directories R1, R2;
 //
 //	docs/ARCHITECTURE § Configuration.
 package paths
@@ -11,7 +11,7 @@ import (
 )
 
 // DefaultConfigDir returns the platform-specific default configuration directory.
-// Per prd-configuration-directories R1.2:
+// Per prd010-configuration-directories R1.2:
 //   - Linux: $XDG_CONFIG_HOME/crumbs (falls back to ~/.config/crumbs)
 //   - macOS: ~/Library/Application Support/crumbs
 //   - Windows: %APPDATA%\crumbs
@@ -49,7 +49,7 @@ func DefaultConfigDir() (string, error) {
 }
 
 // DefaultDataDir returns the platform-specific default data directory.
-// Per prd-configuration-directories R2.2:
+// Per prd010-configuration-directories R2.2:
 //   - Linux: $XDG_DATA_HOME/crumbs (falls back to ~/.local/share/crumbs)
 //   - macOS: ~/Library/Application Support/crumbs/data
 //   - Windows: %LOCALAPPDATA%\crumbs

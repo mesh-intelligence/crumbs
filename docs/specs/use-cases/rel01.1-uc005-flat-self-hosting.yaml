@@ -55,10 +55,10 @@ flow:
       directory. JSONL files are the source of truth and survive database
       deletion.
 touchpoints:
-  - T1: "cupboard CLI (cmd/cupboard): generic table commands get, set, list, delete (prd-cupboard-cli R3)"
-  - T2: "Cupboard library (pkg/types): Cupboard interface with GetTable, Table interface for CRUD (prd-cupboard-core R2, R3)"
-  - T3: "SQLite backend (internal/sqlite): storage, JSONL persistence, query engine (prd-sqlite-backend R1-R5)"
-  - T4: "Crumb entity (pkg/types): Name, State, CreatedAt, UpdatedAt fields (prd-crumbs-interface R1)"
+  - T1: "cupboard CLI (cmd/cupboard): generic table commands get, set, list, delete (prd009-cupboard-cli R3)"
+  - T2: "Cupboard library (pkg/types): Cupboard interface with GetTable, Table interface for CRUD (prd001-cupboard-core R2, R3)"
+  - T3: "SQLite backend (internal/sqlite): storage, JSONL persistence, query engine (prd002-sqlite-backend R1-R5)"
+  - T4: "Crumb entity (pkg/types): Name, State, CreatedAt, UpdatedAt fields (prd003-crumbs-interface R1)"
   - T5: "do-work.sh: task picking (list with filter), worktree management, agent invocation"
   - T6: "make-work.sh: work creation (set with empty ID), issue listing"
   - T7: ".claude/rules/: agent workflow instructions (eng01-git-integration)"
@@ -82,11 +82,11 @@ out_of_scope:
   - Multi-agent coordination
 test_suite: test-rel01.1-uc005-flat-self-hosting
 dependencies:
-  - D1: "Cupboard interface with Attach/Detach/GetTable (prd-cupboard-core R2, R4, R5)"
-  - D2: "Table interface with Get/Set/Delete/Fetch (prd-cupboard-core R3)"
-  - D3: "Crumb entity with Name and State fields (prd-crumbs-interface R1)"
-  - D4: "SQLite backend with JSONL persistence (prd-sqlite-backend R1-R5)"
-  - D5: "Generic table CLI commands (prd-cupboard-cli R3)"
+  - D1: "Cupboard interface with Attach/Detach/GetTable (prd001-cupboard-core R2, R4, R5)"
+  - D2: "Table interface with Get/Set/Delete/Fetch (prd001-cupboard-core R3)"
+  - D3: "Crumb entity with Name and State fields (prd003-crumbs-interface R1)"
+  - D4: "SQLite backend with JSONL persistence (prd002-sqlite-backend R1-R5)"
+  - D5: "Generic table CLI commands (prd009-cupboard-cli R3)"
   - D6: "rel01.0-uc001-cupboard-lifecycle (Cupboard lifecycle must work)"
   - D7: "rel01.0-uc002-table-crud (Table CRUD operations must work)"
   - D8: "rel01.1-uc004-generic-table-cli (generic CLI commands must work)"
@@ -126,9 +126,9 @@ demo: |
   ls /tmp/demo/crumbs.jsonl
   # File exists with crumb data
 references:
-  - prd-cupboard-core
-  - prd-cupboard-cli
-  - prd-crumbs-interface
-  - prd-sqlite-backend
+  - prd001-cupboard-core
+  - prd009-cupboard-cli
+  - prd003-crumbs-interface
+  - prd002-sqlite-backend
   - eng01-git-integration
   - docs/ARCHITECTURE.md

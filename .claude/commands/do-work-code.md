@@ -12,7 +12,7 @@ Read VISION.md and ARCHITECTURE.md for context.
 
 ## 2. Before implementing
 
-1. **Identify related PRDs and docs** from the issue (deliverable path, component, requirements). See `docs/specs/product-requirements/prd-*.yaml` and `docs/ARCHITECTURE.md`.
+1. **Identify related PRDs and docs** from the issue (deliverable path, component, requirements). See `docs/specs/product-requirements/prd*.yaml` and `docs/ARCHITECTURE.md`.
 2. **Read** the relevant sections so behaviour, data shapes, and contracts are clear.
 3. Read the issue description (Requirements, Design Decisions, Acceptance Criteria) in full.
 4. **Read existing code** that you will modify or extend:

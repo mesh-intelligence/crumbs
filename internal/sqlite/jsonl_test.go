@@ -1,5 +1,5 @@
 // Tests for JSONL persistence in SQLite backend.
-// Implements: prd-configuration-directories acceptance criteria.
+// Implements: prd010-configuration-directories acceptance criteria.
 package sqlite
 
 import (

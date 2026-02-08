@@ -1,11 +1,11 @@
-id: prd-metadata-interface
+id: prd005-metadata-interface
 title: Metadata Interface
 problem: |
   Applications need to attach supplementary information to crumbs beyond structured properties. A developer might add comments during work, attach log files for debugging, or link to external resources. Properties handle typed, single-value attributes; metadata handles unstructured, multi-value content like comments, attachments, and activity logs.
 
   Hardcoding metadata types (comments table, attachments table) creates rigid schemas. Applications should be able to define new metadata types through schema registration without code changes. A plugin might add "reviews" or "time_entries" as new metadata types.
 
-  prd-cupboard-core defines the Cupboard interface with uniform Table access, but it does not specify the Metadata entity structure or how metadata interacts with the Table interface. This PRD defines the Metadata entity: the struct fields, schema registration for extensible metadata tables, and how metadata is stored and retrieved via the Table interface.
+  prd001-cupboard-core defines the Cupboard interface with uniform Table access, but it does not specify the Metadata entity structure or how metadata interacts with the Table interface. This PRD defines the Metadata entity: the struct fields, schema registration for extensible metadata tables, and how metadata is stored and retrieved via the Table interface.
 goals:
   - G1: Define the Metadata struct with all required fields
   - G2: Define the Schema struct for metadata table schema registration
@@ -185,9 +185,9 @@ requirements:
           | ErrCupboardDetached | Cupboard has been detached (all Table operations) |
       - R10.2: All errors must be checkable with errors.Is
 non_goals:
-  - This PRD does not define the Table interface or Cupboard interface. See prd-cupboard-core.
-  - This PRD does not define crumb operations. See prd-crumbs-interface.
-  - This PRD does not define property definitions. See prd-properties-interface.
+  - This PRD does not define the Table interface or Cupboard interface. See prd001-cupboard-core.
+  - This PRD does not define crumb operations. See prd003-crumbs-interface.
+  - This PRD does not define property definitions. See prd004-properties-interface.
   - This PRD does not define file storage for attachments. The attachments schema stores references; actual file handling is outside this scope.
   - This PRD does not define full-text search indexing. The content_contains filter is substring matching, not ranked search.
   - This PRD does not define schema enforcement. ContentType is advisory; content is stored as-is.
@@ -212,7 +212,7 @@ constraints:
   - Metadata entries are append-only by convention; Table.Delete is available but discouraged
   - Type assertions are required when retrieving entities from Table.Get and Table.Fetch
 references:
-  - prd-cupboard-core (Cupboard interface, Table interface, GetTable method)
-  - prd-sqlite-backend (JSON format, SQLite schema for metadata)
-  - prd-crumbs-interface (Crumb struct, cascading delete for metadata)
-  - prd-properties-interface (Property definitions for property-linked metadata)
+  - prd001-cupboard-core (Cupboard interface, Table interface, GetTable method)
+  - prd002-sqlite-backend (JSON format, SQLite schema for metadata)
+  - prd003-crumbs-interface (Crumb struct, cascading delete for metadata)
+  - prd004-properties-interface (Property definitions for property-linked metadata)

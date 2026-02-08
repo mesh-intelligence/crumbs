@@ -1,5 +1,5 @@
 // Link entity represents graph edges between entities.
-// Implements: prd-sqlite-backend § Graph Model, R14.6 (Link hydration);
+// Implements: prd002-sqlite-backend § Graph Model, R14.6 (Link hydration);
 //
 //	docs/ARCHITECTURE § Main Interface.
 package types

@@ -1,5 +1,5 @@
 // Cupboard interface defines the contract for storage access and lifecycle management.
-// Implements: prd-cupboard-core R2, R4, R5, R6, R7;
+// Implements: prd001-cupboard-core R2, R4, R5, R6, R7;
 //
 //	docs/ARCHITECTURE § Main Interface.
 package types

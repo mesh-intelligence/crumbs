@@ -1,5 +1,5 @@
 // Category operations for the SQLite backend.
-// Implements: prd-properties-interface R7, R8 (DefineCategory, GetCategories);
+// Implements: prd004-properties-interface R7, R8 (DefineCategory, GetCategories);
 //
 //	docs/ARCHITECTURE § Table Interfaces.
 package sqlite
@@ -12,7 +12,7 @@ import (
 var _ types.CategoryDefiner = (*Backend)(nil)
 
 // DefineCategory creates a new category for a property and persists it.
-// Per prd-properties-interface R7.
+// Per prd004-properties-interface R7.
 //
 // Generates a UUID v7 for CategoryID.
 // Validates that name is unique within the property (ErrDuplicateName if exists).
@@ -72,7 +72,7 @@ func (b *Backend) DefineCategory(propertyID, name string, ordinal int) (*types.C
 }
 
 // GetCategories retrieves all categories for a property ordered by ordinal then name.
-// Per prd-properties-interface R8.
+// Per prd004-properties-interface R8.
 //
 // Returns an empty slice (not nil) if no categories exist.
 func (b *Backend) GetCategories(propertyID string) ([]*types.Category, error) {

@@ -1,9 +1,9 @@
-id: prd-sqlite-backend
+id: prd002-sqlite-backend
 title: SQLite Backend
 problem: |
-  The SQLite backend needs a detailed specification for how JSONL files and SQLite interact. prd-cupboard-core establishes that JSONL is the source of truth and SQLite serves as a query engine, but it does not specify the JSONL file format, SQLite schema, sync lifecycle, or error handling. Without this detail, implementation will make ad-hoc decisions that may not align with project goals.
+  The SQLite backend needs a detailed specification for how JSONL files and SQLite interact. prd001-cupboard-core establishes that JSONL is the source of truth and SQLite serves as a query engine, but it does not specify the JSONL file format, SQLite schema, sync lifecycle, or error handling. Without this detail, implementation will make ad-hoc decisions that may not align with project goals.
 
-  The backend must also implement the uniform Table interface defined in prd-cupboard-core. Applications access data through `cupboard.GetTable("crumbs").Get(id)`, not through entity-specific methods. The backend must hydrate table rows into entity objects and persist entity objects back to rows. This ORM-style pattern keeps the interface consistent while allowing each entity type to have its own struct.
+  The backend must also implement the uniform Table interface defined in prd001-cupboard-core. Applications access data through `cupboard.GetTable("crumbs").Get(id)`, not through entity-specific methods. The backend must hydrate table rows into entity objects and persist entity objects back to rows. This ORM-style pattern keeps the interface consistent while allowing each entity type to have its own struct.
 
   This PRD specifies the SQLite backend internals: JSONL file layout, SQLite schema, startup loading, write persistence, shutdown flushing, error recovery, concurrency model, and the ORM layer that maps between Table operations and entity types.
 graph_model: |
@@ -344,7 +344,7 @@ requirements:
   R11:
     title: Cupboard Interface Implementation
     items:
-      - R11.1: The SQLite backend implements the Cupboard interface defined in prd-cupboard-core
+      - R11.1: The SQLite backend implements the Cupboard interface defined in prd001-cupboard-core
         detail: |
           ```go
           type Cupboard interface {
@@ -488,7 +488,7 @@ requirements:
       - R16.7: Atomic write semantics (R5.2) apply regardless of sync strategy. When flushing, each JSONL file is written atomically (temp file, fsync, rename)
       - R16.8: The sync strategy does not affect SQLite durability. SQLite transactions commit synchronously regardless of JSONL sync strategy
 non_goals:
-  - This PRD does not define the Cupboard interface operations. Those are in prd-cupboard-core and the interface PRDs
+  - This PRD does not define the Cupboard interface operations. Those are in prd001-cupboard-core and the interface PRDs
   - This PRD does not define cross-process locking. Single-process access is assumed
   - This PRD does not define backup or migration utilities
 acceptance_criteria:
@@ -514,10 +514,10 @@ constraints:
   - Timestamps in JSONL use RFC 3339 for interoperability
   - SQLite database is ephemeral; deleting cupboard.db loses nothing
 references:
-  - prd-cupboard-core (Cupboard interface, Table interface, configuration, lifecycle)
-  - prd-trails-interface (Trail entity, Complete and Abandon semantics)
-  - prd-crumbs-interface
-  - prd-properties-interface
-  - prd-metadata-interface
-  - prd-stash-interface
+  - prd001-cupboard-core (Cupboard interface, Table interface, configuration, lifecycle)
+  - prd006-trails-interface (Trail entity, Complete and Abandon semantics)
+  - prd003-crumbs-interface
+  - prd004-properties-interface
+  - prd005-metadata-interface
+  - prd008-stash-interface
   - "modernc.org/sqlite documentation"

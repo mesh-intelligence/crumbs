@@ -4,7 +4,7 @@ summary: |
   An application initializes a Cupboard with a typed Config struct, attaches
   to a SQLite backend, accesses tables for data operations, and detaches to
   release resources. This tracer bullet validates the configuration workflow
-  and cupboard lifecycle management defined in prd-cupboard-core.
+  and cupboard lifecycle management defined in prd001-cupboard-core.
 actor: Developer integrating the Crumbs library into their application
 trigger: Application startup requiring backend connection and data operations
 flow:
@@ -19,13 +19,13 @@ flow:
   - F9: "Detach from backend: when the application shuts down call Detach(); blocks until in-flight operations complete then closes database connections"
   - F10: "Verify detach: after Detach any Cupboard operation returns ErrCupboardDetached; the application must create a new Cupboard instance to reconnect"
 touchpoints:
-  - T1: "Config struct: construction with Backend and DataDir fields (prd-cupboard-core R1)"
-  - T2: "Cupboard interface: Attach, Detach, GetTable (prd-cupboard-core R2)"
-  - T3: "Table interface: Fetch for connection verification (prd-cupboard-core R2)"
-  - T4: "Attach idempotency and validation (prd-cupboard-core R4)"
-  - T5: "Detach resource release and idempotency (prd-cupboard-core R5)"
-  - T6: "Error handling after detach (prd-cupboard-core R6)"
-  - T7: "Standard error types: ErrAlreadyAttached, ErrCupboardDetached, ErrTableNotFound (prd-cupboard-core R7)"
+  - T1: "Config struct: construction with Backend and DataDir fields (prd001-cupboard-core R1)"
+  - T2: "Cupboard interface: Attach, Detach, GetTable (prd001-cupboard-core R2)"
+  - T3: "Table interface: Fetch for connection verification (prd001-cupboard-core R2)"
+  - T4: "Attach idempotency and validation (prd001-cupboard-core R4)"
+  - T5: "Detach resource release and idempotency (prd001-cupboard-core R5)"
+  - T6: "Error handling after detach (prd001-cupboard-core R6)"
+  - T7: "Standard error types: ErrAlreadyAttached, ErrCupboardDetached, ErrTableNotFound (prd001-cupboard-core R7)"
 success_criteria:
   - S1: Config struct is created with Backend=sqlite and valid DataDir
   - S2: Attach(config) returns nil and initializes the backend
@@ -41,7 +41,7 @@ out_of_scope:
   - File-based configuration loading (JSON/YAML parsing)
 test_suite: test-rel01.0-uc001-cupboard-lifecycle
 dependencies:
-  - D1: prd-cupboard-core must be defined (Config, Cupboard, Table interfaces)
+  - D1: prd001-cupboard-core must be defined (Config, Cupboard, Table interfaces)
   - D2: SQLite backend must implement the Cupboard interface
 risks:
   - K1: "DataDir permissions prevent database creation | Document required permissions; test with non-writable path"

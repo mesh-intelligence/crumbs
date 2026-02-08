@@ -25,15 +25,15 @@ flow:
   - F13: "Verify cascade delete: call table.Fetch with crumb_id filter for the deleted crumb; the result is empty, confirming all metadata was removed"
   - F14: "Detach: call cupboard.Detach() to release resources"
 touchpoints:
-  - T1: "Cupboard interface: Attach, GetTable, Detach (prd-cupboard-core R2)"
-  - T2: "Table interface: Get, Set, Delete, Fetch (prd-cupboard-core R3)"
-  - T3: "Metadata struct: MetadataID, CrumbID, TableName, Content, PropertyID, CreatedAt (prd-metadata-interface R1)"
-  - T4: "Built-in schemas: comments (text), attachments (json) (prd-metadata-interface R3)"
-  - T5: "Metadata creation via Table.Set: UUID v7 generation, timestamp (prd-metadata-interface R4)"
-  - T6: "Metadata retrieval via Table.Get: type assertion to *Metadata (prd-metadata-interface R5)"
-  - T7: "Filter map: schema, crumb_id filters (prd-metadata-interface R7)"
-  - T8: "Cascade delete: metadata removed when crumb deleted (prd-metadata-interface R6.5)"
-  - T9: "Error types: ErrNotFound, ErrInvalidID (prd-metadata-interface R10)"
+  - T1: "Cupboard interface: Attach, GetTable, Detach (prd001-cupboard-core R2)"
+  - T2: "Table interface: Get, Set, Delete, Fetch (prd001-cupboard-core R3)"
+  - T3: "Metadata struct: MetadataID, CrumbID, TableName, Content, PropertyID, CreatedAt (prd005-metadata-interface R1)"
+  - T4: "Built-in schemas: comments (text), attachments (json) (prd005-metadata-interface R3)"
+  - T5: "Metadata creation via Table.Set: UUID v7 generation, timestamp (prd005-metadata-interface R4)"
+  - T6: "Metadata retrieval via Table.Get: type assertion to *Metadata (prd005-metadata-interface R5)"
+  - T7: "Filter map: schema, crumb_id filters (prd005-metadata-interface R7)"
+  - T8: "Cascade delete: metadata removed when crumb deleted (prd005-metadata-interface R6.5)"
+  - T9: "Error types: ErrNotFound, ErrInvalidID (prd005-metadata-interface R10)"
 success_criteria:
   - S1: Table.Set with empty ID generates a UUID v7 for metadata and persists to storage
   - S2: Multiple metadata entries can be added to the same crumb (additive, not replacement)
@@ -48,7 +48,7 @@ success_criteria:
   - S11: When a crumb is deleted, all its metadata entries are also deleted
   - S12: Table.Fetch for deleted crumb returns empty result
 out_of_scope:
-  - Schema registration for custom metadata types (see prd-metadata-interface R9)
+  - Schema registration for custom metadata types (see prd005-metadata-interface R9)
   - PropertyID linking for property-specific metadata
   - Content validation (content_contains filter, JSON validation)
   - Limit and offset pagination
@@ -56,9 +56,9 @@ out_of_scope:
   - JSONL persistence verification (covered by rel01.0-uc002)
 test_suite: test-rel02.1-uc004-metadata-lifecycle
 dependencies:
-  - D1: prd-cupboard-core (Cupboard and Table interface definitions)
-  - D2: prd-metadata-interface (Metadata struct, Schema struct, built-in schemas)
-  - D3: prd-sqlite-backend (SQLite backend, metadata table schema)
+  - D1: prd001-cupboard-core (Cupboard and Table interface definitions)
+  - D2: prd005-metadata-interface (Metadata struct, Schema struct, built-in schemas)
+  - D3: prd002-sqlite-backend (SQLite backend, metadata table schema)
   - D4: rel01.0-uc002-table-crud (Table CRUD must work)
 risks:
   - K1: "Cascade delete not implemented | Test will fail until R6.5 is implemented; track as gap"
@@ -123,6 +123,6 @@ demo: |
 
   cupboard.Detach()
 references:
-  - prd-metadata-interface
-  - prd-cupboard-core
-  - prd-sqlite-backend
+  - prd005-metadata-interface
+  - prd001-cupboard-core
+  - prd002-sqlite-backend

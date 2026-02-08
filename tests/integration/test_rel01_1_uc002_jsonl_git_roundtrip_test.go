@@ -2,7 +2,7 @@
 // Validates test-rel01.1-uc002-jsonl-git-roundtrip.yaml test cases.
 // Implements: docs/specs/test-suites/test-rel01.1-uc002-jsonl-git-roundtrip.yaml;
 //             docs/specs/use-cases/rel01.1-uc002-jsonl-git-roundtrip.yaml;
-//             prd-sqlite-backend R1, R4, R5.
+//             prd002-sqlite-backend R1, R4, R5.
 package integration
 
 import (

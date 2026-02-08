@@ -1,8 +1,8 @@
 // Package sqlite implements the SQLite storage backend for Crumbs.
-// Implements: prd-sqlite-backend R4, R5, R6, R11, R12;
+// Implements: prd002-sqlite-backend R4, R5, R6, R11, R12;
 //
-//	prd-configuration-directories R3, R4, R5, R6;
-//	prd-cupboard-core R2, R4, R5;
+//	prd010-configuration-directories R3, R4, R5, R6;
+//	prd001-cupboard-core R2, R4, R5;
 //	docs/ARCHITECTURE § SQLite Backend.
 package sqlite
 
@@ -33,7 +33,7 @@ type Backend struct {
 	db       *sql.DB
 	tables   map[string]*Table
 
-	// Sync strategy state (prd-sqlite-backend R16)
+	// Sync strategy state (prd002-sqlite-backend R16)
 	syncStrategy  string          // effective sync strategy: immediate, on_close, batch
 	batchSize     int             // number of writes before batch flush
 	batchInterval time.Duration   // time between batch flushes
@@ -120,24 +120,24 @@ func (b *Backend) Attach(config types.Config) error {
 	b.db = db
 	b.config = config
 
-	// Initialize sync strategy from config (prd-sqlite-backend R16)
+	// Initialize sync strategy from config (prd002-sqlite-backend R16)
 	b.syncStrategy = config.SQLiteConfig.GetSyncStrategy()
 	b.batchSize = config.SQLiteConfig.GetBatchSize()
 	b.batchInterval = time.Duration(config.SQLiteConfig.GetBatchInterval()) * time.Second
 	b.pendingWrites = nil
 
-	// Start batch timer if using batch strategy (prd-sqlite-backend R16.4)
+	// Start batch timer if using batch strategy (prd002-sqlite-backend R16.4)
 	if b.syncStrategy == types.SyncBatch && b.batchInterval > 0 {
 		b.startBatchTimer()
 	}
 
-	// Initialize JSONL files if they don't exist (per prd-configuration-directories R4.3)
+	// Initialize JSONL files if they don't exist (per prd010-configuration-directories R4.3)
 	if err := b.initJSONLFiles(); err != nil {
 		db.Close()
 		return err
 	}
 
-	// Load JSONL files into SQLite (per prd-configuration-directories R5.1)
+	// Load JSONL files into SQLite (per prd010-configuration-directories R5.1)
 	if err := b.loadAllJSONL(); err != nil {
 		db.Close()
 		return fmt.Errorf("load JSONL: %w", err)
@@ -160,7 +160,7 @@ func (b *Backend) Attach(config types.Config) error {
 // Closes the SQLite connection. After Detach, all operations return ErrCupboardDetached.
 // Detach is idempotent.
 // For on_close and batch sync strategies, flushes all pending writes before closing
-// (prd-sqlite-backend R6.1, R16.3).
+// (prd002-sqlite-backend R6.1, R16.3).
 func (b *Backend) Detach() error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -172,7 +172,7 @@ func (b *Backend) Detach() error {
 	// Stop batch timer if running
 	b.stopBatchTimer()
 
-	// Flush all pending writes before closing (prd-sqlite-backend R6.1, R16.3)
+	// Flush all pending writes before closing (prd002-sqlite-backend R6.1, R16.3)
 	if err := b.flushPendingWritesLocked(); err != nil {
 		return fmt.Errorf("flush pending writes: %w", err)
 	}
@@ -200,7 +200,7 @@ func generateUUID() string {
 	return id.String()
 }
 
-// Sync strategy methods (prd-sqlite-backend R16)
+// Sync strategy methods (prd002-sqlite-backend R16)
 
 // shouldPersistImmediately returns true if JSONL writes should happen immediately.
 // Returns true for "immediate" strategy (default), false for "on_close" and "batch".
@@ -249,7 +249,7 @@ func (b *Backend) flushPendingWritesBatchLocked() error {
 	for _, pw := range b.pendingWrites {
 		if err := pw.persist(); err != nil {
 			// Continue flushing other writes even if one fails
-			// per prd-sqlite-backend R5.4 (return error to caller, next Attach reconciles)
+			// per prd002-sqlite-backend R5.4 (return error to caller, next Attach reconciles)
 			return fmt.Errorf("flush %s %s: %w", pw.tableName, pw.operation, err)
 		}
 	}

@@ -33,16 +33,16 @@ flow:
   - F23: "Verify history entries: confirm entries have correct version, operation, and value snapshots"
   - F21: "Detach the cupboard: call cupboard.Detach()"
 touchpoints:
-  - T1: "Cupboard interface: Attach, Detach, GetTable (prd-cupboard-core R2)"
-  - T2: "Table (stashes): Get, Set, Delete, Fetch (prd-cupboard-core R3)"
-  - T3: "Stash entity: StashID, Name, StashType, Value, Version, CreatedAt fields (prd-stash-interface R1)"
-  - T4: "Stash types: resource, artifact, context, counter, lock (prd-stash-interface R2)"
-  - T5: "SetValue/GetValue methods for value access (prd-stash-interface R4)"
-  - T6: "Increment method for counter operations (prd-stash-interface R5)"
-  - T7: "Acquire/Release methods for lock operations (prd-stash-interface R6)"
-  - T8: "Version tracking across mutations (prd-stash-interface R1.6)"
-  - T9: "Filter map for stash queries: stash_type, name (prd-stash-interface R9)"
-  - T10: "Stash history tracking: FetchStashHistory method (prd-stash-interface R7)"
+  - T1: "Cupboard interface: Attach, Detach, GetTable (prd001-cupboard-core R2)"
+  - T2: "Table (stashes): Get, Set, Delete, Fetch (prd001-cupboard-core R3)"
+  - T3: "Stash entity: StashID, Name, StashType, Value, Version, CreatedAt fields (prd008-stash-interface R1)"
+  - T4: "Stash types: resource, artifact, context, counter, lock (prd008-stash-interface R2)"
+  - T5: "SetValue/GetValue methods for value access (prd008-stash-interface R4)"
+  - T6: "Increment method for counter operations (prd008-stash-interface R5)"
+  - T7: "Acquire/Release methods for lock operations (prd008-stash-interface R6)"
+  - T8: "Version tracking across mutations (prd008-stash-interface R1.6)"
+  - T9: "Filter map for stash queries: stash_type, name (prd008-stash-interface R9)"
+  - T10: "Stash history tracking: FetchStashHistory method (prd008-stash-interface R7)"
 success_criteria:
   - S1: Stash created via Table.Set generates UUID v7 for StashID
   - S2: All five stash types can be created (resource, artifact, context, counter, lock)
@@ -68,7 +68,7 @@ test_suite: test-rel03.0-uc003-stash-operations
 dependencies:
   - D1: rel01.0-uc001 (Cupboard lifecycle) must pass
   - D2: rel01.0-uc002 (Table CRUD) must pass
-  - D3: prd-stash-interface (stash entity, methods) must be implemented
+  - D3: prd008-stash-interface (stash entity, methods) must be implemented
 risks:
   - K1: "Counter overflow on large increments | Use int64 for sufficient range"
   - K2: "Lock state corruption | Verify atomic version increment on each operation"

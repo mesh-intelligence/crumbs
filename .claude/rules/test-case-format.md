@@ -38,7 +38,7 @@ What this suite validates. List one or more use case IDs, PRD requirement IDs, o
 ```yaml
 traces:
   - rel02.1-uc003-self-hosting
-  - prd-cupboard-core R4
+  - prd001-cupboard-core R4
 ```
 
 ### 4. preconditions

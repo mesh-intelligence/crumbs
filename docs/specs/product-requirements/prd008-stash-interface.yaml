@@ -1,4 +1,4 @@
-id: prd-stash-interface
+id: prd008-stash-interface
 title: Stash Interface
 problem: |
   Crumbs are individual work items. Trails group them. But there is no mechanism for crumbs to share runtime state. When multiple agents coordinate on related tasks, they need shared resources (files, URLs, connections), artifacts (outputs from one crumb as inputs to another), context (decisions, configuration), and coordination primitives (locks, counters).
@@ -322,6 +322,6 @@ constraints:
   - Type assertions are required when retrieving entities from Table.Get and Table.Fetch
   - "Stash→trail scope uses the links table with `scoped_to` link type (see ARCHITECTURE Decision 10). Global stashes have no `scoped_to` link. This keeps all relationships in one consistent pattern"
 references:
-  - prd-cupboard-core (Cupboard interface, Table interface, GetTable method)
-  - prd-sqlite-backend (JSON format, SQLite schema, stash tables)
-  - prd-trails-interface (trail scoping for stashes)
+  - prd001-cupboard-core (Cupboard interface, Table interface, GetTable method)
+  - prd002-sqlite-backend (JSON format, SQLite schema, stash tables)
+  - prd006-trails-interface (trail scoping for stashes)

@@ -1,5 +1,5 @@
 // List command queries entities from a table with optional filtering.
-// Implements: prd-cupboard-core R3 (Table.Fetch);
+// Implements: prd001-cupboard-core R3 (Table.Fetch);
 //
 //	docs/ARCHITECTURE § CLI.
 package main

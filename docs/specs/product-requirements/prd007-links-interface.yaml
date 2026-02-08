@@ -1,9 +1,9 @@
-id: prd-links-interface
+id: prd007-links-interface
 title: Links Interface
 problem: |
-  Links represent directed edges in the entity graph. They connect crumbs to trails (belongs_to), crumbs to crumbs (child_of), trails to crumbs (branches_from), and stashes to trails (scoped_to). Link requirements are currently scattered across four PRDs (prd-sqlite-backend, prd-trails-interface, prd-stash-interface, prd-crumbs-interface), making it difficult to understand the complete link behavior and constraints.
+  Links represent directed edges in the entity graph. They connect crumbs to trails (belongs_to), crumbs to crumbs (child_of), trails to crumbs (branches_from), and stashes to trails (scoped_to). Link requirements are currently scattered across four PRDs (prd002-sqlite-backend, prd006-trails-interface, prd008-stash-interface, prd003-crumbs-interface), making it difficult to understand the complete link behavior and constraints.
 
-  This PRD consolidates all link requirements into one authoritative source. Other PRDs should reference prd-links-interface for link behavior rather than duplicating these specifications. The Link entity is the only entity without a dedicated interface PRD; this document fills that gap.
+  This PRD consolidates all link requirements into one authoritative source. Other PRDs should reference prd007-links-interface for link behavior rather than duplicating these specifications. The Link entity is the only entity without a dedicated interface PRD; this document fills that gap.
 goals:
   - G1: Define the Link struct with all required fields
   - G2: Define valid link types and their semantics
@@ -174,7 +174,7 @@ requirements:
       - R8.4: Audit functions run on startup after loading JSONL. If validation fails, Attach returns an error
       - R8.5: Audit functions are also available as Cupboard methods for on-demand validation
 non_goals:
-  - This PRD does not define cascade behavior on trail completion or abandonment. See prd-trails-interface for cascade semantics
+  - This PRD does not define cascade behavior on trail completion or abandonment. See prd006-trails-interface for cascade semantics
   - This PRD does not define entity-specific query patterns (e.g., finding all crumbs in a trail). Those patterns are documented in the entity-specific PRDs
   - This PRD does not define link update operations. Links are immutable; delete and recreate to modify
   - This PRD does not change the existing Link implementation
@@ -197,9 +197,9 @@ constraints:
   - Links are stored in the links table (SQLite) and links.jsonl (source of truth)
   - Links are immutable after creation
 references:
-  - prd-cupboard-core (Cupboard interface, Table interface, GetTable method)
-  - prd-sqlite-backend (JSONL format, SQLite schema, graph model, audit functions)
-  - prd-trails-interface (belongs_to semantics, branches_from semantics)
-  - prd-stash-interface (scoped_to semantics)
-  - prd-crumbs-interface (child_of semantics, trail_id filter)
+  - prd001-cupboard-core (Cupboard interface, Table interface, GetTable method)
+  - prd002-sqlite-backend (JSONL format, SQLite schema, graph model, audit functions)
+  - prd006-trails-interface (belongs_to semantics, branches_from semantics)
+  - prd008-stash-interface (scoped_to semantics)
+  - prd003-crumbs-interface (child_of semantics, trail_id filter)
   - docs/ARCHITECTURE (Decision 10, graph model)

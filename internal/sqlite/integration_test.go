@@ -2,8 +2,8 @@
 // Validates the full CRUD lifecycle from ARCHITECTURE § Usage Pattern.
 // Implements: uc001-crud-operations (end-to-end validation of Cupboard, Table, and Crumb operations);
 //
-//	prd-cupboard-core R2, R4, R5;
-//	prd-crumbs-interface R1, R3, R5;
+//	prd001-cupboard-core R2, R4, R5;
+//	prd003-crumbs-interface R1, R3, R5;
 //	docs/ARCHITECTURE § Main Interface, § Usage Pattern.
 package sqlite
 
@@ -198,7 +198,7 @@ func TestUC001_CRUDOperations(t *testing.T) {
 }
 
 // TestUC001_CupboardLifecycle validates the cupboard attach/detach lifecycle.
-// Per prd-cupboard-core R4, R5, R6.
+// Per prd001-cupboard-core R4, R5, R6.
 func TestUC001_CupboardLifecycle(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -249,7 +249,7 @@ func TestUC001_CupboardLifecycle(t *testing.T) {
 }
 
 // TestUC001_AllTableTypes validates that all table types are accessible.
-// Per prd-cupboard-core R2.5.
+// Per prd001-cupboard-core R2.5.
 func TestUC001_AllTableTypes(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -264,7 +264,7 @@ func TestUC001_AllTableTypes(t *testing.T) {
 	}
 	defer cupboard.Detach()
 
-	// All standard table names per prd-cupboard-core R2.5
+	// All standard table names per prd001-cupboard-core R2.5
 	tableNames := []string{
 		types.CrumbsTable,
 		types.TrailsTable,
@@ -293,7 +293,7 @@ func TestUC001_AllTableTypes(t *testing.T) {
 }
 
 // TestUC001_CrumbStateMethods validates crumb state transitions using entity methods.
-// Per prd-crumbs-interface R4, R5.
+// Per prd003-crumbs-interface R4, R5.
 func TestUC001_CrumbStateMethods(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -370,7 +370,7 @@ func TestUC001_CrumbStateMethods(t *testing.T) {
 }
 
 // TestUC001_InvalidStateTransitions validates that invalid state methods return errors.
-// Per prd-crumbs-interface R4.
+// Per prd003-crumbs-interface R4.
 func TestUC001_InvalidStateTransitions(t *testing.T) {
 	crumb := &types.Crumb{
 		Name:  "Test invalid transitions",
@@ -398,7 +398,7 @@ func TestUC001_InvalidStateTransitions(t *testing.T) {
 }
 
 // TestUC001_CrumbPropertyMethods validates crumb property operations.
-// Per prd-crumbs-interface R5.
+// Per prd003-crumbs-interface R5.
 func TestUC001_CrumbPropertyMethods(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -487,7 +487,7 @@ func TestUC001_CrumbPropertyMethods(t *testing.T) {
 }
 
 // TestUC001_FetchWithMultipleFilters validates Fetch with state filtering.
-// Per prd-crumbs-interface R7, R8.
+// Per prd003-crumbs-interface R7, R8.
 func TestUC001_FetchWithMultipleFilters(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -609,7 +609,7 @@ func TestUC001_TableErrorCases(t *testing.T) {
 }
 
 // TestUC001_JSONLPersistence validates that data is persisted to JSONL files.
-// Per prd-configuration-directories R4, R6.
+// Per prd010-configuration-directories R4, R6.
 func TestUC001_JSONLPersistence(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -821,8 +821,8 @@ func TestUC001_FullUseCaseFlow(t *testing.T) {
 //
 // Implements: rel02.0-uc001-property-enforcement;
 //
-//	prd-properties-interface R4.2-R4.5 (backfill on property definition);
-//	prd-crumbs-interface R3.7 (property initialization on crumb creation).
+//	prd004-properties-interface R4.2-R4.5 (backfill on property definition);
+//	prd003-crumbs-interface R3.7 (property initialization on crumb creation).
 func TestUC_PropertyEnforcement(t *testing.T) {
 	tmpDir := t.TempDir()
 

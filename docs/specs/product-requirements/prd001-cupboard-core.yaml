@@ -1,4 +1,4 @@
-id: prd-cupboard-core
+id: prd001-cupboard-core
 title: Cupboard Core Interface
 problem: |
   Applications using Crumbs need a consistent way to initialize storage, access data tables, and manage the cupboard lifecycle. Without a well-defined core interface, each application must handle backend initialization differently, leading to duplicated setup code and inconsistent error handling. We need a single entry point that accepts configuration, provides uniform table access, and cleanly releases resources when done.
@@ -79,7 +79,7 @@ requirements:
       - R3.4: Delete removes an entity by ID. It must return ErrNotFound if the entity does not exist
       - R3.5: Fetch queries entities matching the filter. The filter map keys are field names; values are the required field values. An empty filter returns all entities in the table
       - R3.6: All entity types returned by Get and Fetch are concrete structs (Crumb, Trail, Property, etc.), not interfaces. Callers use type assertions to access entity-specific fields
-      - R3.7: Entity structs are defined in their respective interface PRDs (Crumb in prd-crumbs-interface, Trail in prd-trails-interface, Property in prd-properties-interface, Metadata in prd-metadata-interface, Link in prd-sqlite-backend, Stash in prd-stash-interface)
+      - R3.7: Entity structs are defined in their respective interface PRDs (Crumb in prd003-crumbs-interface, Trail in prd006-trails-interface, Property in prd004-properties-interface, Metadata in prd005-metadata-interface, Link in prd002-sqlite-backend, Stash in prd008-stash-interface)
   R4:
     title: Attach
     items:
@@ -152,7 +152,7 @@ requirements:
       - R8.2: Backends generate UUIDs when Set is called with an empty id parameter
       - R8.3: UUID v7 provides sortability by creation time without separate timestamp columns
 non_goals:
-  - This PRD does not define entity-specific schemas or operations. Entity types are defined in their respective interface PRDs (prd-crumbs-interface, prd-trails-interface, etc.).
+  - This PRD does not define entity-specific schemas or operations. Entity types are defined in their respective interface PRDs (prd003-crumbs-interface, prd006-trails-interface, etc.).
   - This PRD does not define backend-specific behavior. Backends may add optional methods beyond the interface.
   - This PRD does not define HTTP/RPC wrappers around the Cupboard interface. Applications define their own APIs.
   - This PRD does not define connection pooling or retry policies. Backends may implement these internally.
@@ -174,9 +174,9 @@ constraints:
 references:
   - VISION.md (breadcrumb metaphor, goals, boundaries)
   - RFC 9562 (UUID v7 specification)
-  - prd-sqlite-backend (SQLite backend internals, JSON↔SQLite sync, graph model)
-  - prd-crumbs-interface
-  - prd-trails-interface
-  - prd-properties-interface
-  - prd-metadata-interface
-  - prd-stash-interface
+  - prd002-sqlite-backend (SQLite backend internals, JSON↔SQLite sync, graph model)
+  - prd003-crumbs-interface
+  - prd006-trails-interface
+  - prd004-properties-interface
+  - prd005-metadata-interface
+  - prd008-stash-interface

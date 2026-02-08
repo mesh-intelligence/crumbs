@@ -81,7 +81,7 @@ test_cases:
     description: >
       Measure Table.Set latency for creating new crumbs (empty ID triggers
       UUID v7 generation). Seeds 10 existing crumbs before measuring create
-      operations per prd-sqlite-backend R5.3.
+      operations per prd002-sqlite-backend R5.3.
     inputs:
       command: go test -bench=BenchmarkCrumbsSetCreate10_UC005 -benchmem ./tests/integration/...
       data_size: 10
@@ -200,7 +200,7 @@ test_cases:
     description: >
       Measure Table.Fetch with state filter (State: draft). Seeds 100 crumbs
       cycling through draft, pending, ready states. Exercises idx_crumbs_state
-      index per prd-sqlite-backend R3.3.
+      index per prd002-sqlite-backend R3.3.
     inputs:
       command: go test -bench=BenchmarkCrumbsFetchState100_UC005 -benchmem ./tests/integration/...
       data_size: 100

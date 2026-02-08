@@ -1,8 +1,8 @@
 // Integration tests for JSON persistence in the SQLite backend.
 // Tests JSON file format, data loading on startup, and persistence verification.
-// Implements: prd-sqlite-backend R2 (JSON file format);
+// Implements: prd002-sqlite-backend R2 (JSON file format);
 //
-//	prd-configuration-directories R3, R4, R5, R6;
+//	prd010-configuration-directories R3, R4, R5, R6;
 //	docs/ARCHITECTURE § SQLite Backend.
 package sqlite
 
@@ -58,7 +58,7 @@ func TestJSON_FileCreationOnAttach(t *testing.T) {
 	}
 }
 
-// TestJSON_CrumbFormat verifies crumb JSON format matches prd-sqlite-backend R2.2.
+// TestJSON_CrumbFormat verifies crumb JSON format matches prd002-sqlite-backend R2.2.
 func TestJSON_CrumbFormat(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -114,7 +114,7 @@ func TestJSON_CrumbFormat(t *testing.T) {
 	}
 }
 
-// TestJSON_TrailFormat verifies trail JSON format matches prd-sqlite-backend R2.3.
+// TestJSON_TrailFormat verifies trail JSON format matches prd002-sqlite-backend R2.3.
 func TestJSON_TrailFormat(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -151,7 +151,7 @@ func TestJSON_TrailFormat(t *testing.T) {
 	}
 }
 
-// TestJSON_PropertyFormat verifies property JSON format matches prd-sqlite-backend R2.4.
+// TestJSON_PropertyFormat verifies property JSON format matches prd002-sqlite-backend R2.4.
 func TestJSON_PropertyFormat(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -191,7 +191,7 @@ func TestJSON_PropertyFormat(t *testing.T) {
 	}
 }
 
-// TestJSON_LinkFormat verifies link JSON format matches prd-sqlite-backend R2.7.
+// TestJSON_LinkFormat verifies link JSON format matches prd002-sqlite-backend R2.7.
 func TestJSON_LinkFormat(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -231,7 +231,7 @@ func TestJSON_LinkFormat(t *testing.T) {
 	}
 }
 
-// TestJSON_MetadataFormat verifies metadata JSON format matches prd-sqlite-backend R2.9.
+// TestJSON_MetadataFormat verifies metadata JSON format matches prd002-sqlite-backend R2.9.
 func TestJSON_MetadataFormat(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -290,7 +290,7 @@ func TestJSON_MetadataFormat(t *testing.T) {
 	}
 }
 
-// TestJSON_StashFormat verifies stash JSON format matches prd-sqlite-backend R2.10.
+// TestJSON_StashFormat verifies stash JSON format matches prd002-sqlite-backend R2.10.
 func TestJSON_StashFormat(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -347,7 +347,7 @@ func TestJSON_StashFormat(t *testing.T) {
 	}
 }
 
-// TestJSON_CrumbPropertyFormat verifies crumb property JSON format matches prd-sqlite-backend R2.6.
+// TestJSON_CrumbPropertyFormat verifies crumb property JSON format matches prd002-sqlite-backend R2.6.
 func TestJSON_CrumbPropertyFormat(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -777,7 +777,7 @@ func TestJSON_UUIDFormat(t *testing.T) {
 		t.Errorf("JSON ID mismatch: expected %q, got %q", id, jsonID)
 	}
 
-	// UUIDs should be lowercase per prd-sqlite-backend R2.11
+	// UUIDs should be lowercase per prd002-sqlite-backend R2.11
 	for _, c := range id {
 		if c >= 'A' && c <= 'Z' {
 			t.Errorf("UUID should be lowercase: %s", id)

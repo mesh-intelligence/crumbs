@@ -30,7 +30,7 @@ A specifications document is a human-readable summary that ties together the pro
 
    | PRD | Title | Summary |
    |-----|-------|---------|
-   | [prd-cupboard-core](product-requirements/prd-cupboard-core.yaml) | Cupboard Core Interface | Defines the Cupboard and Table interfaces for backend-agnostic storage access |
+   | [prd001-cupboard-core](product-requirements/prd001-cupboard-core.yaml) | Cupboard Core Interface | Defines the Cupboard and Table interfaces for backend-agnostic storage access |
 
 4. **Use Case Index** -- A table listing every use case in `docs/specs/use-cases/`. Columns: use case ID, title, release, status, and test suite ID. Link each ID to the file path and each test suite ID to its file.
 
@@ -60,10 +60,10 @@ A specifications document is a human-readable summary that ties together the pro
 
    | Use Case | PRD | Why Required | Coverage |
    | -------- | --- | ------------ | -------- |
-   | rel01.0-uc001-cupboard-lifecycle | prd-cupboard-core | Validates Config, Attach, Detach, GetTable contract | Partial (R1, R2, R4-R7) |
-   | rel01.0-uc001-cupboard-lifecycle | prd-sqlite-backend | Exercises SQLite backend initialization | Partial (R1 only) |
-   | rel01.0-uc002-sqlite-crud | prd-cupboard-core | Uses Table interface for CRUD operations | Partial (R2, R3) |
-   | rel02.0-uc001-property-enforcement | prd-properties-interface | Validates property definition, backfill, and enforcement | Full |
+   | rel01.0-uc001-cupboard-lifecycle | prd001-cupboard-core | Validates Config, Attach, Detach, GetTable contract | Partial (R1, R2, R4-R7) |
+   | rel01.0-uc001-cupboard-lifecycle | prd002-sqlite-backend | Exercises SQLite backend initialization | Partial (R1 only) |
+   | rel01.0-uc002-sqlite-crud | prd001-cupboard-core | Uses Table interface for CRUD operations | Partial (R2, R3) |
+   | rel02.0-uc001-property-enforcement | prd004-properties-interface | Validates property definition, backfill, and enforcement | Full |
 
    Columns
 
@@ -86,8 +86,8 @@ A specifications document is a human-readable summary that ties together the pro
    skinparam backgroundColor white
 
    package "PRDs" {
-     [prd-cupboard-core] as prd1
-     [prd-sqlite-backend] as prd2
+     [prd001-cupboard-core] as prd1
+     [prd002-sqlite-backend] as prd2
    }
 
    package "Use Cases" {
@@ -140,7 +140,7 @@ When regenerating, read all files in `docs/specs/product-requirements/`, `docs/s
 - **Scope**: Summarize and link; do not duplicate. Each table entry should be one or two sentences at most. The detail lives in the linked files.
 - **Tables**: Name all tables per documentation-standards.
 - **Figures**: Per documentation-standards. Define PlantUML inline; do not create separate `.puml` files.
-- **Links**: Use relative paths from `docs/` (e.g. `specs/product-requirements/prd-cupboard-core.yaml`, not absolute paths).
+- **Links**: Use relative paths from `docs/` (e.g. `specs/product-requirements/prd001-cupboard-core.yaml`, not absolute paths).
 
 ## Completeness Checklist
 

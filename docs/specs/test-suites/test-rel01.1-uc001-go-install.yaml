@@ -83,7 +83,7 @@ test_cases:
   - name: Init creates data directory
     description: >
       Running cupboard init in a project directory creates the data directory.
-      The directory layout follows prd-configuration-directories R2.
+      The directory layout follows prd010-configuration-directories R2.
     inputs:
       command: cupboard init --data-dir ${tmpdir}/cupboard-data && test -d ${tmpdir}/cupboard-data
     expected:

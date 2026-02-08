@@ -1,5 +1,5 @@
 // Trail entity represents an exploratory work session.
-// Implements: prd-trails-interface R1, R2 (Trail struct, state values);
+// Implements: prd006-trails-interface R1, R2 (Trail struct, state values);
 //
 //	docs/ARCHITECTURE § Main Interface.
 package types
@@ -42,7 +42,7 @@ type Trail struct {
 
 // SetState transitions the trail to the specified state.
 // Returns ErrInvalidState if the state is not recognized or the transition is not allowed.
-// State transitions per prd-trails-interface R2.3:
+// State transitions per prd006-trails-interface R2.3:
 //   - draft → pending, active
 //   - pending → active
 //   - active → completed, abandoned (via Complete/Abandon methods)

@@ -1,4 +1,4 @@
-id: prd-configuration-directories
+id: prd010-configuration-directories
 title: Configuration Directory Structure
 problem: |
   The Cupboard CLI needs two distinct directory locations: one for application settings (backend selection, defaults) and one for backend data (crumbs, trails, links). These serve different purposes and have different lifecycles. Configuration is set once and rarely changes; data changes constantly. Separating them clarifies what to version-control versus what to treat as runtime state, and simplifies backup strategies.
@@ -89,7 +89,7 @@ requirements:
   R6:
     title: Write Operations
     items:
-      - R6.1: Write operations persist to JSONL according to the sync strategy defined in prd-sqlite-backend R16 (immediate, on_close, or batch)
+      - R6.1: Write operations persist to JSONL according to the sync strategy defined in prd002-sqlite-backend R16 (immediate, on_close, or batch)
       - R6.2: For updates and deletes, the backend must rewrite the entire JSONL file (read all, modify, write atomically). This is acceptable because JSONL files are small enough to fit in memory for typical workloads
       - R6.3: For append-only tables (stash_history), the backend may append a new line instead of rewriting
       - R6.4: "Atomic write pattern: write to temporary file ({filename}.tmp); sync to disk (fsync); rename temporary file to target (atomic on POSIX)"
@@ -141,6 +141,6 @@ constraints:
 open_questions:
   - Q1: Should stash_history.jsonl use a compaction strategy to avoid unbounded growth? (Deferred to a future PRD)
 references:
-  - prd-cupboard-core (Cupboard interface, Config struct)
-  - prd-sqlite-backend (SQLite backend, JSONL persistence, sync strategies)
+  - prd001-cupboard-core (Cupboard interface, Config struct)
+  - prd002-sqlite-backend (SQLite backend, JSONL persistence, sync strategies)
   - JSON Lines specification (jsonlines.org)

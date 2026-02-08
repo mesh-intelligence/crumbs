@@ -3,7 +3,7 @@ title: JSONL git roundtrip persistence
 description: >
   Validates that JSONL files are the source of truth for the SQLite backend.
   Tests the complete roundtrip: create crumbs, verify JSONL written, delete
-  cupboard.db, re-attach, and verify data is intact. Exercises prd-sqlite-backend
+  cupboard.db, re-attach, and verify data is intact. Exercises prd002-sqlite-backend
   R1 (directory layout), R4 (startup sequence), R5 (write operations), and
   eng01-git-integration conventions.
 traces:
@@ -96,7 +96,7 @@ test_cases:
 
   - name: JSONL uses lowercase hyphenated UUIDs
     description: >
-      UUID v7 identifiers should be lowercase with hyphens per prd-sqlite-backend R2.12.
+      UUID v7 identifiers should be lowercase with hyphens per prd002-sqlite-backend R2.12.
     inputs:
       setup:
         - cupboard init
@@ -120,7 +120,7 @@ test_cases:
   - name: Cupboard command regenerates database from JSONL
     description: >
       After deleting cupboard.db, running any cupboard command should trigger
-      the startup sequence (prd-sqlite-backend R4) which recreates the database.
+      the startup sequence (prd002-sqlite-backend R4) which recreates the database.
     inputs:
       setup:
         - cupboard init
@@ -262,7 +262,7 @@ test_cases:
   - name: Fresh start with no files
     description: >
       When no data directory exists, cupboard should create it and initialize
-      empty JSONL files per prd-sqlite-backend R1.3, R1.4.
+      empty JSONL files per prd002-sqlite-backend R1.3, R1.4.
     inputs:
       setup:
         - cupboard init

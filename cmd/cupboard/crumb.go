@@ -1,5 +1,5 @@
 // Crumb subcommand group for managing work items.
-// Implements: prd-crumbs-interface (Crumb entity operations);
+// Implements: prd003-crumbs-interface (Crumb entity operations);
 //
 //	docs/ARCHITECTURE § CLI.
 package main

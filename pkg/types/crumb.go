@@ -1,5 +1,5 @@
 // Crumb entity represents a work item in the task coordination system.
-// Implements: prd-crumbs-interface R1, R4, R5 (Crumb struct, state methods, property methods);
+// Implements: prd003-crumbs-interface R1, R4, R5 (Crumb struct, state methods, property methods);
 //
 //	docs/ARCHITECTURE § Main Interface.
 package types
@@ -116,7 +116,7 @@ func (c *Crumb) GetProperties() map[string]any {
 }
 
 // ClearProperty resets a property to nil.
-// Per prd-crumbs-interface R5.5, the map entry is preserved (properties are
+// Per prd003-crumbs-interface R5.5, the map entry is preserved (properties are
 // never unset). The type-based default is resolved by Table.Set during
 // persistence (per R5.7, validation is deferred to persist).
 // Returns ErrPropertyNotFound if the property does not exist.

@@ -1,9 +1,9 @@
 // Integration tests for SQLite backend CRUD operations with JSON persistence verification.
 // Tests the full flow: Attach → GetTable → Set (create) → Get → Set (update) → Fetch → Delete
 // for each entity type: Crumb, Trail, Property, Stash, Metadata, Link.
-// Implements: prd-sqlite-backend (acceptance criteria);
+// Implements: prd002-sqlite-backend (acceptance criteria);
 //
-//	prd-cupboard-core R2, R3, R4, R5;
+//	prd001-cupboard-core R2, R3, R4, R5;
 //	docs/ARCHITECTURE § SQLite Backend.
 package sqlite
 
@@ -1024,7 +1024,7 @@ func splitLines(data []byte) [][]byte {
 }
 
 // TestIntegration_TrailDefaultState tests that new trails default to draft state.
-// Implements: prd-trails-interface R2.2, R3.3
+// Implements: prd006-trails-interface R2.2, R3.3
 func TestIntegration_TrailDefaultState(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -1061,7 +1061,7 @@ func TestIntegration_TrailDefaultState(t *testing.T) {
 }
 
 // TestIntegration_TrailCompleteCascade tests that completing a trail removes belongs_to links.
-// Implements: prd-trails-interface R5.6, R5.7; prd-sqlite-backend R5.6
+// Implements: prd006-trails-interface R5.6, R5.7; prd002-sqlite-backend R5.6
 func TestIntegration_TrailCompleteCascade(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -1142,7 +1142,7 @@ func TestIntegration_TrailCompleteCascade(t *testing.T) {
 }
 
 // TestIntegration_TrailAbandonCascade tests that abandoning a trail deletes crumbs and their data.
-// Implements: prd-trails-interface R6.6, R6.7, R6.8; prd-sqlite-backend R5.6
+// Implements: prd006-trails-interface R6.6, R6.7, R6.8; prd002-sqlite-backend R5.6
 func TestIntegration_TrailAbandonCascade(t *testing.T) {
 	tmpDir := t.TempDir()
 

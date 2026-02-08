@@ -21,9 +21,9 @@ touchpoints:
   - T2: "YAML parser: reads and parses template files into structured data"
   - T3: "Template metadata: name, description, tags, parameters extracted from YAML"
   - T4: "Parameter extraction: identifies required inputs before instantiation"
-  - T5: "prd-crumbs-interface R1: Crumb struct fields referenced in template trail definition"
-  - T6: "prd-trails-interface R3: trail creation referenced for future instantiation"
-  - T7: "prd-trails-interface R7: belongs_to links for crumb-trail membership in instantiation"
+  - T5: "prd003-crumbs-interface R1: Crumb struct fields referenced in template trail definition"
+  - T6: "prd006-trails-interface R3: trail creation referenced for future instantiation"
+  - T7: "prd006-trails-interface R7: belongs_to links for crumb-trail membership in instantiation"
 success_criteria:
   - S1: Agent discovers template directory at configured or well-known path
   - S2: Agent lists all .yaml/.yml files in the directory
@@ -35,9 +35,9 @@ success_criteria:
 out_of_scope:
   - Trail instantiation from template (requires prd-blazes-instantiation)
   - Parameter value binding and placeholder expansion (requires prd-blazes-instantiation)
-  - Creating crumbs via Table.Set per prd-crumbs-interface R3 (requires prd-blazes-instantiation)
-  - Creating trails via Table.Set per prd-trails-interface R3 (requires prd-blazes-instantiation)
-  - Creating belongs_to links per prd-trails-interface R7 (requires prd-blazes-instantiation)
+  - Creating crumbs via Table.Set per prd003-crumbs-interface R3 (requires prd-blazes-instantiation)
+  - Creating trails via Table.Set per prd006-trails-interface R3 (requires prd-blazes-instantiation)
+  - Creating belongs_to links per prd006-trails-interface R7 (requires prd-blazes-instantiation)
   - Template validation and error handling for malformed YAML (requires prd-blazes-schema)
   - Template versioning or inheritance
   - Remote template repositories
@@ -54,9 +54,9 @@ risks:
   - K4: "Template schema evolves | Version field in template enables migration; validate against schema"
   - K5: "Large template directory slows discovery | Cache parsed metadata; lazy-load trail definitions"
 references:
-  - prd-crumbs-interface (R1 Crumb struct, R2 State values, R9 Filter map)
-  - prd-trails-interface (R1 Trail struct, R2 State values, R3 Trail creation)
-  - prd-stash-interface (R2 Stash types context and artifact)
+  - prd003-crumbs-interface (R1 Crumb struct, R2 State values, R9 Filter map)
+  - prd006-trails-interface (R1 Trail struct, R2 State values, R3 Trail creation)
+  - prd008-stash-interface (R2 Stash types context and artifact)
 demo: |
   # 1. List available templates
   ls .crumbs/blazes/*.yaml

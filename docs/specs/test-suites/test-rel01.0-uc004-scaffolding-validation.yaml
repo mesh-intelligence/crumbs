@@ -6,8 +6,8 @@ description: >
   and GetTable for all six tables. This is the first use case implemented.
 traces:
   - rel01.0-uc004-scaffolding-validation
-  - prd-cupboard-core R2
-  - prd-cupboard-core R2.5
+  - prd001-cupboard-core R2
+  - prd001-cupboard-core R2.5
 tags:
   - cli
   - smoke
@@ -84,7 +84,7 @@ test_cases:
   - name: Crumb struct has required fields
     description: >
       Compile-time test. Instantiate a Crumb with all documented fields
-      to verify the struct definition matches prd-crumbs-interface.
+      to verify the struct definition matches prd003-crumbs-interface.
     inputs:
       go_code: |
         c := &types.Crumb{

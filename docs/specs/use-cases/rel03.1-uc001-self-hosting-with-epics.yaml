@@ -14,7 +14,7 @@ flow:
     detail: |
       The trail acts as an epic container. Create it via the generic set command
       with an empty ID to generate a UUID v7. The trail starts in draft state
-      per prd-trails-interface R2.
+      per prd006-trails-interface R2.
   - F2: "Transition trail to active: run cupboard set trails <trail_id> '{\"State\":\"active\"}'"
     detail: |
       Move the trail from draft to active state to enable adding crumbs.
@@ -28,7 +28,7 @@ flow:
     detail: |
       Create belongs_to links from each crumb to the trail. This establishes
       the epic-task relationship. A crumb can belong to at most one trail at
-      a time (prd-links-interface R6.1).
+      a time (prd007-links-interface R6.1).
   - F5: "Query crumbs by epic: run cupboard list links LinkType=belongs_to ToID=<trail_id>"
     detail: |
       Find all crumbs belonging to this trail by querying the links table.
@@ -46,7 +46,7 @@ flow:
   - F8: "Complete the epic trail: run cupboard set trails <trail_id> '{\"State\":\"completed\"}'"
     detail: |
       When all tasks are done, complete the trail. The backend removes all
-      belongs_to links; crumbs become permanent (prd-trails-interface R5).
+      belongs_to links; crumbs become permanent (prd006-trails-interface R5).
       Crumbs persist in the database, now indistinguishable from never-trailed
       crumbs.
   - F9: "Verify crumbs are permanent: run cupboard list links LinkType=belongs_to ToID=<trail_id> returns empty"
@@ -59,7 +59,7 @@ flow:
   - F11: "Abandon the failed epic: run cupboard set trails <trail_id> '{\"State\":\"abandoned\"}'"
     detail: |
       If an epic fails or is no longer needed, abandon the trail. The backend
-      deletes all crumbs that belong to the trail atomically (prd-trails-interface
+      deletes all crumbs that belong to the trail atomically (prd006-trails-interface
       R6). Properties, metadata, and links involving those crumbs are also deleted.
   - F12: "Verify cascade deletion: cupboard get crumbs <crumb_id> returns error for abandoned crumbs"
     detail: |
@@ -81,12 +81,12 @@ flow:
       and links.jsonl. The trail and link data persist across sessions.
 touchpoints:
   - T1: "cupboard CLI (cmd/cupboard): generic table commands get, set, list, delete for trails, crumbs, and links"
-  - T2: "Cupboard library (pkg/types): Cupboard interface with GetTable, Table interface for CRUD (prd-cupboard-core R2, R3)"
-  - T3: "Trail entity (pkg/types): State field, lifecycle transitions draft→active→completed/abandoned (prd-trails-interface R2)"
-  - T4: "Trail completion semantics: removes belongs_to links, crumbs become permanent (prd-trails-interface R5)"
-  - T5: "Trail abandonment semantics: deletes associated crumbs atomically (prd-trails-interface R6)"
-  - T6: "Links table: belongs_to links associate crumbs with trails (prd-links-interface R2.1)"
-  - T7: "SQLite backend (internal/sqlite): storage, JSONL persistence, cascade operations (prd-sqlite-backend R1-R5)"
+  - T2: "Cupboard library (pkg/types): Cupboard interface with GetTable, Table interface for CRUD (prd001-cupboard-core R2, R3)"
+  - T3: "Trail entity (pkg/types): State field, lifecycle transitions draft→active→completed/abandoned (prd006-trails-interface R2)"
+  - T4: "Trail completion semantics: removes belongs_to links, crumbs become permanent (prd006-trails-interface R5)"
+  - T5: "Trail abandonment semantics: deletes associated crumbs atomically (prd006-trails-interface R6)"
+  - T6: "Links table: belongs_to links associate crumbs with trails (prd007-links-interface R2.1)"
+  - T7: "SQLite backend (internal/sqlite): storage, JSONL persistence, cascade operations (prd002-sqlite-backend R1-R5)"
   - T8: "do-work.sh: optionally creates trail for grouped work, completes trail on merge"
   - T9: "make-work.sh: maps epics to trails, child tasks to belongs_to-linked crumbs"
   - T10: ".claude/rules/: agent workflow instructions referencing trail-based epic management"
@@ -118,8 +118,8 @@ dependencies:
   - D4: "rel03.0-uc001-trail-exploration (trail lifecycle implemented)"
   - D5: "rel03.0-uc002-link-management (links table and belongs_to semantics work)"
   - D6: "rel03.0-uc004-trail-crumb-lifecycle (trail-crumb container semantics work)"
-  - D7: "prd-trails-interface must be implemented"
-  - D8: "prd-links-interface must be implemented"
+  - D7: "prd006-trails-interface must be implemented"
+  - D8: "prd007-links-interface must be implemented"
 risks:
   - K1: "Orphan crumbs if abandon fails mid-transaction | Backend uses transaction; rollback on failure"
   - K2: "belongs_to cardinality violation | Uniqueness constraint prevents crumb from belonging to multiple trails"
@@ -165,9 +165,9 @@ demo: |
   cupboard --data-dir=/tmp/epic-demo get crumbs $TASK1
   # Output: {"CrumbID":"...", "Name":"Task 1", "State":"pebble", ...}
 references:
-  - prd-trails-interface
-  - prd-links-interface
-  - prd-cupboard-core
+  - prd006-trails-interface
+  - prd007-links-interface
+  - prd001-cupboard-core
   - rel03.0-uc001-trail-exploration
   - rel03.0-uc004-trail-crumb-lifecycle
   - rel01.1-uc005-flat-self-hosting

@@ -113,10 +113,10 @@ Architecture elements this use case exercises: interfaces, components, and proto
 
 ```yaml
 touchpoints:
-  - T1: "Cupboard interface: Attach, GetTable, Detach (prd-cupboard-core R2)"
-  - T2: "Table interface: Get, Set, Delete, Fetch (prd-cupboard-core R2)"
-  - T3: "SQLite backend: NewBackend, schema creation (prd-sqlite-backend R1)"
-  - T4: "Crumb entity: struct fields (prd-crumbs-interface R1)"
+  - T1: "Cupboard interface: Attach, GetTable, Detach (prd001-cupboard-core R2)"
+  - T2: "Table interface: Get, Set, Delete, Fetch (prd001-cupboard-core R2)"
+  - T3: "SQLite backend: NewBackend, schema creation (prd002-sqlite-backend R1)"
+  - T4: "Crumb entity: struct fields (prd003-crumbs-interface R1)"
 ```
 
 ### success_criteria
@@ -160,8 +160,8 @@ Other use cases or PRD deliverables that must exist first. Each entry has a numb
 
 ```yaml
 dependencies:
-  - D1: prd-cupboard-core (Cupboard and Table interface definitions)
-  - D2: prd-sqlite-backend (backend implementation)
+  - D1: prd001-cupboard-core (Cupboard and Table interface definitions)
+  - D2: prd002-sqlite-backend (backend implementation)
   - D3: rel01.0-uc002-sqlite-crud (Table CRUD must work)
 ```
 
@@ -194,8 +194,8 @@ A list of related documents or external references.
 
 ```yaml
 references:
-  - prd-cupboard-core
-  - prd-sqlite-backend
+  - prd001-cupboard-core
+  - prd002-sqlite-backend
   - docs/ARCHITECTURE.md
 ```
 

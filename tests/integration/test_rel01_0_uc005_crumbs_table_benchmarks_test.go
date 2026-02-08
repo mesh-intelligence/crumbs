@@ -1,8 +1,8 @@
 // Crumbs Table performance benchmarks for core operations.
 // Validates: docs/specs/test-suites/test-rel01.0-uc005-crumbs-table-benchmarks.yaml
 // Implements: docs/specs/use-cases/rel01.0-uc005-crumbs-table-benchmarks.yaml;
-//             prd-cupboard-core R3 (Table interface);
-//             prd-sqlite-backend R14, R15 (entity hydration, JSONL persistence).
+//             prd001-cupboard-core R3 (Table interface);
+//             prd002-sqlite-backend R14, R15 (entity hydration, JSONL persistence).
 //
 // This file contains benchmarks for core crumbs Table operations:
 // Get, Set (create), Set (update), Delete, Fetch (all), Fetch (with state filter).
@@ -234,7 +234,7 @@ func benchmarkCrumbsFetchAllUC005(b *testing.B, dataSize int) {
 // --- Fetch (with state filter) benchmarks (rel01.0-uc005 F15-F16, S10) ---
 
 // BenchmarkCrumbsFetchState100_UC005 measures Table.Fetch latency with state filter
-// on 100 seeded crumbs. Exercises idx_crumbs_state index per prd-sqlite-backend R3.3.
+// on 100 seeded crumbs. Exercises idx_crumbs_state index per prd002-sqlite-backend R3.3.
 func BenchmarkCrumbsFetchState100_UC005(b *testing.B) {
 	benchmarkCrumbsFetchStateUC005(b, 100)
 }

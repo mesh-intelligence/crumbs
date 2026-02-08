@@ -1,6 +1,6 @@
 # Cupboard CLI Usage
 
-This guideline describes how to install, configure, and use the cupboard command-line tool. We cover installation, initialization, configuration, and the full command set for managing crumbs and issue tracking. For the formal specification, see prd-cupboard-cli.yaml.
+This guideline describes how to install, configure, and use the cupboard command-line tool. We cover installation, initialization, configuration, and the full command set for managing crumbs and issue tracking. For the formal specification, see prd009-cupboard-cli.yaml.
 
 ## Installation
 
@@ -865,8 +865,8 @@ Use flat tracking for quick tasks and independent work. Use trails when you need
 
 ## References
 
-- prd-cupboard-cli.yaml (formal CLI specification)
-- prd-configuration-directories.yaml (directory structure and config loading)
-- prd-cupboard-core.yaml (Cupboard and Table interfaces)
+- prd009-cupboard-cli.yaml (formal CLI specification)
+- prd010-configuration-directories.yaml (directory structure and config loading)
+- prd001-cupboard-core.yaml (Cupboard and Table interfaces)
 - eng01-git-integration.md (JSONL in git, trails as worktrees)
 - eng02-beads-migration.md (beads to cupboard migration details)

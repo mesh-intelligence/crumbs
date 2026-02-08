@@ -23,7 +23,7 @@ Documentation issues produce markdown (and optionally diagrams) under `docs/`. T
 | Deliverable type | Output location | Format rule | When to use |
 | ----------------- | ---------------- | ----------- | ------------ |
 | **ARCHITECTURE / docs** | `docs/ARCHITECTURE.md` or specific doc | documentation-standards | Updating system overview, components, diagrams, design decisions |
-| **PRD** | `docs/specs/product-requirements/prd-[feature-name].yaml` | prd-format | New or updated product requirements; numbered requirements, Problem/Goals/Non-Goals |
+| **PRD** | `docs/specs/product-requirements/prd[NNN]-[feature-name].yaml` | prd-format | New or updated product requirements; numbered requirements, Problem/Goals/Non-Goals |
 | **Use case** | `docs/specs/use-cases/rel[NN].[N]-uc[NNN]-[short-name].yaml` | use-case-format | Tracer-bullet flows, actor/trigger, demo criteria; must include test suite |
 | **Test suite** | `docs/specs/test-suites/test-[use-case-id].yaml` | test-case-format | Test cases with inputs and expected outputs |
 | **Engineering guideline** | `docs/engineering/eng[NN]-[short-name].md` | engineering-guideline-format | Conventions and practices |
@@ -42,7 +42,7 @@ Example (PRD issue):
 ```markdown
 ## Required Reading
 - docs/ARCHITECTURE.md § System Components
-- docs/specs/product-requirements/prd-cupboard-core.yaml (interface contract)
+- docs/specs/product-requirements/prd001-cupboard-core.yaml (interface contract)
 
 ## Files to Create/Modify
 - docs/specs/product-requirements/prd-feature-name.yaml (create)
@@ -75,7 +75,7 @@ Example (code issue):
 
 ```markdown
 ## Required Reading
-- docs/specs/product-requirements/prd-crumbs-interface.yaml (CrumbTable contract)
+- docs/specs/product-requirements/prd003-crumbs-interface.yaml (CrumbTable contract)
 - pkg/types/cupboard.go (existing interface)
 
 ## Files to Create/Modify
@@ -84,12 +84,12 @@ Example (code issue):
 - internal/sqlite/crumbs_test.go (create) - tests
 
 ## Requirements
-- Implement CrumbTable interface per prd-crumbs-interface
+- Implement CrumbTable interface per prd003-crumbs-interface
 - Add, Get, Archive, Purge, Fetch operations
 - Property operations (Set/Get/Clear)
 
 ## Design Decisions
-- Use table accessor pattern from prd-cupboard-core
+- Use table accessor pattern from prd001-cupboard-core
 - Filter as map[string]any per PRD
 
 ## Acceptance Criteria
@@ -111,7 +111,7 @@ When proposing or implementing code issues, keep implementation in **internal/**
 | Issue type | Output | Key sections in issue |
 | ---------- | ------ | ---------------------- |
 | Documentation (ARCHITECTURE, general docs) | `docs/*.md` | Required Reading, Files to Create/Modify, Requirements, Acceptance Criteria; follow documentation-standards |
-| Documentation (PRD) | `docs/specs/product-requirements/prd-*.yaml` | Required Reading, Files to Create/Modify, Required sections (Problem, Goals, Requirements, Non-Goals, Acceptance Criteria), Acceptance Criteria; follow prd-format |
+| Documentation (PRD) | `docs/specs/product-requirements/prd*.yaml` | Required Reading, Files to Create/Modify, Required sections (Problem, Goals, Requirements, Non-Goals, Acceptance Criteria), Acceptance Criteria; follow prd-format |
 | Documentation (use case) | `docs/specs/use-cases/rel*-uc*-*.yaml` | Required Reading, Files to Create/Modify, Summary, Actor/trigger, Flow, Success criteria; follow use-case-format |
 | Documentation (test suite) | `docs/specs/test-suites/test*.yaml` | Required Reading, Files to Create/Modify, traces, preconditions, test_cases with inputs/expected; follow test-case-format |
 | Documentation (engineering guideline) | `docs/engineering/eng*.md` | Required Reading, Files to Create/Modify, Introduction, Body; follow engineering-guideline-format |

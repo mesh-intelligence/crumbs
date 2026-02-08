@@ -11,52 +11,52 @@ flow:
   - F2: "Create task with required fields: run cupboard create --type task --title --description"
     detail: |
       The command calls Table.Set with an empty ID to generate a UUID v7
-      (prd-cupboard-core R8, prd-crumbs-interface R3). The crumb is created
+      (prd001-cupboard-core R8, prd003-crumbs-interface R3). The crumb is created
       with state draft and properties initialized to type-based defaults
-      (prd-crumbs-interface R3.2, prd-properties-interface R3.5).
+      (prd003-crumbs-interface R3.2, prd004-properties-interface R3.5).
   - F3: "Create task with JSON output: run cupboard create with --json flag to capture the ID"
   - F4: "Create epic with labels: run cupboard create --type epic --labels to set categorical and list properties"
     detail: |
       The --type and --labels flags set categorical and list properties
-      (prd-properties-interface R3, R9).
+      (prd004-properties-interface R3, R9).
   - F5: "List all crumbs: run cupboard list --json to retrieve all crumbs via Table.Fetch(nil)"
   - F6: "Show specific crumb: run cupboard show <id> to display details via Table.Get"
     detail: |
       The command calls Table.Get(id) and type-asserts to *Crumb
-      (prd-cupboard-core R3.2, prd-crumbs-interface R6).
+      (prd001-cupboard-core R3.2, prd003-crumbs-interface R6).
   - F7: "Find available work: run cupboard ready --json --type task to fetch open tasks"
     detail: |
       The command calls Table.Fetch with a filter for state and type
-      (prd-crumbs-interface R9, R10).
+      (prd003-crumbs-interface R9, R10).
   - F8: "Claim task: run cupboard update <id> --status in_progress to transition state"
     detail: |
       The command retrieves the crumb via Table.Get, calls crumb.SetState,
-      then persists with Table.Set (prd-crumbs-interface R4).
+      then persists with Table.Set (prd003-crumbs-interface R4).
   - F9: "Verify status change: run cupboard show <id> to confirm state is in_progress"
   - F10: "Add comment: run cupboard comments add <id> 'text' to append metadata"
     detail: |
       Comments are stored as metadata entries associated with the crumb
-      (prd-sqlite-backend R2.8).
+      (prd002-sqlite-backend R2.8).
   - F11: "Verify comment: run cupboard show <id> to confirm comment appears in output"
   - F12: "Close task: run cupboard close <id> to set state to closed"
     detail: |
-      The command calls crumb.Pebble() (prd-crumbs-interface R4.3), which
+      The command calls crumb.Pebble() (prd003-crumbs-interface R4.3), which
       requires the crumb to be in taken state, then persists with Table.Set.
   - F13: "Verify final state: run cupboard show <id> to confirm state is closed"
   - F14: "Confirm ready excludes closed: run cupboard ready --json --type task and verify closed task is absent"
 touchpoints:
-  - T1: "Cupboard interface: GetTable('crumbs') (prd-cupboard-core R2)"
-  - T2: "Table interface: Get, Set, Fetch (prd-cupboard-core R3)"
-  - T3: "cupboard CLI create command: creation via Table.Set (prd-crumbs-interface R3)"
-  - T4: "cupboard CLI ready command: Fetch with filter (prd-crumbs-interface R9, R10)"
-  - T5: "cupboard CLI update command: SetState (prd-crumbs-interface R4)"
-  - T6: "cupboard CLI close command: Pebble (prd-crumbs-interface R4.3)"
-  - T7: "cupboard CLI show command: Table.Get (prd-cupboard-core R3.2)"
-  - T8: "cupboard CLI list command: Table.Fetch (prd-crumbs-interface R10)"
-  - T9: "cupboard CLI comments add command: metadata (prd-sqlite-backend R2.8)"
-  - T10: "Crumb entity: state transitions, properties (prd-crumbs-interface R2, R4, R5)"
-  - T11: "Properties: type, priority, labels (prd-properties-interface R9)"
-  - T12: "SQLite backend: JSONL persistence (prd-sqlite-backend R5)"
+  - T1: "Cupboard interface: GetTable('crumbs') (prd001-cupboard-core R2)"
+  - T2: "Table interface: Get, Set, Fetch (prd001-cupboard-core R3)"
+  - T3: "cupboard CLI create command: creation via Table.Set (prd003-crumbs-interface R3)"
+  - T4: "cupboard CLI ready command: Fetch with filter (prd003-crumbs-interface R9, R10)"
+  - T5: "cupboard CLI update command: SetState (prd003-crumbs-interface R4)"
+  - T6: "cupboard CLI close command: Pebble (prd003-crumbs-interface R4.3)"
+  - T7: "cupboard CLI show command: Table.Get (prd001-cupboard-core R3.2)"
+  - T8: "cupboard CLI list command: Table.Fetch (prd003-crumbs-interface R10)"
+  - T9: "cupboard CLI comments add command: metadata (prd002-sqlite-backend R2.8)"
+  - T10: "Crumb entity: state transitions, properties (prd003-crumbs-interface R2, R4, R5)"
+  - T11: "Properties: type, priority, labels (prd004-properties-interface R9)"
+  - T12: "SQLite backend: JSONL persistence (prd002-sqlite-backend R5)"
 success_criteria:
   - S1: "cupboard create --type task --title 'Demo' --description 'Test' --json outputs JSON with crumb_id, state open, type task"
   - S2: "cupboard list --json returns JSON array containing the created task"
@@ -76,12 +76,12 @@ out_of_scope:
   - Remote backends
 test_suite: test-rel02.1-uc001-issue-tracking-cli
 dependencies:
-  - D1: "Cupboard interface with Attach/Detach/GetTable (prd-cupboard-core R2, R4, R5)"
-  - D2: "Table interface with Get/Set/Delete/Fetch (prd-cupboard-core R3)"
-  - D3: "Crumb entity with state transitions and property methods (prd-crumbs-interface R1-R5)"
-  - D4: "SQLite backend with JSONL persistence (prd-sqlite-backend R1-R5)"
-  - D5: "Property definitions for type, priority, labels (prd-properties-interface R1, R9)"
-  - D6: "Built-in properties seeded on first startup (prd-sqlite-backend R9)"
+  - D1: "Cupboard interface with Attach/Detach/GetTable (prd001-cupboard-core R2, R4, R5)"
+  - D2: "Table interface with Get/Set/Delete/Fetch (prd001-cupboard-core R3)"
+  - D3: "Crumb entity with state transitions and property methods (prd003-crumbs-interface R1-R5)"
+  - D4: "SQLite backend with JSONL persistence (prd002-sqlite-backend R1-R5)"
+  - D5: "Property definitions for type, priority, labels (prd004-properties-interface R1, R9)"
+  - D6: "Built-in properties seeded on first startup (prd002-sqlite-backend R9)"
 risks:
   - K1: "CLI output format changes break scripts | Use --json flag for machine-readable output; document JSON schema"
   - K2: "Missing validation returns cryptic errors | CLI validates inputs before calling library; provides user-friendly messages"

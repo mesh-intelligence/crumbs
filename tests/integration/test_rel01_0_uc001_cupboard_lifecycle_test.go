@@ -197,7 +197,7 @@ func TestTrailPersistence(t *testing.T) {
 }
 
 // TestFullLifecycleWorkflow validates the complete lifecycle with crumbs and trails.
-// Updated to account for trail cascade operations per prd-trails-interface R5.6, R6.6:
+// Updated to account for trail cascade operations per prd006-trails-interface R5.6, R6.6:
 //   - Completing a trail removes belongs_to links (crumbs become permanent)
 //   - Abandoning a trail deletes all crumbs belonging to it
 func TestFullLifecycleWorkflow(t *testing.T) {

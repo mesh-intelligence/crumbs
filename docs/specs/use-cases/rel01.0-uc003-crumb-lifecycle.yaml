@@ -25,12 +25,12 @@ flow:
   - F13: "Verify UpdatedAt tracks transitions: for each state transition confirm that UpdatedAt changed and is equal to or later than the previous value; CreatedAt must remain unchanged"
   - F14: "Detach: call cupboard.Detach()"
 touchpoints:
-  - T1: "Table interface: Get, Set, Fetch for persistence and retrieval (prd-cupboard-core R2)"
-  - T2: "Crumb entity: SetState, Pebble, Dust methods (prd-crumbs-interface R2)"
-  - T3: "Crumb state machine: draft to pending to ready to taken to pebble; any to dust (prd-crumbs-interface R2, R4, R5)"
-  - T4: "Crumb creation defaults to draft state with initialized timestamps (prd-crumbs-interface R1, R3)"
-  - T5: "UpdatedAt advances on every state transition; CreatedAt remains constant (prd-crumbs-interface R3)"
-  - T6: "State-based Fetch filtering correctly includes and excludes crumbs by state (prd-crumbs-interface R9, R10)"
+  - T1: "Table interface: Get, Set, Fetch for persistence and retrieval (prd001-cupboard-core R2)"
+  - T2: "Crumb entity: SetState, Pebble, Dust methods (prd003-crumbs-interface R2)"
+  - T3: "Crumb state machine: draft to pending to ready to taken to pebble; any to dust (prd003-crumbs-interface R2, R4, R5)"
+  - T4: "Crumb creation defaults to draft state with initialized timestamps (prd003-crumbs-interface R1, R3)"
+  - T5: "UpdatedAt advances on every state transition; CreatedAt remains constant (prd003-crumbs-interface R3)"
+  - T6: "State-based Fetch filtering correctly includes and excludes crumbs by state (prd003-crumbs-interface R9, R10)"
 success_criteria:
   - S1: New crumb starts in draft state with CreatedAt and UpdatedAt set
   - S2: SetState(pending) transitions draft to pending
@@ -53,10 +53,10 @@ out_of_scope:
 test_suite: test-rel01.0-uc003-crumb-lifecycle
 dependencies:
   - D1: rel01.0-uc002 (Table CRUD must work; Set, Get, Fetch used throughout)
-  - D2: prd-crumbs-interface (Crumb entity, state machine, entity methods)
-  - D3: prd-sqlite-backend (Persistence of state changes to JSONL)
+  - D2: prd003-crumbs-interface (Crumb entity, state machine, entity methods)
+  - D3: prd002-sqlite-backend (Persistence of state changes to JSONL)
 risks:
-  - K1: "State transition rules change | Test against the state machine defined in prd-crumbs-interface; update when PRD changes"
+  - K1: "State transition rules change | Test against the state machine defined in prd003-crumbs-interface; update when PRD changes"
   - K2: "Dust from unexpected states | Test Dust from multiple starting states to ensure it works universally"
   - K3: "Timestamp precision | Use time comparison with tolerance; avoid exact equality checks"
 demo: |

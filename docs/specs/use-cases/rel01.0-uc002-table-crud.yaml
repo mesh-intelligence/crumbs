@@ -28,14 +28,14 @@ flow:
   - F15: "Repeat on every standard table: for each of trails, properties, metadata, links, and stashes, call cupboard.GetTable(name), create an entity with Set (empty ID), retrieve it with Get, list with Fetch, and delete with Delete; the same Table interface contract holds across all six standard tables"
   - F16: "Detach: call cupboard.Detach() to release resources; subsequent Table operations return ErrCupboardDetached"
 touchpoints:
-  - T1: "Cupboard interface: Attach, GetTable, Detach (prd-cupboard-core R2)"
-  - T2: "Table interface: Get, Set, Delete, Fetch (prd-cupboard-core R2)"
-  - T3: "SQLite backend: UUID v7 generation, hydration, dehydration, JSONL persistence (prd-sqlite-backend R5, R14)"
-  - T4: "Table.Set with empty ID generates UUID v7 and creates entity (prd-sqlite-backend R5)"
-  - T5: "Table.Get retrieves and hydrates entity from SQLite (prd-sqlite-backend R14)"
-  - T6: "Table.Fetch returns matching entities; empty filter returns all (prd-cupboard-core R2)"
-  - T7: "Table.Delete removes entity from SQLite and JSONL (prd-sqlite-backend R5)"
-  - T8: "JSONL files are human-readable and reflect all write operations (prd-sqlite-backend R5, R16)"
+  - T1: "Cupboard interface: Attach, GetTable, Detach (prd001-cupboard-core R2)"
+  - T2: "Table interface: Get, Set, Delete, Fetch (prd001-cupboard-core R2)"
+  - T3: "SQLite backend: UUID v7 generation, hydration, dehydration, JSONL persistence (prd002-sqlite-backend R5, R14)"
+  - T4: "Table.Set with empty ID generates UUID v7 and creates entity (prd002-sqlite-backend R5)"
+  - T5: "Table.Get retrieves and hydrates entity from SQLite (prd002-sqlite-backend R14)"
+  - T6: "Table.Fetch returns matching entities; empty filter returns all (prd001-cupboard-core R2)"
+  - T7: "Table.Delete removes entity from SQLite and JSONL (prd002-sqlite-backend R5)"
+  - T8: "JSONL files are human-readable and reflect all write operations (prd002-sqlite-backend R5, R16)"
 success_criteria:
   - S1: Set with empty ID returns a UUID v7 and persists to JSONL
   - S2: Get(id) returns the entity with all fields matching what was created
@@ -56,16 +56,16 @@ out_of_scope:
   - Error recovery (corrupt JSONL, I/O failures)
 test_suite: test-rel01.0-uc002-table-crud
 dependencies:
-  - D1: prd-cupboard-core (Cupboard and Table interface definitions)
-  - D2: prd-sqlite-backend (SQLite backend, JSONL persistence, hydration/dehydration)
-  - D3: prd-crumbs-interface (Crumb entity struct)
-  - D4: prd-trails-interface (Trail entity struct)
-  - D5: prd-properties-interface (Property entity struct)
-  - D6: prd-metadata-interface (Metadata entity struct)
-  - D7: prd-links-interface (Link entity struct)
-  - D8: prd-stash-interface (Stash entity struct)
+  - D1: prd001-cupboard-core (Cupboard and Table interface definitions)
+  - D2: prd002-sqlite-backend (SQLite backend, JSONL persistence, hydration/dehydration)
+  - D3: prd003-crumbs-interface (Crumb entity struct)
+  - D4: prd006-trails-interface (Trail entity struct)
+  - D5: prd004-properties-interface (Property entity struct)
+  - D6: prd005-metadata-interface (Metadata entity struct)
+  - D7: prd007-links-interface (Link entity struct)
+  - D8: prd008-stash-interface (Stash entity struct)
 risks:
-  - K1: "JSONL file corruption on crash | Atomic write (temp file + rename) per prd-sqlite-backend R5.2"
+  - K1: "JSONL file corruption on crash | Atomic write (temp file + rename) per prd002-sqlite-backend R5.2"
   - K2: "Type assertion fails on Get | Callers must type-assert; document the pattern"
   - K3: "UUID v7 collision | Timestamp + random bits make collision negligible"
 demo: |

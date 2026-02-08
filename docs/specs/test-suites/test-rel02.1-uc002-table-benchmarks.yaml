@@ -17,7 +17,7 @@ preconditions:
   - Go test infrastructure available (go test command)
   - tests/integration package contains benchmark test files
   - Cupboard initialized with SQLite backend in a temp directory
-  - Built-in properties seeded per prd-sqlite-backend R9
+  - Built-in properties seeded per prd002-sqlite-backend R9
 
 test_cases:
 
@@ -79,7 +79,7 @@ test_cases:
   - name: Set create benchmark with 10 existing crumbs
     description: >
       Measure Table.Set latency for creating new crumbs (empty ID triggers
-      UUID v7 generation). Includes JSONL sync cost per prd-sqlite-backend R5.3.
+      UUID v7 generation). Includes JSONL sync cost per prd002-sqlite-backend R5.3.
     inputs:
       command: go test -bench=BenchmarkCrumbsSetCreate10 -benchmem ./tests/integration/...
       data_size: 10
@@ -108,7 +108,7 @@ test_cases:
   - name: Set update benchmark with 10 crumbs
     description: >
       Measure Table.Set latency for updating existing crumbs. Includes
-      JSONL sync cost per prd-sqlite-backend R5.3.
+      JSONL sync cost per prd002-sqlite-backend R5.3.
     inputs:
       command: go test -bench=BenchmarkCrumbsSetUpdate10 -benchmem ./tests/integration/...
       data_size: 10
@@ -137,7 +137,7 @@ test_cases:
   - name: Delete benchmark with 10 crumbs
     description: >
       Measure Table.Delete latency including cascade deletion of property
-      values, metadata, and links per prd-crumbs-interface R8.3. Each
+      values, metadata, and links per prd003-crumbs-interface R8.3. Each
       iteration creates then deletes a crumb.
     inputs:
       command: go test -bench=BenchmarkCrumbsDelete10 -benchmem ./tests/integration/...
@@ -194,7 +194,7 @@ test_cases:
   - name: Fetch with state filter benchmark 100 crumbs
     description: >
       Measure Table.Fetch with state filter. Exercises idx_crumbs_state
-      index per prd-sqlite-backend R3.3.
+      index per prd002-sqlite-backend R3.3.
     inputs:
       command: go test -bench=BenchmarkCrumbsFetchState100 -benchmem ./tests/integration/...
       data_size: 100

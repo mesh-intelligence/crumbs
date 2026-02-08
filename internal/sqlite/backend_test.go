@@ -1,5 +1,5 @@
 // Tests for SQLite backend implementation.
-// Implements: prd-sqlite-backend acceptance criteria (unit tests).
+// Implements: prd002-sqlite-backend acceptance criteria (unit tests).
 package sqlite
 
 import (
@@ -588,7 +588,7 @@ func TestTable_TimestampPersistence(t *testing.T) {
 }
 
 // Tests for property auto-initialization on crumb creation.
-// Implements: prd-crumbs-interface R3.7; prd-properties-interface R3.5
+// Implements: prd003-crumbs-interface R3.7; prd004-properties-interface R3.5
 
 func TestCrumbTable_PropertyAutoInit_TextProperty(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -1007,7 +1007,7 @@ func TestCrumbTable_PropertyAutoInit_NoPropertiesDefined(t *testing.T) {
 }
 
 // Tests for property backfill on property definition.
-// Implements: prd-properties-interface R4.2-R4.5
+// Implements: prd004-properties-interface R4.2-R4.5
 
 func TestPropertyTable_Backfill_ExistingCrumbs(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -1286,7 +1286,7 @@ func TestPropertyTable_Backfill_UpdateDoesNotRebackfill(t *testing.T) {
 }
 
 // Tests for JSONL sync strategy dispatch.
-// Implements: prd-sqlite-backend R16 (sync strategies: immediate, on_close, batch)
+// Implements: prd002-sqlite-backend R16 (sync strategies: immediate, on_close, batch)
 
 func TestSyncStrategy_ImmediateDefault(t *testing.T) {
 	tmpDir := t.TempDir()

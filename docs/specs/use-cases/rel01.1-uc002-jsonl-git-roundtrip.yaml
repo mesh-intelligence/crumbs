@@ -30,9 +30,9 @@ flow:
       cupboard create --type task --title "Second task" --description "Follow-up work" --json
 
       Each cupboard create calls Table.Set("", crumb) which generates a UUID v7
-      (prd-cupboard-core R8), persists to SQLite, and writes to JSONL atomically
-      (prd-sqlite-backend R5.2). The immediate sync strategy ensures JSONL files
-      are current after every write (prd-sqlite-backend R16.2).
+      (prd001-cupboard-core R8), persists to SQLite, and writes to JSONL atomically
+      (prd002-sqlite-backend R5.2). The immediate sync strategy ensures JSONL files
+      are current after every write (prd002-sqlite-backend R16.2).
   - F3: "Verify JSONL files exist and contain the data"
     detail: |
       ls -la data/
@@ -40,7 +40,7 @@ flow:
       wc -l data/crumbs.jsonl
 
       Expected: Three lines in crumbs.jsonl, one JSON object per crumb. The JSONL
-      format follows prd-sqlite-backend R2: one JSON object per line, RFC 3339
+      format follows prd002-sqlite-backend R2: one JSON object per line, RFC 3339
       timestamps, lowercase hyphenated UUIDs.
   - F4: "Commit the JSONL files to git"
     detail: |
@@ -69,7 +69,7 @@ flow:
       cupboard list --json | jq length
 
       Expected: 3. On attach, the SQLite backend performs the startup sequence
-      (prd-sqlite-backend R4): creates cupboard.db with schema (R4.3, R4.4),
+      (prd002-sqlite-backend R4): creates cupboard.db with schema (R4.3, R4.4),
       loads each JSONL file into the corresponding SQLite table (R4.5), validates
       foreign key relationships (R4.6), returns a ready Cupboard instance (R4.7).
   - F8: "Verify all crumbs are intact"
@@ -79,14 +79,14 @@ flow:
       cupboard show $TASK2_ID
 
       Each cupboard show calls Table.Get(id) which queries SQLite (now rebuilt
-      from JSONL) and hydrates the row into a Crumb entity (prd-sqlite-backend R14).
+      from JSONL) and hydrates the row into a Crumb entity (prd002-sqlite-backend R14).
   - F9: "Verify queries work correctly"
     detail: |
       cupboard ready --json --type task
       cupboard ready --json --type epic
 
       Table.Fetch with filter queries the rebuilt SQLite database
-      (prd-crumbs-interface R9, R10).
+      (prd003-crumbs-interface R9, R10).
   - F10: "Modify data and verify JSONL is updated"
     detail: |
       cupboard update $TASK1_ID --status in_progress
@@ -95,7 +95,7 @@ flow:
       cat data/crumbs.jsonl | grep $TASK1_ID
 
       Writes update SQLite first, then persist atomically to JSONL
-      (prd-sqlite-backend R5.1, R5.2).
+      (prd002-sqlite-backend R5.1, R5.2).
   - F11: "Commit the updated JSONL files"
     detail: |
       git add data/*.jsonl
@@ -136,7 +136,7 @@ flow:
       # Now JSONL has the data
       cat data/crumbs.jsonl | wc -l  # Expected: 1
 
-      Per prd-sqlite-backend R16.3, on_close strategy defers all JSONL writes
+      Per prd002-sqlite-backend R16.3, on_close strategy defers all JSONL writes
       until Detach. SQLite remains the write cache during the session.
   - F14: "Test batch sync strategy: verify flush at BatchSize threshold"
     detail: |
@@ -161,7 +161,7 @@ flow:
       crumbsTable.Set("", &types.Crumb{Name: "Crumb 5"})
       cat data/crumbs.jsonl | wc -l  # Expected: 5
 
-      Per prd-sqlite-backend R16.4, batch strategy flushes when BatchSize
+      Per prd002-sqlite-backend R16.4, batch strategy flushes when BatchSize
       writes have accumulated.
   - F15: "Test immediate sync strategy (default): verify every write persists"
     detail: |
@@ -180,20 +180,20 @@ flow:
       crumbsTable.Set("", &types.Crumb{Name: "Another crumb"})
       cat data/crumbs.jsonl | wc -l  # Expected: 2
 
-      Per prd-sqlite-backend R16.2, immediate strategy (default) persists
+      Per prd002-sqlite-backend R16.2, immediate strategy (default) persists
       every write to JSONL immediately after SQLite commit.
 touchpoints:
-  - T1: "SQLite backend startup sequence: delete db, create schema, load JSONL (prd-sqlite-backend R4)"
-  - T2: "SQLite backend JSONL as source of truth: cupboard.db is ephemeral (prd-sqlite-backend R1.2)"
-  - T3: "SQLite backend atomic write pattern for JSONL (prd-sqlite-backend R5.2)"
-  - T4: "SQLite backend immediate sync strategy (prd-sqlite-backend R16.2)"
-  - T5: "SQLite backend entity hydration from SQLite rows (prd-sqlite-backend R14)"
-  - T6: "Cupboard interface: Attach initializes backend (prd-cupboard-core R4)"
+  - T1: "SQLite backend startup sequence: delete db, create schema, load JSONL (prd002-sqlite-backend R4)"
+  - T2: "SQLite backend JSONL as source of truth: cupboard.db is ephemeral (prd002-sqlite-backend R1.2)"
+  - T3: "SQLite backend atomic write pattern for JSONL (prd002-sqlite-backend R5.2)"
+  - T4: "SQLite backend immediate sync strategy (prd002-sqlite-backend R16.2)"
+  - T5: "SQLite backend entity hydration from SQLite rows (prd002-sqlite-backend R14)"
+  - T6: "Cupboard interface: Attach initializes backend (prd001-cupboard-core R4)"
   - T7: "Git integration: JSONL files committed, cupboard.db gitignored (eng01-git-integration)"
   - T8: "Git integration: Commit JSONL alongside code changes (eng01-git-integration)"
-  - T9: "SQLite backend on_close sync strategy: defer writes until Detach (prd-sqlite-backend R16.3)"
-  - T10: "SQLite backend batch sync strategy: flush at BatchSize or BatchInterval (prd-sqlite-backend R16.4-R16.6)"
-  - T11: "SQLite backend sync strategy dispatch: backend reads SyncStrategy from config (prd-sqlite-backend R16.1)"
+  - T9: "SQLite backend on_close sync strategy: defer writes until Detach (prd002-sqlite-backend R16.3)"
+  - T10: "SQLite backend batch sync strategy: flush at BatchSize or BatchInterval (prd002-sqlite-backend R16.4-R16.6)"
+  - T11: "SQLite backend sync strategy dispatch: backend reads SyncStrategy from config (prd002-sqlite-backend R16.1)"
 success_criteria:
   - S1: git init and .gitignore setup completes with cupboard.db gitignored
   - S2: cupboard create produces crumbs with JSON output including crumb_id
@@ -212,21 +212,21 @@ success_criteria:
 out_of_scope:
   - Merge conflict resolution when JSONL files diverge between branches (eng01-git-integration describes this but not validated here)
   - Trail-scoped worktrees (eng01-git-integration Trails as Worktrees)
-  - Corrupt JSONL recovery (prd-sqlite-backend R7 describes error handling but this use case assumes valid files)
-  - Cross-process access (prd-sqlite-backend R8.5 explicitly does not support this)
+  - Corrupt JSONL recovery (prd002-sqlite-backend R7 describes error handling but this use case assumes valid files)
+  - Cross-process access (prd002-sqlite-backend R8.5 explicitly does not support this)
   - Batch interval timer edge cases (rapid attach/detach cycles, timer races)
 test_suite: test-rel01.1-uc002-jsonl-git-roundtrip
 dependencies:
-  - D1: "SQLite backend with JSONL persistence (prd-sqlite-backend R1-R5)"
-  - D2: "Startup sequence loads JSONL into SQLite (prd-sqlite-backend R4)"
-  - D3: "Cupboard interface with Attach/Detach (prd-cupboard-core R4, R5)"
-  - D4: "Table interface with Get/Set/Fetch (prd-cupboard-core R3)"
+  - D1: "SQLite backend with JSONL persistence (prd002-sqlite-backend R1-R5)"
+  - D2: "Startup sequence loads JSONL into SQLite (prd002-sqlite-backend R4)"
+  - D3: "Cupboard interface with Attach/Detach (prd001-cupboard-core R4, R5)"
+  - D4: "Table interface with Get/Set/Fetch (prd001-cupboard-core R3)"
   - D5: "Issue-tracking CLI commands (rel02.1-uc001-issue-tracking-cli)"
 risks:
-  - K1: "JSONL write fails silently, SQLite ahead of JSONL | Immediate sync strategy writes JSONL on every commit; next attach reconciles from JSONL (prd-sqlite-backend R5.4)"
+  - K1: "JSONL write fails silently, SQLite ahead of JSONL | Immediate sync strategy writes JSONL on every commit; next attach reconciles from JSONL (prd002-sqlite-backend R5.4)"
   - K2: "JSONL files grow unbounded | JSONL uses stable insertion order; rows update in place, new rows append (eng01-git-integration)"
   - K3: "User commits cupboard.db by mistake | .gitignore template and eng01-git-integration documentation prevent this"
-  - K4: "JSONL format changes break old files | Unknown fields are ignored (prd-sqlite-backend R7.2); forward compatibility maintained"
+  - K4: "JSONL format changes break old files | Unknown fields are ignored (prd002-sqlite-backend R7.2); forward compatibility maintained"
 demo: |
   # Initialize repository
   mkdir -p /tmp/jsonl-demo && cd /tmp/jsonl-demo
@@ -247,7 +247,7 @@ demo: |
   # Verify database regenerated
   ls data/cupboard.db  # File exists
 references:
-  - prd-sqlite-backend
-  - prd-cupboard-core
+  - prd002-sqlite-backend
+  - prd001-cupboard-core
   - eng01-git-integration
   - docs/ARCHITECTURE.md

@@ -28,15 +28,15 @@ flow:
   - F18: "Verify value type validation: Attempt to call DefineCategory on a text property. Verify ErrInvalidValueType is returned."
   - F19: "Detach the cupboard: Call cupboard.Detach()."
 touchpoints:
-  - T1: "Cupboard interface: Attach, Detach, GetTable (prd-cupboard-core R2)"
+  - T1: "Cupboard interface: Attach, Detach, GetTable (prd001-cupboard-core R2)"
   - T2: "Table (crumbs): Get, Set, Fetch"
   - T3: "Table (properties): Get, Set, Fetch"
-  - T4: "Crumb entity: SetProperty, GetProperty, GetProperties, ClearProperty (prd-crumbs-interface R5)"
-  - T5: "Property entity: struct fields, DefineCategory, GetCategories (prd-properties-interface R7, R8)"
-  - T6: "Built-in property seeding (prd-properties-interface R9, prd-sqlite-backend R9)"
-  - T7: "Crumb creation with property auto-initialization (prd-crumbs-interface R3)"
-  - T8: "Property definition with backfill to existing crumbs (prd-properties-interface R4)"
-  - T9: "Category entity: struct fields, persistence to SQLite and JSONL (prd-properties-interface R2, R7)"
+  - T4: "Crumb entity: SetProperty, GetProperty, GetProperties, ClearProperty (prd003-crumbs-interface R5)"
+  - T5: "Property entity: struct fields, DefineCategory, GetCategories (prd004-properties-interface R7, R8)"
+  - T6: "Built-in property seeding (prd004-properties-interface R9, prd002-sqlite-backend R9)"
+  - T7: "Crumb creation with property auto-initialization (prd003-crumbs-interface R3)"
+  - T8: "Property definition with backfill to existing crumbs (prd004-properties-interface R4)"
+  - T9: "Category entity: struct fields, persistence to SQLite and JSONL (prd004-properties-interface R2, R7)"
 success_criteria:
   - S1: properties table Fetch returns five built-in properties after initialization
   - S2: Newly added crumbs have all defined properties with default values
@@ -55,17 +55,17 @@ success_criteria:
   - S15: DefineCategory and GetCategories return ErrInvalidValueType for non-categorical properties
 out_of_scope:
   - Core CRUD operations (Get, Set, Delete, Fetch) - see rel01.0-uc003
-  - Property deletion or renaming (not supported per prd-properties-interface)
+  - Property deletion or renaming (not supported per prd004-properties-interface)
   - Trail operations - see rel03.0-uc001
   - Concurrent property definition and crumb creation
   - Property value validation beyond type checking
-  - Category deletion or renaming (not supported per prd-properties-interface)
+  - Category deletion or renaming (not supported per prd004-properties-interface)
 test_suite: test-rel02.0-uc001-property-enforcement
 dependencies:
   - D1: rel01.0-uc001 (Cupboard lifecycle) must pass
   - D2: rel01.0-uc003 (Core CRUD) must pass
-  - D3: prd-properties-interface must be implemented (Property entity, Table operations)
-  - D4: prd-crumbs-interface property methods must be implemented
+  - D3: prd004-properties-interface must be implemented (Property entity, Table operations)
+  - D4: prd003-crumbs-interface property methods must be implemented
 risks:
   - K1: "Backfill performance on large datasets | Test with 1000+ crumbs to validate acceptable latency"
   - K2: "Atomic transaction failures | Verify rollback behavior when backfill fails mid-operation"

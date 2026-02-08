@@ -22,7 +22,7 @@ test_cases:
   # --- S1: Trail created via Table.Set starts in draft state by default ---
 
   - name: Create trail defaults to draft state
-    description: When no state is provided, new trails default to draft state per prd-trails-interface R2.2
+    description: When no state is provided, new trails default to draft state per prd006-trails-interface R2.2
     inputs:
       command: |
         trail := &Trail{CreatedAt: time.Now()}

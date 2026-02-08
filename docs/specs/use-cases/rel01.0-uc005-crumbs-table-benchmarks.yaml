@@ -28,10 +28,10 @@ flow:
   - F17: "Run full benchmark suite: execute go test -bench=. -benchmem and capture output"
   - F18: "Record baseline: save benchmark output for future comparison with benchstat"
 touchpoints:
-  - T1: "Table interface: Get, Set, Delete, Fetch (prd-cupboard-core R3)"
-  - T2: "SQLite backend: entity hydration, dehydration, JSONL persistence (prd-sqlite-backend R14, R15)"
-  - T3: "SQLite indexes: idx_crumbs_state for state filter benchmarks (prd-sqlite-backend R3.3)"
-  - T4: "Cupboard interface: Attach, Detach for benchmark setup/teardown (prd-cupboard-core R2)"
+  - T1: "Table interface: Get, Set, Delete, Fetch (prd001-cupboard-core R3)"
+  - T2: "SQLite backend: entity hydration, dehydration, JSONL persistence (prd002-sqlite-backend R14, R15)"
+  - T3: "SQLite indexes: idx_crumbs_state for state filter benchmarks (prd002-sqlite-backend R3.3)"
+  - T4: "Cupboard interface: Attach, Detach for benchmark setup/teardown (prd001-cupboard-core R2)"
 success_criteria:
   - S1: Each benchmark function completes without error
   - S2: Benchmark output includes ns/op for each operation
@@ -52,8 +52,8 @@ out_of_scope:
   - Benchmark regression detection automation
 test_suite: test-rel01.0-uc005-crumbs-table-benchmarks
 dependencies:
-  - D1: prd-cupboard-core (Table interface definition)
-  - D2: prd-sqlite-backend (SQLite backend, indexes, hydration)
+  - D1: prd001-cupboard-core (Table interface definition)
+  - D2: prd002-sqlite-backend (SQLite backend, indexes, hydration)
   - D3: rel01.0-uc002-table-crud (Table CRUD must work before benchmarking)
 risks:
   - K1: "Benchmark variability | Run multiple iterations; use benchstat for statistical comparison"
@@ -69,7 +69,7 @@ demo: |
   # BenchmarkCrumbsGet10000-8       35000     45200 ns/op    1024 B/op    15 allocs/op
   # ...
 references:
-  - prd-cupboard-core
-  - prd-sqlite-backend
+  - prd001-cupboard-core
+  - prd002-sqlite-backend
   - rel01.0-uc002-table-crud
   - docs/ARCHITECTURE.md

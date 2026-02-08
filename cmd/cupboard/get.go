@@ -1,5 +1,5 @@
 // Get command retrieves an entity by ID from a table.
-// Implements: prd-cupboard-core R3 (Table.Get);
+// Implements: prd001-cupboard-core R3 (Table.Get);
 //
 //	docs/ARCHITECTURE § CLI.
 package main

@@ -18,14 +18,14 @@ flow:
   - F7: "Handle invalid JSON: set returns exit code 1 with parse error details"
   - F8: "Handle invalid filter: list returns exit code 1 with expected key=value message"
 touchpoints:
-  - T1: "Cupboard interface: GetTable returns Table for any standard table name (prd-cupboard-core R2)"
-  - T2: "Table interface: Get, Set, Delete, Fetch operations (prd-cupboard-core R3)"
-  - T3: "cmd/cupboard/get.go: retrieves entity by ID, outputs JSON (prd-cupboard-cli R3.1)"
-  - T4: "cmd/cupboard/set.go: creates or updates entity from JSON input (prd-cupboard-cli R3.2)"
-  - T5: "cmd/cupboard/list.go: queries with key=value filters, outputs JSON array (prd-cupboard-cli R3.4)"
-  - T6: "cmd/cupboard/delete.go: removes entity by ID (prd-cupboard-cli R3.3)"
-  - T7: "Error handling: exit codes and message format (prd-cupboard-cli R8, R9)"
-  - T8: "Output format: JSON with 2-space indentation (prd-cupboard-cli R7)"
+  - T1: "Cupboard interface: GetTable returns Table for any standard table name (prd001-cupboard-core R2)"
+  - T2: "Table interface: Get, Set, Delete, Fetch operations (prd001-cupboard-core R3)"
+  - T3: "cmd/cupboard/get.go: retrieves entity by ID, outputs JSON (prd009-cupboard-cli R3.1)"
+  - T4: "cmd/cupboard/set.go: creates or updates entity from JSON input (prd009-cupboard-cli R3.2)"
+  - T5: "cmd/cupboard/list.go: queries with key=value filters, outputs JSON array (prd009-cupboard-cli R3.4)"
+  - T6: "cmd/cupboard/delete.go: removes entity by ID (prd009-cupboard-cli R3.3)"
+  - T7: "Error handling: exit codes and message format (prd009-cupboard-cli R8, R9)"
+  - T8: "Output format: JSON with 2-space indentation (prd009-cupboard-cli R7)"
 success_criteria:
   - S1: "cupboard get <table> <id> returns JSON object with exit 0 for valid entity"
   - S2: "cupboard get <table> <id> returns exit 1 with 'not found' for missing entity"
@@ -46,8 +46,8 @@ out_of_scope:
   - Property operations on crumbs
 test_suite: test-rel01.1-uc004-generic-table-cli
 dependencies:
-  - D1: prd-cupboard-core (Cupboard and Table interface definitions)
-  - D2: prd-cupboard-cli (generic table command specifications)
+  - D1: prd001-cupboard-core (Cupboard and Table interface definitions)
+  - D2: prd009-cupboard-cli (generic table command specifications)
   - D3: rel01.0-uc001-cupboard-lifecycle (Cupboard lifecycle must work)
   - D4: rel01.0-uc002-table-crud (Table CRUD operations must work)
 risks:
@@ -99,6 +99,6 @@ demo: |
   cupboard --data-dir=/tmp/demo list crumbs bad-filter
   # Exit 1, stderr: invalid filter "bad-filter" (expected key=value)
 references:
-  - prd-cupboard-core
-  - prd-cupboard-cli
+  - prd001-cupboard-core
+  - prd009-cupboard-cli
   - docs/ARCHITECTURE.md

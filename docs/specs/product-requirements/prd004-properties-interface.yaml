@@ -1,11 +1,11 @@
-id: prd-properties-interface
+id: prd004-properties-interface
 title: Properties Interface
 problem: |
   Applications need extensible attributes on crumbs beyond the core fields (name, state, timestamps). A task tracker might need priority, labels, and owner; a bug tracker might need severity and component. Hardcoding these fields into the Crumb struct creates rigid schemas that require code changes and migrations for every new attribute.
 
   We need a property system where applications can define custom attributes at runtime. Properties are metadata definitions (name, type, description) that can then be assigned values on individual crumbs. This separates schema (what properties exist) from data (what values crumbs have), enabling flexibility without migrations.
 
-  This PRD defines the Property and Category entities: their struct fields and entity methods. Properties and categories are stored and retrieved via the generic Table interface from prd-cupboard-core. Setting and getting property values on crumbs is handled by Crumb entity methods (see prd-crumbs-interface); this PRD covers only the property definitions themselves.
+  This PRD defines the Property and Category entities: their struct fields and entity methods. Properties and categories are stored and retrieved via the generic Table interface from prd001-cupboard-core. Setting and getting property values on crumbs is handled by Crumb entity methods (see prd003-crumbs-interface); this PRD covers only the property definitions themselves.
 
   Future scope: VISION.md establishes that properties are a general mechanism extending crumbs, trails, and stashes uniformly. This PRD specifies crumb properties for the current release. Trail properties (e.g., hypothesis, approach, risk-level for exploration sessions) and stash properties (e.g., build-stage, artifact-type, retention-policy for shared state) will follow the same pattern in later releases.
 goals:
@@ -62,7 +62,7 @@ requirements:
           | timestamp | time.Time | string | RFC 3339 timestamp |
           | list | []string | array | List of strings (e.g., labels, tags) |
       - R3.2: ValueType is stored as a string, not an enum, for JSON compatibility
-      - R3.3: Crumb.SetProperty validates that values match the property's ValueType (see prd-crumbs-interface R5)
+      - R3.3: Crumb.SetProperty validates that values match the property's ValueType (see prd003-crumbs-interface R5)
       - R3.4: For categorical properties, values must be valid CategoryIDs defined for that property
       - R3.5: Each value type has a default value used when initializing properties on crumbs
         detail: |
@@ -164,7 +164,7 @@ requirements:
           | owner | text | Assigned worker or user ID |
           | labels | list | Capability tags or labels |
 
-          Note: Crumb dependencies use `child_of` links (see prd-sqlite-backend), not a property.
+          Note: Crumb dependencies use `child_of` links (see prd002-sqlite-backend), not a property.
       - R9.2: Built-in categories for "priority" property
         detail: |
           | Name | Ordinal |
@@ -200,12 +200,12 @@ requirements:
           | ErrCupboardDetached | Cupboard has been detached |
       - R10.2: All errors must be checkable with errors.Is
 non_goals:
-  - This PRD does not define setting or getting property values on crumbs. See prd-crumbs-interface for SetProperty, GetProperty, GetProperties, and ClearProperty
+  - This PRD does not define setting or getting property values on crumbs. See prd003-crumbs-interface for SetProperty, GetProperty, GetProperties, and ClearProperty
   - This PRD does not define property deletion. Properties are permanent once defined. Applications can stop using a property but cannot remove its definition
   - This PRD does not define property modification (renaming, changing type). Properties are immutable after creation
   - This PRD does not define property inheritance or computed properties
   - This PRD does not define validation rules beyond type checking (e.g., regex patterns, min/max values)
-  - This PRD does not define a specialized PropertyTable interface. Properties and categories are accessed via the standard Table interface from prd-cupboard-core
+  - This PRD does not define a specialized PropertyTable interface. Properties and categories are accessed via the standard Table interface from prd001-cupboard-core
 acceptance_criteria:
   - Property struct defined with PropertyID, Name, Description, ValueType, CreatedAt
   - Category struct defined with CategoryID, PropertyID, Name, Ordinal
@@ -228,6 +228,6 @@ constraints:
   - Category names must be unique within their property
   - Properties and categories are immutable after creation
 references:
-  - prd-cupboard-core (Cupboard interface, Table interface, standard table names)
-  - prd-sqlite-backend (JSON format, SQLite schema, built-in property seeding)
-  - prd-crumbs-interface (SetProperty, GetProperty, GetProperties, ClearProperty)
+  - prd001-cupboard-core (Cupboard interface, Table interface, standard table names)
+  - prd002-sqlite-backend (JSON format, SQLite schema, built-in property seeding)
+  - prd003-crumbs-interface (SetProperty, GetProperty, GetProperties, ClearProperty)

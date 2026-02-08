@@ -34,12 +34,12 @@ touchpoints:
   - T3: "Table (crumbs): Set for creating prerequisite crumbs"
   - T4: "Table (trails): Set for creating prerequisite trails"
   - T5: "Table (stashes): Set for creating prerequisite stashes"
-  - T6: "Link entity: LinkID, LinkType, FromID, ToID, CreatedAt fields (prd-sqlite-backend R14.6)"
-  - T7: "belongs_to link type: crumb→trail membership (prd-trails-interface R7)"
-  - T8: "child_of link type: crumb→crumb hierarchy (prd-sqlite-backend graph_model)"
-  - T9: "branches_from link type: trail→crumb branch point (prd-trails-interface R9)"
-  - T10: "scoped_to link type: stash→trail scope (prd-stash-interface R13)"
-  - T11: "Link table indexes: idx_links_type_from, idx_links_type_to (prd-sqlite-backend R3.3)"
+  - T6: "Link entity: LinkID, LinkType, FromID, ToID, CreatedAt fields (prd002-sqlite-backend R14.6)"
+  - T7: "belongs_to link type: crumb→trail membership (prd006-trails-interface R7)"
+  - T8: "child_of link type: crumb→crumb hierarchy (prd002-sqlite-backend graph_model)"
+  - T9: "branches_from link type: trail→crumb branch point (prd006-trails-interface R9)"
+  - T10: "scoped_to link type: stash→trail scope (prd008-stash-interface R13)"
+  - T11: "Link table indexes: idx_links_type_from, idx_links_type_to (prd002-sqlite-backend R3.3)"
 success_criteria:
   - S1: Link created via Table.Set generates UUID v7 for LinkID
   - S2: belongs_to link associates crumb with trail (from_id=crumb_id, to_id=trail_id)
@@ -61,7 +61,7 @@ test_suite: test-rel03.0-uc002-link-management
 dependencies:
   - D1: rel01.0-uc001 (Cupboard lifecycle) must pass
   - D2: rel01.0-uc002 (Table CRUD) must pass
-  - D3: prd-sqlite-backend (links table, R3.2, R14.6) must be implemented
+  - D3: prd002-sqlite-backend (links table, R3.2, R14.6) must be implemented
 risks:
   - K1: "Orphan links after entity deletion | Test link cleanup on entity removal"
   - K2: "Duplicate links allowed | Verify uniqueness constraint or idempotent behavior"

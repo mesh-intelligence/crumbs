@@ -2,9 +2,9 @@
 // Validates test-rel03.0-uc002-link-management.yaml test cases.
 // Implements: docs/specs/test-suites/test-rel03.0-uc002-link-management.yaml;
 //             docs/specs/use-cases/rel03.0-uc002-link-management.yaml;
-//             prd-sqlite-backend (graph model, R10 graph audit);
-//             prd-trails-interface R7 (crumb membership), R9 (branching);
-//             prd-stash-interface R13 (stash scoping).
+//             prd002-sqlite-backend (graph model, R10 graph audit);
+//             prd006-trails-interface R7 (crumb membership), R9 (branching);
+//             prd008-stash-interface R13 (stash scoping).
 package integration
 
 import (

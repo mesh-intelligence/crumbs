@@ -2,7 +2,7 @@
 // This package exposes the factory function for creating SQLite backends
 // while keeping implementation details internal.
 //
-// Implements: prd-cupboard-core R2, R4 (backend factory);
+// Implements: prd001-cupboard-core R2, R4 (backend factory);
 //
 //	docs/ARCHITECTURE § Public API.
 package sqlite

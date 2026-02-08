@@ -1,5 +1,5 @@
 // Tests for platform-specific directory paths.
-// Implements: prd-configuration-directories acceptance criteria.
+// Implements: prd010-configuration-directories acceptance criteria.
 package paths
 
 import (

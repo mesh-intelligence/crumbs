@@ -1,9 +1,9 @@
 // Table implements the Table interface for a specific entity type.
-// Implements: prd-sqlite-backend R13, R14, R15;
+// Implements: prd002-sqlite-backend R13, R14, R15;
 //
-//	prd-configuration-directories R6;
-//	prd-cupboard-core R3;
-//	prd-crumbs-interface R3.7 (property initialization on crumb creation);
+//	prd010-configuration-directories R6;
+//	prd001-cupboard-core R3;
+//	prd003-crumbs-interface R3.7 (property initialization on crumb creation);
 //	docs/ARCHITECTURE § Table Interfaces.
 package sqlite
 
@@ -171,7 +171,7 @@ func (t *Table) Delete(id string) error {
 		return types.ErrNotFound
 	}
 
-	// Persist deletion to JSONL based on sync strategy (prd-sqlite-backend R16)
+	// Persist deletion to JSONL based on sync strategy (prd002-sqlite-backend R16)
 	if t.backend.shouldPersistImmediately() {
 		if err := deleteFromJSON(id); err != nil {
 			return fmt.Errorf("persist deletion to JSONL: %w", err)
@@ -263,7 +263,7 @@ func (t *Table) setCrumb(id string, crumb *types.Crumb) (string, error) {
 		return "", err
 	}
 
-	// Persist to JSONL based on sync strategy (prd-sqlite-backend R16)
+	// Persist to JSONL based on sync strategy (prd002-sqlite-backend R16)
 	if t.backend.shouldPersistImmediately() {
 		if err := t.backend.saveCrumbToJSONL(crumb); err != nil {
 			return "", fmt.Errorf("persist crumb to JSONL: %w", err)
@@ -277,7 +277,7 @@ func (t *Table) setCrumb(id string, crumb *types.Crumb) (string, error) {
 	}
 
 	// Initialize all defined properties with type-based defaults on crumb creation
-	// (per prd-crumbs-interface R3.7, prd-properties-interface R3.5)
+	// (per prd003-crumbs-interface R3.7, prd004-properties-interface R3.5)
 	if isNewCrumb {
 		if err := t.initializeCrumbProperties(crumb); err != nil {
 			return "", fmt.Errorf("initialize crumb properties: %w", err)
@@ -413,7 +413,7 @@ func hydrateCrumbRow(rows *sql.Rows) (*types.Crumb, error) {
 }
 
 // loadCrumbProperties populates the Properties map on a crumb by querying the crumb_properties table.
-// Per prd-crumbs-interface R6, Table.Get must return crumbs with their Properties map populated.
+// Per prd003-crumbs-interface R6, Table.Get must return crumbs with their Properties map populated.
 func (t *Table) loadCrumbProperties(crumb *types.Crumb) error {
 	rows, err := t.backend.db.Query(
 		"SELECT property_id, value_type, value FROM crumb_properties WHERE crumb_id = ?",
@@ -463,7 +463,7 @@ func (t *Table) setTrail(id string, trail *types.Trail) (string, error) {
 		trail.CreatedAt = time.Now()
 	}
 
-	// Set default state to "draft" on creation (prd-trails-interface R2.2, R3.3)
+	// Set default state to "draft" on creation (prd006-trails-interface R2.2, R3.3)
 	if isNewTrail && trail.State == "" {
 		trail.State = types.TrailStateDraft
 	}
@@ -486,7 +486,7 @@ func (t *Table) setTrail(id string, trail *types.Trail) (string, error) {
 		completedAt = trail.CompletedAt.Format(time.RFC3339)
 	}
 
-	// Begin transaction for atomic cascade operations (prd-sqlite-backend R5.7)
+	// Begin transaction for atomic cascade operations (prd002-sqlite-backend R5.7)
 	tx, err := t.backend.db.Begin()
 	if err != nil {
 		return "", fmt.Errorf("begin transaction: %w", err)
@@ -512,7 +512,7 @@ func (t *Table) setTrail(id string, trail *types.Trail) (string, error) {
 		return "", err
 	}
 
-	// Cascade operations on state change (prd-sqlite-backend R5.6)
+	// Cascade operations on state change (prd002-sqlite-backend R5.6)
 	var cascadeCrumbIDs []string
 	if previousState != "" && previousState != trail.State {
 		switch trail.State {
@@ -591,7 +591,7 @@ func (t *Table) setTrail(id string, trail *types.Trail) (string, error) {
 		return "", fmt.Errorf("commit transaction: %w", err)
 	}
 
-	// Persist to JSONL based on sync strategy (prd-sqlite-backend R16)
+	// Persist to JSONL based on sync strategy (prd002-sqlite-backend R16)
 	if t.backend.shouldPersistImmediately() {
 		if err := t.backend.saveTrailToJSONL(trail); err != nil {
 			return "", fmt.Errorf("persist trail to JSONL: %w", err)
@@ -767,7 +767,7 @@ func (t *Table) setProperty(id string, prop *types.Property) (string, error) {
 		prop.CreatedAt = time.Now()
 	}
 
-	// Use a transaction for atomicity (per prd-properties-interface R4.3)
+	// Use a transaction for atomicity (per prd004-properties-interface R4.3)
 	// If backfill fails, the property is not created.
 	tx, err := t.backend.db.Begin()
 	if err != nil {
@@ -796,7 +796,7 @@ func (t *Table) setProperty(id string, prop *types.Property) (string, error) {
 		return "", err
 	}
 
-	// Backfill existing crumbs when creating a new property (per prd-properties-interface R4.2-R4.5)
+	// Backfill existing crumbs when creating a new property (per prd004-properties-interface R4.2-R4.5)
 	var backfillData []propertyInit
 	if isNewProperty {
 		backfillData, err = t.backfillExistingCrumbs(tx, prop)
@@ -810,7 +810,7 @@ func (t *Table) setProperty(id string, prop *types.Property) (string, error) {
 		return "", fmt.Errorf("commit transaction: %w", err)
 	}
 
-	// Persist property to JSONL based on sync strategy (prd-sqlite-backend R16)
+	// Persist property to JSONL based on sync strategy (prd002-sqlite-backend R16)
 	if t.backend.shouldPersistImmediately() {
 		if err := t.backend.savePropertyToJSONL(prop); err != nil {
 			return "", fmt.Errorf("persist property to JSONL: %w", err)
@@ -844,7 +844,7 @@ func (t *Table) setProperty(id string, prop *types.Property) (string, error) {
 
 // backfillExistingCrumbs initializes the new property on all existing crumbs with the type-based default value.
 // Called within a transaction when creating a new property.
-// Per prd-properties-interface R4.2-R4.5.
+// Per prd004-properties-interface R4.2-R4.5.
 func (t *Table) backfillExistingCrumbs(tx *sql.Tx, prop *types.Property) ([]propertyInit, error) {
 	// Query all existing crumb IDs
 	rows, err := tx.Query("SELECT crumb_id FROM crumbs")
@@ -1036,7 +1036,7 @@ func (t *Table) setMetadata(id string, meta *types.Metadata) (string, error) {
 		return "", err
 	}
 
-	// Persist to JSONL based on sync strategy (prd-sqlite-backend R16)
+	// Persist to JSONL based on sync strategy (prd002-sqlite-backend R16)
 	if t.backend.shouldPersistImmediately() {
 		if err := t.backend.saveMetadataToJSONL(meta); err != nil {
 			return "", fmt.Errorf("persist metadata to JSONL: %w", err)
@@ -1172,7 +1172,7 @@ func (t *Table) setLink(id string, link *types.Link) (string, error) {
 		return "", err
 	}
 
-	// Persist to JSONL based on sync strategy (prd-sqlite-backend R16)
+	// Persist to JSONL based on sync strategy (prd002-sqlite-backend R16)
 	if t.backend.shouldPersistImmediately() {
 		if err := t.backend.saveLinkToJSONL(link); err != nil {
 			return "", fmt.Errorf("persist link to JSONL: %w", err)
@@ -1311,7 +1311,7 @@ func (t *Table) setStash(id string, stash *types.Stash) (string, error) {
 		return "", err
 	}
 
-	// Persist to JSONL based on sync strategy (prd-sqlite-backend R16)
+	// Persist to JSONL based on sync strategy (prd002-sqlite-backend R16)
 	if t.backend.shouldPersistImmediately() {
 		if err := t.backend.saveStashToJSONL(stash, now); err != nil {
 			return "", fmt.Errorf("persist stash to JSONL: %w", err)
@@ -1325,7 +1325,7 @@ func (t *Table) setStash(id string, stash *types.Stash) (string, error) {
 		})
 	}
 
-	// Record history entry for stash mutations (prd-stash-interface R7)
+	// Record history entry for stash mutations (prd008-stash-interface R7)
 	operation := stash.LastOperation
 	if isCreate {
 		operation = types.StashOpCreate
@@ -1425,7 +1425,7 @@ func hydrateStashRow(rows *sql.Rows) (*types.Stash, error) {
 }
 
 // Stash history operations
-// Implements: prd-stash-interface R7 (history tracking)
+// Implements: prd008-stash-interface R7 (history tracking)
 
 // recordStashHistory writes a history entry for a stash mutation.
 func (t *Table) recordStashHistory(stash *types.Stash, operation string, timestamp time.Time) error {
@@ -1453,7 +1453,7 @@ func (t *Table) recordStashHistory(stash *types.Stash, operation string, timesta
 		return fmt.Errorf("insert history: %w", err)
 	}
 
-	// Persist to JSONL based on sync strategy (prd-sqlite-backend R16)
+	// Persist to JSONL based on sync strategy (prd002-sqlite-backend R16)
 	historyEntry := &stashHistoryJSON{
 		HistoryID: historyID,
 		StashID:   stash.StashID,
@@ -1480,7 +1480,7 @@ func (t *Table) recordStashHistory(stash *types.Stash, operation string, timesta
 }
 
 // FetchStashHistory retrieves history entries for a stash, ordered by version ascending.
-// Per prd-stash-interface R7.6.
+// Per prd008-stash-interface R7.6.
 func (t *Table) FetchStashHistory(stashID string) ([]types.StashHistoryEntry, error) {
 	t.backend.mu.RLock()
 	defer t.backend.mu.RUnlock()
@@ -1535,7 +1535,7 @@ func (t *Table) FetchStashHistory(stashID string) ([]types.StashHistoryEntry, er
 }
 
 // Property initialization helpers
-// Implements: prd-crumbs-interface R3.7; prd-properties-interface R3.5, R4.2-R4.5
+// Implements: prd003-crumbs-interface R3.7; prd004-properties-interface R3.5, R4.2-R4.5
 
 // propertyInit holds data for a property to be initialized on a crumb.
 // Used both for crumb creation (initializeCrumbProperties) and for property backfill (backfillExistingCrumbs).
@@ -1603,7 +1603,7 @@ func (t *Table) initializeCrumbProperties(crumb *types.Crumb) error {
 		}
 	}
 
-	// Persist all properties to JSONL based on sync strategy (prd-sqlite-backend R16)
+	// Persist all properties to JSONL based on sync strategy (prd002-sqlite-backend R16)
 	if t.backend.shouldPersistImmediately() {
 		for _, prop := range props {
 			if err := t.backend.saveCrumbPropertyToJSONL(crumb.CrumbID, prop.propertyID, prop.valueType, prop.value); err != nil {
@@ -1626,7 +1626,7 @@ func (t *Table) initializeCrumbProperties(crumb *types.Crumb) error {
 }
 
 // getPropertyDefaultValue returns the default value for a property type.
-// Per prd-properties-interface R3.5:
+// Per prd004-properties-interface R3.5:
 //   - categorical: first category by ordinal, or empty string if no categories
 //   - text: empty string
 //   - integer: 0

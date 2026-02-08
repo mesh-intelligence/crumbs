@@ -1,5 +1,5 @@
 // Crumb get command retrieves a work item by ID.
-// Implements: prd-crumbs-interface R6 (retrieving crumbs);
+// Implements: prd003-crumbs-interface R6 (retrieving crumbs);
 //
 //	docs/ARCHITECTURE § CLI.
 package main

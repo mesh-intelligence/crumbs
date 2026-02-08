@@ -2,7 +2,7 @@
 // Validates test-rel02.1-uc004-metadata-lifecycle.yaml test cases.
 // Implements: docs/specs/test-suites/test-rel02.1-uc004-metadata-lifecycle.yaml;
 //             docs/specs/use-cases/rel02.1-uc004-metadata-lifecycle.yaml;
-//             prd-metadata-interface R1-R10.
+//             prd005-metadata-interface R1-R10.
 package integration
 
 import (
@@ -623,7 +623,7 @@ func TestMetadataLifecycle_S11_S12_CascadeDeleteOnCrumbRemoval(t *testing.T) {
 	}
 
 	// Delete the crumb
-	// Note: Cascade delete is specified in prd-metadata-interface R6.5 but may need
+	// Note: Cascade delete is specified in prd005-metadata-interface R6.5 but may need
 	// to be implemented. We manually delete metadata here to verify the expected behavior.
 	// First, check if cascade is implemented by querying after crumb delete.
 

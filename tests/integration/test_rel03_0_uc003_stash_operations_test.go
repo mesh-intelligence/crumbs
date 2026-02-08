@@ -2,7 +2,7 @@
 // Validates test-rel03.0-uc003-stash-operations.yaml test cases.
 // Implements: docs/specs/test-suites/test-rel03.0-uc003-stash-operations.yaml;
 //             docs/specs/use-cases/rel03.0-uc003-stash-operations.yaml;
-//             prd-stash-interface R1-R12.
+//             prd008-stash-interface R1-R12.
 package integration
 
 import (

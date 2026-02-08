@@ -1,5 +1,5 @@
 // Table interface defines uniform CRUD operations for all entity types.
-// Implements: prd-cupboard-core R3;
+// Implements: prd001-cupboard-core R3;
 //
 //	docs/ARCHITECTURE § Table Interfaces.
 package types

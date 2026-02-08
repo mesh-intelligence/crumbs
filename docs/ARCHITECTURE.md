@@ -43,9 +43,9 @@ package "internal/sqlite" {
 
 ### Lifecycle of entities
 
-Crumbs have a lifecycle driven by state transitions and trail operations. State is a core field on the Crumb struct, not a property (see prd-crumbs-interface R1, R2).
+Crumbs have a lifecycle driven by state transitions and trail operations. State is a core field on the Crumb struct, not a property (see prd003-crumbs-interface R1, R2).
 
-**Crumb states** (prd-crumbs-interface R2): `draft` → `pending` → `ready` → `taken` → `pebble` or `dust`. Terminal states are `pebble` (completed successfully) and `dust` (failed or abandoned). Initial state on creation is `draft`. The Table interface tracks state but does not enforce transitions—agents or coordination layers define transition rules.
+**Crumb states** (prd003-crumbs-interface R2): `draft` → `pending` → `ready` → `taken` → `pebble` or `dust`. Terminal states are `pebble` (completed successfully) and `dust` (failed or abandoned). Initial state on creation is `draft`. The Table interface tracks state but does not enforce transitions—agents or coordination layers define transition rules.
 
 **Trail states**: `draft` → `pending` → `active` → `completed` or `abandoned`. A trail in `draft` state is being planned—the agent is considering what crumbs to include but has not committed to the exploration. A trail in `pending` state is defined but waiting for some precondition (e.g., a resource or a blocking crumb) before work can begin. The `active` state indicates the trail is open for work and crumbs can be added. The `Trail.Complete()` and `Trail.Abandon()` entity methods update the trail's state field. When persisted via `Table.Set`, the backend performs cascade operations: completing a trail removes `belongs_to` links (crumbs become permanent), abandoning a trail deletes its crumbs.
 
@@ -146,29 +146,29 @@ Crumbs provides storage, not coordination. Agents or coordination frameworks bui
 
 ### Properties Model
 
-Properties extend entities with custom attributes. We design properties as a general mechanism that applies to crumbs, trails, and stashes uniformly. The current implementation focuses on crumb properties; trail and stash properties follow the same pattern and will be added in later releases. The system enforces that every entity has a value for every defined property in its scope—there is no concept of a property being "not set" (prd-properties-interface R3.5, R3.6).
+Properties extend entities with custom attributes. We design properties as a general mechanism that applies to crumbs, trails, and stashes uniformly. The current implementation focuses on crumb properties; trail and stash properties follow the same pattern and will be added in later releases. The system enforces that every entity has a value for every defined property in its scope—there is no concept of a property being "not set" (prd004-properties-interface R3.5, R3.6).
 
-**Property types** (prd-properties-interface R3): categorical (enum from defined categories), text, integer, boolean, timestamp, list (of strings). Each type has a default value used for initialization.
+**Property types** (prd004-properties-interface R3): categorical (enum from defined categories), text, integer, boolean, timestamp, list (of strings). Each type has a default value used for initialization.
 
 **Enforcement rules**:
 
-- When a crumb is created, all defined properties are initialized with type-based defaults (prd-crumbs-interface R3.7)
-- When a property is defined, it is backfilled to all existing crumbs with the type's default value (prd-properties-interface R4.9)
-- ClearProperty resets to the default value, not null (prd-crumbs-interface R12.2)
+- When a crumb is created, all defined properties are initialized with type-based defaults (prd003-crumbs-interface R3.7)
+- When a property is defined, it is backfilled to all existing crumbs with the type's default value (prd004-properties-interface R4.9)
+- ClearProperty resets to the default value, not null (prd003-crumbs-interface R12.2)
 
-**Built-in properties** (prd-properties-interface R8): Five properties are seeded on first startup—priority (categorical), type (categorical), description (text), owner (text), labels (list). Applications can define additional properties at runtime. Note: crumb dependencies use `child_of` links, not a property.
+**Built-in properties** (prd004-properties-interface R8): Five properties are seeded on first startup—priority (categorical), type (categorical), description (text), owner (text), labels (list). Applications can define additional properties at runtime. Note: crumb dependencies use `child_of` links, not a property.
 
 ### Stashes
 
-Stashes enable crumbs on a trail to share state (prd-stash-interface). Unlike properties (which are attributes of individual crumbs), stashes are standalone entities scoped to a trail or global.
+Stashes enable crumbs on a trail to share state (prd008-stash-interface). Unlike properties (which are attributes of individual crumbs), stashes are standalone entities scoped to a trail or global.
 
-**Stash types** (prd-stash-interface R3): resource (files, URLs), artifact (outputs from one crumb as inputs to another), context (shared configuration), counter (atomic numeric state), lock (mutual exclusion).
+**Stash types** (prd008-stash-interface R3): resource (files, URLs), artifact (outputs from one crumb as inputs to another), context (shared configuration), counter (atomic numeric state), lock (mutual exclusion).
 
 **Versioning**: Every mutation increments a version number and records a history entry. The full history is queryable for auditability and debugging.
 
 ## Main Interface
 
-The Cupboard interface is the contract between applications and storage backends (prd-cupboard-core R2). We use an ORM-style pattern: applications access data through a uniform Table interface (`GetTable`), and the Table returns entity objects (Crumb, Trail, etc.) that callers modify and persist back.
+The Cupboard interface is the contract between applications and storage backends (prd001-cupboard-core R2). We use an ORM-style pattern: applications access data through a uniform Table interface (`GetTable`), and the Table returns entity objects (Crumb, Trail, etc.) that callers modify and persist back.
 
 ### Cupboard and Table Interfaces
 
@@ -182,7 +182,7 @@ type Cupboard interface {
 }
 ```
 
-GetTable accepts a table name and returns a Table for that entity type. Standard table names are `crumbs`, `trails`, `properties`, `metadata`, `links`, and `stashes` (prd-cupboard-core R2.5).
+GetTable accepts a table name and returns a Table for that entity type. Standard table names are `crumbs`, `trails`, `properties`, `metadata`, `links`, and `stashes` (prd001-cupboard-core R2.5).
 
 The Table interface provides uniform CRUD operations:
 
@@ -275,13 +275,13 @@ Entities are plain structs with fields. Entity methods (SetState, Pebble, Dust, 
 
 | Entity | Description | Key fields | PRD |
 |--------|-------------|------------|-----|
-| Crumb | Work item | CrumbID, Name, State, CreatedAt, UpdatedAt, Properties | prd-crumbs-interface |
-| Trail | Exploration session | TrailID, State, CreatedAt, CompletedAt | prd-trails-interface |
-| Property | Property definition | PropertyID, Name, ValueType, Description, CreatedAt | prd-properties-interface |
-| Category | Categorical value | CategoryID, PropertyID, Name, Ordinal | prd-properties-interface |
-| Stash | Shared state | StashID, Name, StashType, Value, Version, CreatedAt | prd-stash-interface |
-| Metadata | Supplementary data | MetadataID, CrumbID, TableName, Content, PropertyID, CreatedAt | prd-metadata-interface |
-| Link | Graph edge | LinkID, LinkType, FromID, ToID, CreatedAt | prd-sqlite-backend |
+| Crumb | Work item | CrumbID, Name, State, CreatedAt, UpdatedAt, Properties | prd003-crumbs-interface |
+| Trail | Exploration session | TrailID, State, CreatedAt, CompletedAt | prd006-trails-interface |
+| Property | Property definition | PropertyID, Name, ValueType, Description, CreatedAt | prd004-properties-interface |
+| Category | Categorical value | CategoryID, PropertyID, Name, Ordinal | prd004-properties-interface |
+| Stash | Shared state | StashID, Name, StashType, Value, Version, CreatedAt | prd008-stash-interface |
+| Metadata | Supplementary data | MetadataID, CrumbID, TableName, Content, PropertyID, CreatedAt | prd005-metadata-interface |
+| Link | Graph edge | LinkID, LinkType, FromID, ToID, CreatedAt | prd002-sqlite-backend |
 
 Relationships use the links table (Decision 10): `branches_from` (trail→crumb branch point), `scoped_to` (stash→trail scope), `belongs_to` (crumb→trail membership), `child_of` (crumb→crumb dependencies).
 
@@ -434,11 +434,11 @@ Attach is idempotent (returns ErrAlreadyAttached if called twice). Detach blocks
 
 ## System Components
 
-**Cupboard API (pkg/types)**: Public types and interfaces. Applications import this package to use the Cupboard interface, Table interface, and entity types (Crumb, Trail, Property, Category, Stash, Metadata, Link). The Cupboard interface provides `GetTable(name)` which returns a uniform Table interface for any entity type (prd-cupboard-core R2, R3).
+**Cupboard API (pkg/types)**: Public types and interfaces. Applications import this package to use the Cupboard interface, Table interface, and entity types (Crumb, Trail, Property, Category, Stash, Metadata, Link). The Cupboard interface provides `GetTable(name)` which returns a uniform Table interface for any entity type (prd001-cupboard-core R2, R3).
 
 **Entity Types (pkg/types)**: Structs representing domain objects. Each entity has an ID field (UUID v7) and domain-specific fields. Entity methods (e.g., `Crumb.SetState`, `Crumb.Pebble`, `Trail.Complete`) modify the struct in memory; callers persist via `Table.Set`. Entity types are defined in their respective PRDs.
 
-**SQLite Backend (internal/sqlite)**: Primary backend for local development. JSONL files are the source of truth; SQLite (modernc.org/sqlite, pure Go) serves as a query cache. On startup, JSONL is loaded into SQLite. Writes persist to JSONL first, then update SQLite. Implements the Cupboard and Table interfaces (prd-sqlite-backend). Hydrates table rows into entity objects on Get/Fetch, and dehydrates entity objects to rows on Set.
+**SQLite Backend (internal/sqlite)**: Primary backend for local development. JSONL files are the source of truth; SQLite (modernc.org/sqlite, pure Go) serves as a query cache. On startup, JSONL is loaded into SQLite. Writes persist to JSONL first, then update SQLite. Implements the Cupboard and Table interfaces (prd002-sqlite-backend). Hydrates table rows into entity objects on Get/Fetch, and dehydrates entity objects to rows on Set.
 
 **CLI (cmd/cupboard)**: Command-line tool for development and personal use. Commands map to Cupboard operations. Config file selects backend.
 
@@ -454,7 +454,7 @@ Attach is idempotent (returns ErrAlreadyAttached if called twice). Detach blocks
 
 **Decision 5: Synchronous API**. Operations are synchronous for simplicity. Alternative: async adds complexity before we need it.
 
-**Decision 6: JSONL as source of truth for SQLite backend**. The SQLite backend uses JSONL files (one JSON object per line) as the canonical data store. SQLite (modernc.org/sqlite, pure Go) serves as a query engine to reuse SQL code across backends and avoid reimplementing filtering, joins, and indexing. On startup, we load JSONL into SQLite; on writes, we persist back to JSONL. This gives us human-readable files, easy backup, and code reuse. The sync strategy is configurable via SQLiteConfig: "immediate" (default, safest), "on_close" (deferred, higher performance), or "batch" (batched by count or interval). See prd-sqlite-backend R16. Alternative: raw JSON with custom query logic duplicates work that SQL handles well; pure SQLite loses the human-readable file benefit.
+**Decision 6: JSONL as source of truth for SQLite backend**. The SQLite backend uses JSONL files (one JSON object per line) as the canonical data store. SQLite (modernc.org/sqlite, pure Go) serves as a query engine to reuse SQL code across backends and avoid reimplementing filtering, joins, and indexing. On startup, we load JSONL into SQLite; on writes, we persist back to JSONL. This gives us human-readable files, easy backup, and code reuse. The sync strategy is configurable via SQLiteConfig: "immediate" (default, safest), "on_close" (deferred, higher performance), or "batch" (batched by count or interval). See prd002-sqlite-backend R16. Alternative: raw JSON with custom query logic duplicates work that SQL handles well; pure SQLite loses the human-readable file benefit.
 
 **Decision 7: Properties always present with type-based defaults**. Every crumb has a value for every defined property. When a property is defined, existing crumbs are backfilled with the type's default value. When a crumb is created, all properties are initialized. This eliminates null-checking complexity and ensures consistent schema across all crumbs. Alternative: allowing "not set" properties requires null handling everywhere and makes queries more complex (filtering on missing vs present values).
 
@@ -486,13 +486,13 @@ Success criteria (from VISION): operations complete with low latency, agents int
 |----------|---------|
 | VISION.md | What we are building and why; success criteria and boundaries |
 | road-map.yaml | Release schedule, use cases, prioritization rules |
-| prd-cupboard-core.yaml | Cupboard interface, configuration, lifecycle |
-| prd-sqlite-backend.yaml | SQLite backend internals, JSON↔SQLite sync, graph model |
-| prd-crumbs-interface.yaml | Crumb entity, state transitions, property methods |
-| prd-trails-interface.yaml | Trail entity, lifecycle methods, crumb membership |
-| prd-properties-interface.yaml | Property and Category entities, value types |
-| prd-metadata-interface.yaml | Metadata entity, schema registration |
-| prd-stash-interface.yaml | Stash entity, shared state, versioning |
+| prd001-cupboard-core.yaml | Cupboard interface, configuration, lifecycle |
+| prd002-sqlite-backend.yaml | SQLite backend internals, JSON↔SQLite sync, graph model |
+| prd003-crumbs-interface.yaml | Crumb entity, state transitions, property methods |
+| prd006-trails-interface.yaml | Trail entity, lifecycle methods, crumb membership |
+| prd004-properties-interface.yaml | Property and Category entities, value types |
+| prd005-metadata-interface.yaml | Metadata entity, schema registration |
+| prd008-stash-interface.yaml | Stash entity, shared state, versioning |
 | engineering/eng01-git-integration.md | Git conventions: JSONL in git, task branches, trails vs git branches, merge behavior |
 | engineering/eng02-generation-workflow.md | Generation lifecycle: open, generate, close; task branch naming; scripts |
 

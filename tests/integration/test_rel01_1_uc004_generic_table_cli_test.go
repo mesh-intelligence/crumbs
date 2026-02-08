@@ -3,8 +3,8 @@
 // Implements: docs/specs/test-suites/test-rel01.1-uc004-generic-table-cli.yaml;
 //
 //	docs/specs/use-cases/rel01.1-uc004-generic-table-cli.yaml;
-//	prd-cupboard-cli R3 (generic table commands);
-//	prd-cupboard-core R3 (Table interface).
+//	prd009-cupboard-cli R3 (generic table commands);
+//	prd001-cupboard-core R3 (Table interface).
 package integration
 
 import (

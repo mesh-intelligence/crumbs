@@ -10,21 +10,21 @@ flow:
   - F1: "Build and install generation N: Generation N is built, tested, and installed. The go install step places the cupboard binary in $GOBIN. This binary becomes the reference implementation for the current JSONL format."
   - F2: "Create JSONL data using generation N: Create crumbs using the generation N binary. This data represents the contract that generation N+1 must honor."
   - F3: "Run --regenerate: The script tags the current repo state, deletes all Go source files, reinitializes the Go module, and commits. Internally runs git tag, find -delete, rm, go mod init, git add, git commit."
-  - F4: "Rebuild from documentation: The make-work/do-work loop rebuilds cupboard from documentation. The new code (generation N+1) is written by agents reading PRDs, architecture docs, and use cases. The agents produce a fresh implementation that must conform to the documented JSONL format (prd-sqlite-backend R2)."
+  - F4: "Rebuild from documentation: The make-work/do-work loop rebuilds cupboard from documentation. The new code (generation N+1) is written by agents reading PRDs, architecture docs, and use cases. The agents produce a fresh implementation that must conform to the documented JSONL format (prd002-sqlite-backend R2)."
   - F5: "Build generation N+1: Build and verify generation N+1 compiles successfully."
-  - F6: "Load generation N data with generation N+1: Point generation N+1 at the JSONL data created by generation N. The backend's startup sequence (prd-sqlite-backend R4) loads JSONL into SQLite. If the format has drifted, this step fails."
+  - F6: "Load generation N data with generation N+1: Point generation N+1 at the JSONL data created by generation N. The backend's startup sequence (prd002-sqlite-backend R4) loads JSONL into SQLite. If the format has drifted, this step fails."
   - F7: "Verify read operations: Verify read operations against generation N data return correct values."
   - F8: "Verify write operations: Verify write operations update generation N data correctly. Generation N+1 must write JSONL in a format that both itself and generation N can read."
   - F9: "Verify generation N reads N+1 modifications: Verify the installed generation N binary can still read the data after generation N+1 modifies it. This confirms write compatibility in both directions."
   - F10: "Verify property operations across generations: If generation N defined properties and set values, generation N+1 must load those properties and values correctly (requires rel02.0 property enforcement)."
 touchpoints:
   - T1: "scripts/do-work.sh --regenerate: Orchestrates the regeneration cycle (tag, delete, reinit, rebuild)"
-  - T2: "SQLite backend startup: Loads JSONL files into SQLite; format must match across generations (prd-sqlite-backend R4)"
-  - T3: "JSONL file format: The contract between generations; format stability is the invariant (prd-sqlite-backend R2)"
-  - T4: "JSONL write path: Writes must produce JSONL that older and newer generations can parse (prd-sqlite-backend R5)"
-  - T5: "Unknown field handling: Unknown fields in JSONL are ignored, enabling forward compatibility (prd-sqlite-backend R7.2)"
-  - T6: "Cupboard interface: Attach/Detach, GetTable work identically across generations (prd-cupboard-core R4, R5)"
-  - T7: "Property system: Property definitions and values persist across regeneration (prd-properties-interface R4)"
+  - T2: "SQLite backend startup: Loads JSONL files into SQLite; format must match across generations (prd002-sqlite-backend R4)"
+  - T3: "JSONL file format: The contract between generations; format stability is the invariant (prd002-sqlite-backend R2)"
+  - T4: "JSONL write path: Writes must produce JSONL that older and newer generations can parse (prd002-sqlite-backend R5)"
+  - T5: "Unknown field handling: Unknown fields in JSONL are ignored, enabling forward compatibility (prd002-sqlite-backend R7.2)"
+  - T6: "Cupboard interface: Attach/Detach, GetTable work identically across generations (prd001-cupboard-core R4, R5)"
+  - T7: "Property system: Property definitions and values persist across regeneration (prd004-properties-interface R4)"
 success_criteria:
   - S1: Build and install generation N succeeds, cupboard --help works from $GOBIN
   - S2: Create crumbs with generation N produces crumbs.jsonl with the created entries
@@ -45,15 +45,15 @@ dependencies:
   - D1: rel01.1-uc001-go-install (Generation N must be installable via go install)
   - D2: rel01.1-uc002-jsonl-git-roundtrip (JSONL must be the source of truth, surviving database deletion)
   - D3: rel02.0-uc001-property-enforcement (Property data must persist across generations)
-  - D4: prd-sqlite-backend R2, R4, R5, R7 (JSONL format, startup loading, write persistence, error handling)
-  - D5: prd-cupboard-core R3, R4, R5 (Table interface, Attach/Detach lifecycle)
-  - D6: prd-properties-interface R4, R9 (Property persistence and seeding)
+  - D4: prd002-sqlite-backend R2, R4, R5, R7 (JSONL format, startup loading, write persistence, error handling)
+  - D5: prd001-cupboard-core R3, R4, R5 (Table interface, Attach/Detach lifecycle)
+  - D6: prd004-properties-interface R4, R9 (Property persistence and seeding)
   - D7: do-work.sh --regenerate option must be implemented
 risks:
-  - K1: "JSONL format drift between generations | PRD specifies the format (prd-sqlite-backend R2); agents read the PRD during regeneration"
-  - K2: "New fields added by N+1 break generation N | Unknown fields are ignored per prd-sqlite-backend R7.2 (forward compatibility)"
+  - K1: "JSONL format drift between generations | PRD specifies the format (prd002-sqlite-backend R2); agents read the PRD during regeneration"
+  - K2: "New fields added by N+1 break generation N | Unknown fields are ignored per prd002-sqlite-backend R7.2 (forward compatibility)"
   - K3: "Generation N+1 fails to build | Build verification is step 5 in the success criteria; failure is caught before data tests"
-  - K4: "Property schema changes break cross-generation reads | Property definitions live in JSONL; the format is stable per prd-properties-interface"
+  - K4: "Property schema changes break cross-generation reads | Property definitions live in JSONL; the format is stable per prd004-properties-interface"
   - K5: "Regeneration deletes test data | Test data lives in a separate directory (/tmp/regen-test), not in the repo"
 demo: |
   # Full cycle

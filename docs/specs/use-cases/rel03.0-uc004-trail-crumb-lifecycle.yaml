@@ -24,15 +24,15 @@ flow:
   - F13: "Verify cascade deletion: crumbs return ErrNotFound, all related links deleted, properties cleaned up"
   - F14: "Detach the cupboard: call cupboard.Detach()"
 touchpoints:
-  - T1: "Cupboard interface: Attach, Detach, GetTable (prd-cupboard-core R2)"
-  - T2: "Table interface: Get, Set, Delete, Fetch (prd-cupboard-core R3)"
-  - T3: "Trail entity: SetState method for state transitions (prd-trails-interface R2)"
-  - T4: "Trail entity: Complete method marks crumbs permanent (prd-trails-interface R5)"
-  - T5: "Trail entity: Abandon method triggers cascade deletion (prd-trails-interface R6)"
-  - T6: "belongs_to links: crumb → trail membership (prd-links-interface R2.1)"
-  - T7: "Cardinality constraint: crumb belongs to at most one trail (prd-links-interface R6.1)"
-  - T8: "Backend cascade on complete: removes belongs_to links (prd-trails-interface R5.6)"
-  - T9: "Backend cascade on abandon: deletes crumbs, properties, links atomically (prd-trails-interface R6.6, R6.7)"
+  - T1: "Cupboard interface: Attach, Detach, GetTable (prd001-cupboard-core R2)"
+  - T2: "Table interface: Get, Set, Delete, Fetch (prd001-cupboard-core R3)"
+  - T3: "Trail entity: SetState method for state transitions (prd006-trails-interface R2)"
+  - T4: "Trail entity: Complete method marks crumbs permanent (prd006-trails-interface R5)"
+  - T5: "Trail entity: Abandon method triggers cascade deletion (prd006-trails-interface R6)"
+  - T6: "belongs_to links: crumb → trail membership (prd007-links-interface R2.1)"
+  - T7: "Cardinality constraint: crumb belongs to at most one trail (prd007-links-interface R6.1)"
+  - T8: "Backend cascade on complete: removes belongs_to links (prd006-trails-interface R5.6)"
+  - T9: "Backend cascade on abandon: deletes crumbs, properties, links atomically (prd006-trails-interface R6.6, R6.7)"
 success_criteria:
   - S1: Crumbs associate with trails via belongs_to links in the links table
   - S2: A crumb can belong to at most one trail at a time (cardinality enforced)
@@ -55,8 +55,8 @@ dependencies:
   - D1: rel01.0-uc001-cupboard-lifecycle (Cupboard and Table interfaces work)
   - D2: rel01.0-uc002-table-crud (Table CRUD operations work)
   - D3: rel03.0-uc002-link-management (Links table and belongs_to semantics work)
-  - D4: prd-trails-interface must be implemented
-  - D5: prd-links-interface must be implemented
+  - D4: prd006-trails-interface must be implemented
+  - D5: prd007-links-interface must be implemented
 risks:
   - K1: "Orphan crumbs if abandon fails mid-transaction | Backend uses transaction; rollback on failure"
   - K2: "Orphan links if crumb deletion misses related links | Cascade deletion in single transaction"
@@ -73,7 +73,7 @@ demo: |
   crumbs trail complete <trail_id>
   crumbs crumb get <crumb_id>  # Still exists, now permanent
 references:
-  - prd-trails-interface
-  - prd-links-interface
-  - prd-cupboard-core
+  - prd006-trails-interface
+  - prd007-links-interface
+  - prd001-cupboard-core
   - docs/ARCHITECTURE.md

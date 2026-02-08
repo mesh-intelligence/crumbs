@@ -1,5 +1,5 @@
 // JSONL persistence for the SQLite backend.
-// Implements: prd-configuration-directories R3, R4, R5, R6;
+// Implements: prd010-configuration-directories R3, R4, R5, R6;
 //
 //	docs/ARCHITECTURE § SQLite Backend.
 package sqlite
@@ -17,7 +17,7 @@ import (
 	"github.com/mesh-intelligence/crumbs/pkg/types"
 )
 
-// JSONL file names per prd-configuration-directories R4.
+// JSONL file names per prd010-configuration-directories R4.
 const (
 	crumbsJSONL       = "crumbs.jsonl"
 	trailsJSONL       = "trails.jsonl"
@@ -413,7 +413,7 @@ func (b *Backend) deletePropertyFromJSONL(id string) error {
 }
 
 // saveCategoryToJSONL persists category to JSONL file after SQLite write.
-// Per prd-properties-interface R7.6.
+// Per prd004-properties-interface R7.6.
 func (b *Backend) saveCategoryToJSONL(cat *categoryJSON) error {
 	path := filepath.Join(b.config.DataDir, categoriesJSONL)
 	return updateJSONLFile(path, cat.CategoryID, "category_id", func() ([]byte, error) {
@@ -647,28 +647,28 @@ func deleteFromJSONLFile(path, id, idField string) error {
 }
 
 // deleteCrumbPropertiesByCrumbIDFromJSONL removes all crumb property entries for a crumb.
-// Used during trail abandonment cascade (prd-sqlite-backend R5.6).
+// Used during trail abandonment cascade (prd002-sqlite-backend R5.6).
 func (b *Backend) deleteCrumbPropertiesByCrumbIDFromJSONL(crumbID string) error {
 	path := filepath.Join(b.config.DataDir, crumbPropsJSONL)
 	return deleteFromJSONLByField(path, "crumb_id", crumbID)
 }
 
 // deleteMetadataByCrumbIDFromJSONL removes all metadata entries for a crumb.
-// Used during trail abandonment cascade (prd-sqlite-backend R5.6).
+// Used during trail abandonment cascade (prd002-sqlite-backend R5.6).
 func (b *Backend) deleteMetadataByCrumbIDFromJSONL(crumbID string) error {
 	path := filepath.Join(b.config.DataDir, metadataJSONL)
 	return deleteFromJSONLByField(path, "crumb_id", crumbID)
 }
 
 // deleteLinksByTrailIDFromJSONL removes all belongs_to links for a trail.
-// Used during trail completion cascade (prd-sqlite-backend R5.6).
+// Used during trail completion cascade (prd002-sqlite-backend R5.6).
 func (b *Backend) deleteLinksByTrailIDFromJSONL(trailID string) error {
 	path := filepath.Join(b.config.DataDir, linksJSONL)
 	return deleteLinksFromJSONLByTypeAndToID(path, types.LinkTypeBelongsTo, trailID)
 }
 
 // deleteLinksByCrumbIDFromJSONL removes all links where from_id or to_id matches crumb.
-// Used during trail abandonment cascade (prd-sqlite-backend R5.6).
+// Used during trail abandonment cascade (prd002-sqlite-backend R5.6).
 func (b *Backend) deleteLinksByCrumbIDFromJSONL(crumbID string) error {
 	path := filepath.Join(b.config.DataDir, linksJSONL)
 	return deleteLinksFromJSONLByCrumbID(path, crumbID)

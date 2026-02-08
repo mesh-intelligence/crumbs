@@ -89,7 +89,7 @@ test_cases:
 
   - name: Read all PRDs in product-requirements
     inputs:
-      command: ls /workspace/docs/specs/product-requirements/prd-*.yaml | wc -l
+      command: ls /workspace/docs/specs/product-requirements/prd*.yaml | wc -l
     expected:
       exit_code: 0
       state:
@@ -110,7 +110,7 @@ test_cases:
         /workspace/internal/sqlite: directory_exists
         /workspace/cmd/crumbs: directory_exists
 
-  - name: Implement Cupboard interface per prd-cupboard-core
+  - name: Implement Cupboard interface per prd001-cupboard-core
     inputs:
       command: |
         Agent implements pkg/types/cupboard.go with:
@@ -346,7 +346,7 @@ test_cases:
 
   # --- S12: Final crumbs implementation matches documentation ---
 
-  - name: Verify Cupboard interface matches prd-cupboard-core
+  - name: Verify Cupboard interface matches prd001-cupboard-core
     inputs:
       command: |
         Inspect pkg/types/cupboard.go
@@ -357,17 +357,17 @@ test_cases:
         cupboard_interface_complete: true
         matches_prd: true
 
-  - name: Verify Crumb struct matches prd-crumbs-interface
+  - name: Verify Crumb struct matches prd003-crumbs-interface
     inputs:
       command: |
         Inspect pkg/types/crumb.go
-        Verify all fields from prd-crumbs-interface R1
+        Verify all fields from prd003-crumbs-interface R1
     expected:
       state:
         crumb_struct_complete: true
         matches_prd: true
 
-  - name: Verify SQLite backend matches prd-sqlite-backend
+  - name: Verify SQLite backend matches prd002-sqlite-backend
     inputs:
       command: |
         Inspect internal/sqlite/*.go
