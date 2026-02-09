@@ -27,18 +27,15 @@ Based on this, propose next steps using **release priority**:
 1. **Focus on earliest incomplete release**: Prioritize completing use cases from the current release in road-map.yaml
 2. **Early preview allowed**: Later use cases can be partially implemented if they share functionality with the current release
 3. **Assign issues to releases**: Each issue should map to a use case in road-map.yaml; if uncertain, use release 99.0 (unscheduled)
-4. If epics exist: suggest new issues to add to existing epics, or identify what to work on next
-5. If no epics exist: suggest epics to create and initial issues for each
-6. Identify dependencies - what should be built first and why?
+4. Identify dependencies - what should be built first and why?
 
-When proposing issues (per crumb-format rule):
+When proposing tasks (per crumb-format rule):
 
-1. **Type**: Say whether each issue is **documentation** (markdown in `docs/`) or **code** (implementation).
-2. **Required Reading**: List files the agent must read before starting (PRDs, ARCHITECTURE sections, existing code). This is mandatory for all issues.
-3. **Files to Create/Modify**: Explicit list of files the issue will produce or change. For docs: output path. For code: packages/files to create or edit.
-4. **Structure** (all issues): Requirements, Design Decisions (optional), Acceptance Criteria.
-5. **Documentation issues**: Add **format rule** reference and **required sections** (PRD: Problem, Goals, Requirements, Non-Goals, Acceptance Criteria; use case: Summary, Actor/trigger, Flow, Success criteria).
-6. **Code issues**: Requirements, Design Decisions, Acceptance Criteria (tests/behavior); no PRD-style Problem/Goals/Non-Goals.
+1. **Required Reading**: List files the agent must read before starting (PRDs, ARCHITECTURE sections, existing code). This is mandatory.
+2. **Files to Create/Modify**: Explicit list of packages or files to create or edit.
+3. **Requirements**: What to implement.
+4. **Design Decisions**: Architecture, patterns, or constraints (optional).
+5. **Acceptance Criteria**: Tests and observable behavior that verify the task is done.
 
 **Code task sizing**: Target 300-700 lines of production code per task, touching no more than 5 files. This keeps tasks completable in a single session while being substantial enough to make meaningful progress. Split larger features into multiple tasks; combine trivial changes into one task.
 
@@ -46,25 +43,22 @@ When proposing issues (per crumb-format rule):
 
 ## Output
 
-After analyzing the project and proposing work, create issues directly using the bd CLI.
+After analyzing the project and proposing work, write the proposed tasks as a JSON file.
 
-Create each task:
+**IMPORTANT**: Do NOT use bd commands. Write the tasks to `{{.OutputPath}}` using the Write tool.
 
-    bd create --type task "Title" --description "Full description with Required Reading, Files to Create/Modify, Requirements, Design Decisions, Acceptance Criteria"
+The JSON format is an array of task objects:
 
-Create an epic (only when grouping multiple related tasks):
+```json
+[
+  {
+    "title": "Task title",
+    "description": "Full description with Required Reading, Files to Create/Modify, Requirements, Design Decisions, Acceptance Criteria"
+  }
+]
+```
 
-    bd create --type epic "Title" --description "Epic description" --json
-
-To add a task under an epic, use the ID returned from creating the epic:
-
-    bd create --type task "Title" --description "Description" --parent EPIC_ID
-
-**Epics are optional.** Only create a new epic if there is a clear need for grouping multiple related tasks. Most of the time, standalone tasks are sufficient.
-
-After creating all issues, run:
-
-    bd sync
+The tasks will be automatically imported into the issue tracker.
 {{- if .UserInput}}
 
 ## Additional Context from User

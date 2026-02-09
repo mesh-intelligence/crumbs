@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"text/template"
+	"time"
 )
 
 //go:embed prompts/measure.tmpl
@@ -41,7 +43,7 @@ func parseMeasureFlags() measureConfig {
 
 // Measure assesses project state and proposes new tasks via Claude.
 //
-// Claude creates issues directly in beads using bd commands.
+// Claude writes proposed tasks as JSON; we import them into beads.
 //
 // Flags:
 //
@@ -63,6 +65,15 @@ func measure(cfg measureConfig) error {
 		return fmt.Errorf("switching to branch: %w", err)
 	}
 
+	timestamp := time.Now().Format("20060102-150405")
+	outputFile := filepath.Join("docs", fmt.Sprintf("proposed-issues-%s.json", timestamp))
+
+	// Clean up old proposed-issues files.
+	matches, _ := filepath.Glob("docs/proposed-issues-*.json")
+	for _, f := range matches {
+		os.Remove(f)
+	}
+
 	// Get existing issues.
 	fmt.Println("Querying existing issues...")
 	existingIssues := getExistingIssues()
@@ -70,6 +81,7 @@ func measure(cfg measureConfig) error {
 	issueCount := countJSONArray(existingIssues)
 	fmt.Printf("Found %d existing issue(s).\n", issueCount)
 	fmt.Printf("Issue limit: %d\n", cfg.limit)
+	fmt.Printf("Output file: %s\n", outputFile)
 	fmt.Println()
 
 	// Read append prompt file if specified.
@@ -85,18 +97,23 @@ func measure(cfg measureConfig) error {
 	}
 
 	// Build and run prompt.
-	prompt := buildMeasurePrompt(cfg.promptArg, existingIssues, cfg.limit, appendContent)
+	prompt := buildMeasurePrompt(cfg.promptArg, existingIssues, cfg.limit, "docs/"+filepath.Base(outputFile), appendContent)
 
 	if err := runClaude(prompt, cfg.silence); err != nil {
 		return fmt.Errorf("running Claude: %w", err)
 	}
 
-	// Sync beads and commit.
+	// Import proposed issues.
 	fmt.Println()
-	fmt.Println("Syncing beads...")
-	_ = exec.Command("bd", "sync").Run()
-	_ = exec.Command("git", "add", ".beads/").Run()
-	_ = exec.Command("git", "commit", "-m", "Add issues from measure", "--allow-empty").Run()
+	if _, statErr := os.Stat(outputFile); statErr != nil {
+		fmt.Println("No proposed issues file created.")
+		return nil
+	}
+
+	if err := importIssues(outputFile); err != nil {
+		return fmt.Errorf("importing issues: %w", err)
+	}
+	os.Remove(outputFile)
 
 	fmt.Println()
 	fmt.Println("Done.")
@@ -125,15 +142,17 @@ func countJSONArray(jsonStr string) int {
 type measurePromptData struct {
 	ExistingIssues string
 	Limit          int
+	OutputPath     string
 	UserInput      string
 	AppendContent  string
 }
 
-func buildMeasurePrompt(userInput, existingIssues string, limit int, appendContent string) string {
+func buildMeasurePrompt(userInput, existingIssues string, limit int, outputPath, appendContent string) string {
 	tmpl := template.Must(template.New("measure").Parse(measurePromptTmpl))
 	data := measurePromptData{
 		ExistingIssues: existingIssues,
 		Limit:          limit,
+		OutputPath:     outputPath,
 		UserInput:      userInput,
 		AppendContent:  appendContent,
 	}
@@ -171,4 +190,39 @@ func runClaude(prompt string, silence bool) error {
 	}
 
 	return cmd.Run()
+}
+
+type proposedIssue struct {
+	Title       string `json:"title"`
+	Description string `json:"description"`
+}
+
+func importIssues(jsonFile string) error {
+	data, err := os.ReadFile(jsonFile)
+	if err != nil {
+		return fmt.Errorf("reading JSON file: %w", err)
+	}
+
+	var issues []proposedIssue
+	if err := json.Unmarshal(data, &issues); err != nil {
+		return fmt.Errorf("parsing JSON: %w", err)
+	}
+
+	fmt.Printf("Importing %d task(s)...\n", len(issues))
+
+	for _, issue := range issues {
+		fmt.Printf("  Creating: %s\n", issue.Title)
+		args := []string{"create", "--type", "task", issue.Title, "--description", issue.Description}
+		if err := exec.Command("bd", args...).Run(); err != nil {
+			fmt.Fprintf(os.Stderr, "    Warning: Failed to create task\n")
+		}
+	}
+
+	// Sync beads and commit.
+	_ = exec.Command("bd", "sync").Run()
+	_ = exec.Command("git", "add", ".beads/").Run()
+	_ = exec.Command("git", "commit", "-m", "Add issues from measure", "--allow-empty").Run()
+	fmt.Println("Issues imported.")
+
+	return nil
 }
