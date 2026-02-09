@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,69 +10,80 @@ import (
 	"time"
 )
 
-// Generate runs N cycles of Measure + Stitch.
-func Generate() error {
-	silence := os.Getenv("GENERATE_SILENCE") == "true"
+// constructConfig holds options for the generation:construct target.
+type constructConfig struct {
+	silence      bool
+	cycles       int
+	measureLimit int
+}
 
-	cycles := 1
-	if v := os.Getenv("GENERATE_CYCLES"); v != "" {
-		if _, err := fmt.Sscanf(v, "%d", &cycles); err != nil || cycles < 1 {
-			cycles = 1
-		}
-	}
+func parseConstructFlags() constructConfig {
+	cfg := constructConfig{cycles: 1, measureLimit: 5}
+	fs := flag.NewFlagSet("generation:construct", flag.ContinueOnError)
+	fs.BoolVar(&cfg.silence, "silence", false, "suppress Claude output")
+	fs.IntVar(&cfg.cycles, "cycles", 1, "number of measure+stitch cycles")
+	fs.IntVar(&cfg.measureLimit, "limit", 5, "issues per measure cycle")
+	parseTargetFlags(fs)
+	return cfg
+}
 
-	measureLimit := 5
-	if v := os.Getenv("GENERATE_MEASURE_LIMIT"); v != "" {
-		if _, err := fmt.Sscanf(v, "%d", &measureLimit); err != nil || measureLimit < 1 {
-			measureLimit = 5
-		}
-	}
+// Construct executes N cycles of Measure + Stitch within the current generation.
+//
+// Flags:
+//
+//	--silence    suppress Claude output
+//	--cycles N   number of measure+stitch cycles (default 1)
+//	--limit N    issues per measure cycle (default 5)
+func (Generation) Construct() error {
+	cfg := parseConstructFlags()
 
 	fmt.Println()
 	fmt.Println("========================================")
-	fmt.Printf("Generate: %d cycle(s), %d issues per cycle\n", cycles, measureLimit)
+	fmt.Printf("Generation construct: %d cycle(s), %d issues per cycle\n", cfg.cycles, cfg.measureLimit)
 	fmt.Println("========================================")
 	fmt.Println()
 
-	// Propagate settings to Measure and Stitch via env vars.
-	os.Setenv("MEASURE_LIMIT", fmt.Sprintf("%d", measureLimit))
-	if silence {
-		os.Setenv("MEASURE_SILENCE", "true")
-		os.Setenv("STITCH_SILENCE", "true")
+	mCfg := measureConfig{
+		silence:    cfg.silence,
+		limit:      cfg.measureLimit,
+		autoImport: true,
+	}
+	sCfg := stitchConfig{
+		silence: cfg.silence,
 	}
 
-	for cycle := 1; cycle <= cycles; cycle++ {
+	for cycle := 1; cycle <= cfg.cycles; cycle++ {
 		fmt.Println()
 		fmt.Println("========================================")
-		fmt.Printf("Cycle %d of %d\n", cycle, cycles)
+		fmt.Printf("Cycle %d of %d\n", cycle, cfg.cycles)
 		fmt.Println("========================================")
 		fmt.Println()
 
 		fmt.Println("--- measure ---")
-		if err := Measure(); err != nil {
+		if err := measure(mCfg); err != nil {
 			return fmt.Errorf("cycle %d measure: %w", cycle, err)
 		}
 
 		fmt.Println()
 		fmt.Println("--- stitch ---")
-		if err := Stitch(); err != nil {
+		if err := stitch(sCfg); err != nil {
 			return fmt.Errorf("cycle %d stitch: %w", cycle, err)
 		}
 	}
 
 	fmt.Println()
 	fmt.Println("========================================")
-	fmt.Printf("Generate complete. Ran %d cycle(s).\n", cycles)
+	fmt.Printf("Generation construct complete. Ran %d cycle(s).\n", cfg.cycles)
 	fmt.Println("========================================")
 	return nil
 }
 
-// OpenGeneration starts a new generation session.
+// Start begins a new generation session.
 //
 // Tags current main state, creates a generation branch, deletes Go files,
 // reinitializes the Go module, and commits the clean state.
 // Must be run from main with no existing generation branches.
-func OpenGeneration() error {
+func (Generation) Start() error {
 	branch, err := gitCurrentBranch()
 	if err != nil {
 		return fmt.Errorf("getting current branch: %w", err)
@@ -83,14 +95,14 @@ func OpenGeneration() error {
 	// Check no existing generation branch.
 	out, _ := exec.Command("git", "branch", "--list", "generation-*").Output()
 	if branches := parseBranchList(string(out)); len(branches) > 0 {
-		return fmt.Errorf("a generation branch already exists: %s. Close it first or delete it", branches[0])
+		return fmt.Errorf("a generation branch already exists: %s. Finish it first or delete it", branches[0])
 	}
 
 	genName := "generation-" + time.Now().Format("2006-01-02-15-04")
 
 	fmt.Println()
 	fmt.Println("========================================")
-	fmt.Printf("Opening generation: %s\n", genName)
+	fmt.Printf("Starting generation: %s\n", genName)
 	fmt.Println("========================================")
 	fmt.Println()
 
@@ -129,24 +141,24 @@ func OpenGeneration() error {
 	// Commit the clean state.
 	fmt.Println("Committing clean state...")
 	_ = exec.Command("git", "add", "-A").Run()
-	commitMsg := fmt.Sprintf("Open generation: %s\n\nDelete Go files, reinitialize module.\nTagged previous state as %s.", genName, genName)
+	commitMsg := fmt.Sprintf("Start generation: %s\n\nDelete Go files, reinitialize module.\nTagged previous state as %s.", genName, genName)
 	if err := exec.Command("git", "commit", "-m", commitMsg).Run(); err != nil {
 		return fmt.Errorf("committing clean state: %w", err)
 	}
 
 	fmt.Println()
-	fmt.Printf("Generation opened on branch %s.\n", genName)
-	fmt.Println("Run mage stitch to start building.")
+	fmt.Printf("Generation started on branch %s.\n", genName)
+	fmt.Println("Run mage generation:construct to begin building.")
 	fmt.Println()
 	return nil
 }
 
-// CloseGeneration finishes the current generation session and merges into main.
+// Finish completes the current generation session and merges into main.
 //
 // Tags the generation branch, switches to main, deletes Go code from main,
 // merges the generation branch, tags the merge, and deletes the generation branch.
 // Must be run from a generation-* branch.
-func CloseGeneration() error {
+func (Generation) Finish() error {
 	branch, err := gitCurrentBranch()
 	if err != nil {
 		return fmt.Errorf("getting current branch: %w", err)
@@ -159,7 +171,7 @@ func CloseGeneration() error {
 
 	fmt.Println()
 	fmt.Println("========================================")
-	fmt.Printf("Closing generation: %s\n", branch)
+	fmt.Printf("Finishing generation: %s\n", branch)
 	fmt.Println("========================================")
 	fmt.Println()
 
@@ -217,7 +229,7 @@ func CloseGeneration() error {
 	_ = exec.Command("git", "branch", "-d", branch).Run()
 
 	fmt.Println()
-	fmt.Println("Generation closed. Work is on main.")
+	fmt.Println("Generation finished. Work is on main.")
 	fmt.Println()
 	return nil
 }

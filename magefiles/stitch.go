@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,10 +10,29 @@ import (
 	"strings"
 )
 
-// Stitch picks ready tasks from beads and invokes Claude to execute them.
-func Stitch() error {
-	silence := os.Getenv("STITCH_SILENCE") == "true"
+// stitchConfig holds options for the Stitch target.
+type stitchConfig struct {
+	silence bool
+}
 
+func parseStitchFlags() stitchConfig {
+	var cfg stitchConfig
+	fs := flag.NewFlagSet("cobbler:stitch", flag.ContinueOnError)
+	fs.BoolVar(&cfg.silence, "silence", false, "suppress Claude output")
+	parseTargetFlags(fs)
+	return cfg
+}
+
+// Stitch picks ready tasks from beads and invokes Claude to execute them.
+//
+// Flags:
+//
+//	--silence   suppress Claude output
+func (Cobbler) Stitch() error {
+	return stitch(parseStitchFlags())
+}
+
+func stitch(cfg stitchConfig) error {
 	repoRoot, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("getting working directory: %w", err)
@@ -38,7 +58,7 @@ func Stitch() error {
 			break // No tasks available.
 		}
 
-		if err := doOneTask(task, baseBranch, repoRoot, silence); err != nil {
+		if err := doOneTask(task, baseBranch, repoRoot, cfg.silence); err != nil {
 			return fmt.Errorf("executing task %s: %w", task.id, err)
 		}
 

@@ -8,13 +8,16 @@ import (
 	"github.com/magefile/mage/sh"
 )
 
-// Test runs all tests (unit and integration).
-func Test() error {
+// Test groups test targets (all, unit, integration).
+type Test mg.Namespace
+
+// All runs all tests (unit and integration).
+func (Test) All() error {
 	return sh.RunV("go", "test", "-v", "./...")
 }
 
-// TestUnit runs only unit tests, excluding the tests/ directory.
-func TestUnit() error {
+// Unit runs only unit tests, excluding the tests/ directory.
+func (Test) Unit() error {
 	pkgs, err := sh.Output("go", "list", "./...")
 	if err != nil {
 		return err
@@ -33,8 +36,8 @@ func TestUnit() error {
 	return sh.RunV("go", args...)
 }
 
-// TestIntegration builds first, then runs only integration tests.
-func TestIntegration() error {
+// Integration builds first, then runs only integration tests.
+func (Test) Integration() error {
 	mg.Deps(Build)
 	return sh.RunV("go", "test", "-v", "./tests/...")
 }

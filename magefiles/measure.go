@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -22,45 +23,42 @@ type measureConfig struct {
 	promptArg    string
 }
 
-func parseMeasureEnv() measureConfig {
+func parseMeasureFlags() measureConfig {
 	cfg := measureConfig{
 		limit:      10,
 		autoImport: true,
 	}
-	if os.Getenv("MEASURE_SILENCE") == "true" {
-		cfg.silence = true
-	}
-	if os.Getenv("MEASURE_KEEP") == "true" {
-		cfg.keepFiles = true
-	}
-	if v := os.Getenv("MEASURE_LIMIT"); v != "" {
-		var n int
-		if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n > 0 {
-			cfg.limit = n
-		}
-	}
-	if os.Getenv("MEASURE_SHOW_IMPORT") == "true" {
-		cfg.showImport = true
-	}
-	if os.Getenv("MEASURE_NO_AUTO_IMPORT") == "true" {
-		cfg.autoImport = false
-	}
-	if v := os.Getenv("MEASURE_ISSUES_FILE"); v != "" {
-		cfg.issuesFile = v
-	}
-	if v := os.Getenv("MEASURE_APPEND_PROMPT"); v != "" {
-		cfg.appendPrompt = v
-	}
-	if v := os.Getenv("MEASURE_PROMPT"); v != "" {
-		cfg.promptArg = v
-	}
+	fs := flag.NewFlagSet("cobbler:measure", flag.ContinueOnError)
+	fs.BoolVar(&cfg.silence, "silence", false, "suppress Claude output")
+	fs.BoolVar(&cfg.keepFiles, "keep", false, "keep old proposed-issues files")
+	fs.IntVar(&cfg.limit, "limit", 10, "max issues to propose")
+	fs.BoolVar(&cfg.showImport, "show-import", false, "show import commands")
+	noAutoImport := fs.Bool("no-auto-import", false, "skip automatic issue import")
+	fs.StringVar(&cfg.issuesFile, "issues-file", "", "path to existing issues JSON")
+	fs.StringVar(&cfg.appendPrompt, "append-prompt", "", "path to additional prompt file")
+	fs.StringVar(&cfg.promptArg, "prompt", "", "user prompt text")
+	parseTargetFlags(fs)
+	cfg.autoImport = !*noAutoImport
 	return cfg
 }
 
 // Measure assesses project state and proposes new tasks via Claude.
-func Measure() error {
-	cfg := parseMeasureEnv()
+//
+// Flags:
+//
+//	--silence          suppress Claude output
+//	--keep             keep old proposed-issues files
+//	--limit N          max issues to propose (default 10)
+//	--show-import      show import commands
+//	--no-auto-import   skip automatic issue import
+//	--issues-file F    path to existing issues JSON
+//	--append-prompt F  path to additional prompt file
+//	--prompt TEXT      user prompt text
+func (Cobbler) Measure() error {
+	return measure(parseMeasureFlags())
+}
 
+func measure(cfg measureConfig) error {
 	timestamp := time.Now().Format("20060102-150405")
 	outputFile := filepath.Join("docs", fmt.Sprintf("proposed-issues-%s.json", timestamp))
 	outputFilename := filepath.Base(outputFile)
