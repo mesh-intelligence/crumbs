@@ -19,7 +19,7 @@ func Build() error {
 	if err := os.MkdirAll(binaryDir, 0o755); err != nil {
 		return err
 	}
-	return sh.RunV("go", "build", "-v", "-o", filepath.Join(binaryDir, binaryName), cmdDir)
+	return sh.RunV(binGo, "build", "-v", "-o", filepath.Join(binaryDir, binaryName), cmdDir)
 }
 
 // Clean removes build artifacts.
@@ -27,13 +27,13 @@ func Clean() error {
 	if err := os.RemoveAll(binaryDir); err != nil {
 		return err
 	}
-	return sh.RunV("go", "clean")
+	return sh.RunV(binGo, "clean")
 }
 
 // Install builds and copies the binary to GOPATH/bin.
 func Install() error {
 	mg.Deps(Build)
-	gopath, err := sh.Output("go", "env", "GOPATH")
+	gopath, err := sh.Output(binGo, "env", "GOPATH")
 	if err != nil {
 		return err
 	}

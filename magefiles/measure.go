@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"text/template"
 	"time"
 )
@@ -19,23 +18,15 @@ var measurePromptTmpl string
 
 // measureConfig holds options for the Measure target.
 type measureConfig struct {
-	silenceAgent bool
-	limit     int
-	promptArg string
-	branch    string
+	cobblerConfig
 }
 
 func parseMeasureFlags() measureConfig {
-	cfg := measureConfig{limit: 10, silenceAgent: true}
+	var cfg measureConfig
 	fs := flag.NewFlagSet("cobbler:measure", flag.ContinueOnError)
-	fs.BoolVar(&cfg.silenceAgent, "silence-agent", true, "suppress Claude output")
-	fs.IntVar(&cfg.limit, "limit", 10, "max issues to propose")
-	fs.StringVar(&cfg.promptArg, "prompt", "", "user prompt text")
-	fs.StringVar(&cfg.branch, "branch", "", "generation branch to work on")
+	registerCobblerFlags(fs, &cfg.cobblerConfig)
 	parseTargetFlags(fs)
-	if cfg.branch == "" && fs.NArg() > 0 {
-		cfg.branch = fs.Arg(0)
-	}
+	resolveCobblerBranch(&cfg.cobblerConfig, fs)
 	return cfg
 }
 
@@ -45,8 +36,8 @@ func parseMeasureFlags() measureConfig {
 //
 // Flags:
 //
-//	--silence-agent  suppress Claude output
-//	--limit N      max issues to propose (default 10)
+//	--silence-agent    suppress Claude output
+//	--max-issues N    max issues to propose (default 10)
 //	--prompt TEXT  user prompt text
 //	--branch NAME  generation branch to work on
 func (Cobbler) Measure() error {
@@ -77,14 +68,14 @@ func measure(cfg measureConfig) error {
 
 	issueCount := countJSONArray(existingIssues)
 	fmt.Printf("Found %d existing issue(s).\n", issueCount)
-	fmt.Printf("Issue limit: %d\n", cfg.limit)
+	fmt.Printf("Max issues: %d\n", cfg.maxIssues)
 	fmt.Printf("Output file: %s\n", outputFile)
 	fmt.Println()
 
 	// Build and run prompt.
-	prompt := buildMeasurePrompt(cfg.promptArg, existingIssues, cfg.limit, "docs/"+filepath.Base(outputFile))
+	prompt := buildMeasurePrompt(cfg.promptArg, existingIssues, cfg.maxIssues, "docs/"+filepath.Base(outputFile))
 
-	if err := runClaude(prompt, cfg.silenceAgent); err != nil {
+	if err := runClaude(prompt, "", cfg.silenceAgent); err != nil {
 		return fmt.Errorf("running Claude: %w", err)
 	}
 
@@ -106,10 +97,10 @@ func measure(cfg measureConfig) error {
 }
 
 func getExistingIssues() string {
-	if _, err := exec.LookPath("bd"); err != nil {
+	if _, err := exec.LookPath(binBd); err != nil {
 		return "[]"
 	}
-	out, err := exec.Command("bd", "list", "--json").Output()
+	out, err := exec.Command(binBd, "list", "--json").Output()
 	if err != nil {
 		return "[]"
 	}
@@ -146,35 +137,6 @@ func buildMeasurePrompt(userInput, existingIssues string, limit int, outputPath 
 	return buf.String()
 }
 
-func runClaude(prompt string, silence bool) error {
-	fmt.Println("Running Claude with measure...")
-	fmt.Println()
-
-	args := []string{"--dangerously-skip-permissions", "-p", "--verbose", "--output-format", "stream-json"}
-	cmd := exec.Command("claude", args...)
-	cmd.Stdin = strings.NewReader(prompt)
-
-	if silence {
-		cmd.Stdout = nil
-		cmd.Stderr = nil
-	} else {
-		// Pipe through jq for readability.
-		jq := exec.Command("jq")
-		jq.Stdin, _ = cmd.StdoutPipe()
-		jq.Stdout = os.Stdout
-		jq.Stderr = os.Stderr
-		if err := jq.Start(); err != nil {
-			// Fall back to raw output if jq not available.
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-		} else {
-			defer func() { _ = jq.Wait() }()
-		}
-	}
-
-	return cmd.Run()
-}
-
 type proposedIssue struct {
 	Index       int    `json:"index"`
 	Title       string `json:"title"`
@@ -200,7 +162,7 @@ func importIssues(jsonFile string) error {
 	for _, issue := range issues {
 		fmt.Printf("  Creating: %s\n", issue.Title)
 		args := []string{"create", "--type", "task", "--json", issue.Title, "--description", issue.Description}
-		out, err := exec.Command("bd", args...).Output()
+		out, err := exec.Command(binBd, args...).Output()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "    Warning: Failed to create task\n")
 			continue
@@ -225,15 +187,12 @@ func importIssues(jsonFile string) error {
 			continue
 		}
 		fmt.Printf("  Linking: %s depends on %s\n", childID, parentID)
-		if err := exec.Command("bd", "dep", "add", childID, parentID).Run(); err != nil {
+		if err := exec.Command(binBd, "dep", "add", childID, parentID).Run(); err != nil {
 			fmt.Fprintf(os.Stderr, "    Warning: Failed to add dependency\n")
 		}
 	}
 
-	// Sync beads and commit.
-	_ = exec.Command("bd", "sync").Run()
-	_ = exec.Command("git", "add", ".beads/").Run()
-	_ = exec.Command("git", "commit", "-m", "Add issues from measure", "--allow-empty").Run()
+	beadsCommit("measure-import", nil)
 	fmt.Println("Issues imported.")
 
 	return nil

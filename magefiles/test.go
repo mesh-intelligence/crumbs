@@ -13,12 +13,12 @@ type Test mg.Namespace
 
 // All runs all tests (unit and integration).
 func (Test) All() error {
-	return sh.RunV("go", "test", "-v", "./...")
+	return sh.RunV(binGo, "test", "-v", "./...")
 }
 
 // Unit runs only unit tests, excluding the tests/ directory.
 func (Test) Unit() error {
-	pkgs, err := sh.Output("go", "list", "./...")
+	pkgs, err := sh.Output(binGo, "list", "./...")
 	if err != nil {
 		return err
 	}
@@ -33,11 +33,11 @@ func (Test) Unit() error {
 		return nil
 	}
 	args := append([]string{"test", "-v"}, unitPkgs...)
-	return sh.RunV("go", args...)
+	return sh.RunV(binGo, args...)
 }
 
 // Integration builds first, then runs only integration tests.
 func (Test) Integration() error {
 	mg.Deps(Build)
-	return sh.RunV("go", "test", "-v", "./tests/...")
+	return sh.RunV(binGo, "test", "-v", "./tests/...")
 }

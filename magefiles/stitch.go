@@ -18,19 +18,15 @@ var stitchPromptTmpl string
 
 // stitchConfig holds options for the Stitch target.
 type stitchConfig struct {
-	silence bool
-	branch  string
+	cobblerConfig
 }
 
 func parseStitchFlags() stitchConfig {
 	var cfg stitchConfig
 	fs := flag.NewFlagSet("cobbler:stitch", flag.ContinueOnError)
-	fs.BoolVar(&cfg.silence, "silence", false, "suppress Claude output")
-	fs.StringVar(&cfg.branch, "branch", "", "generation branch to work on")
+	registerCobblerFlags(fs, &cfg.cobblerConfig)
 	parseTargetFlags(fs)
-	if cfg.branch == "" && fs.NArg() > 0 {
-		cfg.branch = fs.Arg(0)
-	}
+	resolveCobblerBranch(&cfg.cobblerConfig, fs)
 	return cfg
 }
 
@@ -38,8 +34,8 @@ func parseStitchFlags() stitchConfig {
 //
 // Flags:
 //
-//	--silence       suppress Claude output
-//	--branch NAME   generation branch to work on
+//	--silence-agent  suppress Claude output (default true)
+//	--branch NAME    generation branch to work on
 func (Cobbler) Stitch() error {
 	return stitch(parseStitchFlags())
 }
@@ -78,7 +74,7 @@ func stitch(cfg stitchConfig) error {
 			break // No tasks available.
 		}
 
-		if err := doOneTask(task, baseBranch, repoRoot, cfg.silence); err != nil {
+		if err := doOneTask(task, baseBranch, repoRoot, cfg.silenceAgent); err != nil {
 			return fmt.Errorf("executing task %s: %w", task.id, err)
 		}
 
@@ -105,7 +101,7 @@ type stitchTask struct {
 }
 
 func gitCurrentBranch() (string, error) {
-	out, err := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD").Output()
+	out, err := exec.Command(binGit, "rev-parse", "--abbrev-ref", "HEAD").Output()
 	if err != nil {
 		return "", err
 	}
@@ -115,14 +111,30 @@ func gitCurrentBranch() (string, error) {
 // recoverStaleTasks cleans up task branches and orphaned in_progress issues
 // from a previous interrupted run.
 func recoverStaleTasks(baseBranch, worktreeBase string) error {
-	recovered := false
+	staleBranches := recoverStaleBranches(baseBranch, worktreeBase)
+	orphanedIssues := resetOrphanedIssues(baseBranch)
 
-	// 1. Find stale task branches under <base>/task/*.
-	out, _ := exec.Command("git", "branch", "--list", baseBranch+"/task/*").Output()
+	_ = exec.Command(binGit, "worktree", "prune").Run()
+
+	if staleBranches || orphanedIssues {
+		beadsCommit("stitch-recover", nil)
+		fmt.Println("Recovery complete.")
+		fmt.Println()
+	}
+
+	return nil
+}
+
+// recoverStaleBranches removes leftover task branches and worktrees,
+// resetting their issues to ready. Returns true if any were recovered.
+func recoverStaleBranches(baseBranch, worktreeBase string) bool {
+	out, _ := exec.Command(binGit, "branch", "--list", baseBranch+"/task/*").Output()
 	branches := parseBranchList(string(out))
+	if len(branches) == 0 {
+		return false
+	}
 
 	for _, branch := range branches {
-		recovered = true
 		fmt.Printf("Recovering stale branch: %s\n", branch)
 
 		issueID := branch[strings.LastIndex(branch, "/")+1:]
@@ -130,47 +142,45 @@ func recoverStaleTasks(baseBranch, worktreeBase string) error {
 
 		if _, err := os.Stat(worktreeDir); err == nil {
 			fmt.Printf("  Removing worktree: %s\n", worktreeDir)
-			_ = exec.Command("git", "worktree", "remove", worktreeDir, "--force").Run()
+			_ = exec.Command(binGit, "worktree", "remove", worktreeDir, "--force").Run()
 		}
 
 		fmt.Printf("  Deleting branch: %s\n", branch)
-		_ = exec.Command("git", "branch", "-D", branch).Run()
+		_ = exec.Command(binGit, "branch", "-D", branch).Run()
 
 		if issueID != "" {
 			fmt.Printf("  Resetting issue to ready: %s\n", issueID)
-			_ = exec.Command("bd", "update", issueID, "--status", "ready").Run()
+			_ = exec.Command(binBd, "update", issueID, "--status", "ready").Run()
 		}
 	}
+	return true
+}
 
-	// 2. Reset orphaned in_progress issues with no task branch.
-	inProgressJSON, _ := exec.Command("bd", "list", "--json", "--status", "in_progress", "--type", "task").Output()
-	if len(inProgressJSON) > 0 && string(inProgressJSON) != "[]" {
-		var issues []struct {
-			ID string `json:"id"`
-		}
-		if err := json.Unmarshal(inProgressJSON, &issues); err == nil {
-			for _, issue := range issues {
-				ref := fmt.Sprintf("refs/heads/%s/task/%s", baseBranch, issue.ID)
-				if exec.Command("git", "show-ref", "--verify", "--quiet", ref).Run() != nil {
-					recovered = true
-					fmt.Printf("Resetting orphaned in_progress issue: %s\n", issue.ID)
-					_ = exec.Command("bd", "update", issue.ID, "--status", "ready").Run()
-				}
-			}
-		}
+// resetOrphanedIssues finds in_progress issues with no corresponding task
+// branch and resets them to ready. Returns true if any were reset.
+func resetOrphanedIssues(baseBranch string) bool {
+	out, _ := exec.Command(binBd, "list", "--json", "--status", "in_progress", "--type", "task").Output()
+	if len(out) == 0 || string(out) == "[]" {
+		return false
 	}
 
-	_ = exec.Command("git", "worktree", "prune").Run()
-
-	if recovered {
-		_ = exec.Command("bd", "sync").Run()
-		_ = exec.Command("git", "add", ".beads/").Run()
-		_ = exec.Command("git", "commit", "-m", "Recover stale tasks from interrupted run", "--allow-empty").Run()
-		fmt.Println("Recovery complete.")
-		fmt.Println()
+	var issues []struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(out, &issues); err != nil {
+		return false
 	}
 
-	return nil
+	recovered := false
+	for _, issue := range issues {
+		ref := fmt.Sprintf("refs/heads/%s/task/%s", baseBranch, issue.ID)
+		if exec.Command(binGit, "show-ref", "--verify", "--quiet", ref).Run() != nil {
+			recovered = true
+			fmt.Printf("Resetting orphaned in_progress issue: %s\n", issue.ID)
+			_ = exec.Command(binBd, "update", issue.ID, "--status", "ready").Run()
+		}
+	}
+	return recovered
 }
 
 func parseBranchList(output string) []string {
@@ -186,7 +196,7 @@ func parseBranchList(output string) []string {
 }
 
 func pickTask(baseBranch, worktreeBase string) (stitchTask, error) {
-	out, err := exec.Command("bd", "ready", "-n", "1", "--json", "--type", "task").Output()
+	out, err := exec.Command(binBd, "ready", "-n", "1", "--json", "--type", "task").Output()
 	if err != nil || len(out) == 0 || string(out) == "[]" {
 		return stitchTask{}, fmt.Errorf("no tasks available")
 	}
@@ -222,7 +232,7 @@ func pickTask(baseBranch, worktreeBase string) (stitchTask, error) {
 func doOneTask(task stitchTask, baseBranch, repoRoot string, silence bool) error {
 	// Claim.
 	fmt.Println("Task claimed.")
-	_ = exec.Command("bd", "update", task.id, "--status", "in_progress").Run()
+	_ = exec.Command(binBd, "update", task.id, "--status", "in_progress").Run()
 
 	// Create worktree.
 	if err := createWorktree(task); err != nil {
@@ -231,7 +241,7 @@ func doOneTask(task stitchTask, baseBranch, repoRoot string, silence bool) error
 
 	// Build and run prompt.
 	prompt := buildStitchPrompt(task)
-	if err := runClaudeInWorktree(prompt, task.worktreeDir, repoRoot, silence); err != nil {
+	if err := runClaude(prompt, task.worktreeDir, silence); err != nil {
 		return fmt.Errorf("running Claude: %w", err)
 	}
 
@@ -256,13 +266,13 @@ func createWorktree(task stitchTask) error {
 
 	// Create branch from current HEAD if it doesn't exist.
 	ref := "refs/heads/" + task.branchName
-	if exec.Command("git", "show-ref", "--verify", "--quiet", ref).Run() != nil {
-		if err := exec.Command("git", "branch", task.branchName).Run(); err != nil {
+	if exec.Command(binGit, "show-ref", "--verify", "--quiet", ref).Run() != nil {
+		if err := exec.Command(binGit, "branch", task.branchName).Run(); err != nil {
 			return fmt.Errorf("creating branch %s: %w", task.branchName, err)
 		}
 	}
 
-	cmd := exec.Command("git", "worktree", "add", task.worktreeDir, task.branchName)
+	cmd := exec.Command(binGit, "worktree", "add", task.worktreeDir, task.branchName)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -295,50 +305,17 @@ func buildStitchPrompt(task stitchTask) string {
 	return buf.String()
 }
 
-func runClaudeInWorktree(prompt, worktreeDir, repoRoot string, silence bool) error {
-	fmt.Println("Running Claude in worktree...")
-
-	args := []string{"--dangerously-skip-permissions", "-p", "--verbose", "--output-format", "stream-json"}
-	cmd := exec.Command("claude", args...)
-	cmd.Dir = worktreeDir
-	cmd.Stdin = strings.NewReader(prompt)
-
-	if silence {
-		cmd.Stdout = nil
-		cmd.Stderr = nil
-	} else {
-		jq := exec.Command("jq")
-		jq.Stdout = os.Stdout
-		jq.Stderr = os.Stderr
-		var pipeErr error
-		jq.Stdin, pipeErr = cmd.StdoutPipe()
-		if pipeErr != nil {
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-		} else {
-			if err := jq.Start(); err != nil {
-				cmd.Stdout = os.Stdout
-				cmd.Stderr = os.Stderr
-			} else {
-				defer func() { _ = jq.Wait() }()
-			}
-		}
-	}
-
-	return cmd.Run()
-}
-
 func mergeBranch(branchName, baseBranch, repoRoot string) error {
 	fmt.Println()
 	fmt.Printf("Merging %s into %s...\n", branchName, baseBranch)
 
-	cmd := exec.Command("git", "checkout", baseBranch)
+	cmd := exec.Command(binGit, "checkout", baseBranch)
 	cmd.Dir = repoRoot
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("checking out %s: %w", baseBranch, err)
 	}
 
-	cmd = exec.Command("git", "merge", branchName, "--no-edit")
+	cmd = exec.Command(binGit, "merge", branchName, "--no-edit")
 	cmd.Dir = repoRoot
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -352,20 +329,16 @@ func mergeBranch(branchName, baseBranch, repoRoot string) error {
 
 func cleanupWorktree(task stitchTask) {
 	fmt.Println("Cleaning up worktree...")
-	_ = exec.Command("git", "worktree", "remove", task.worktreeDir, "--force").Run()
-	_ = exec.Command("git", "branch", "-d", task.branchName).Run()
+	_ = exec.Command(binGit, "worktree", "remove", task.worktreeDir, "--force").Run()
+	_ = exec.Command(binGit, "branch", "-d", task.branchName).Run()
 	fmt.Println("Worktree removed.")
 }
 
 func closeStitchTask(task stitchTask) {
 	fmt.Println()
 	fmt.Printf("Closing task: %s\n", task.id)
-	_ = exec.Command("bd", "close", task.id).Run()
-	_ = exec.Command("bd", "sync").Run()
-
-	fmt.Println("Committing beads changes...")
-	_ = exec.Command("git", "add", ".beads/").Run()
-	_ = exec.Command("git", "commit", "-m", fmt.Sprintf("Close %s", task.id), "--allow-empty").Run()
+	_ = exec.Command(binBd, "close", task.id).Run()
+	beadsCommit("stitch-close", task.id)
 
 	fmt.Println("Done.")
 }

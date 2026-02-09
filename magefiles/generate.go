@@ -14,15 +14,15 @@ import (
 type constructConfig struct {
 	silence      bool
 	cycles       int
-	measureLimit int
+	maxIssues int
 }
 
 func parseConstructFlags() constructConfig {
-	cfg := constructConfig{cycles: 1, measureLimit: 5}
+	cfg := constructConfig{cycles: 1, maxIssues: 5}
 	fs := flag.NewFlagSet("generation:construct", flag.ContinueOnError)
 	fs.BoolVar(&cfg.silence, "silence", false, "suppress Claude output")
 	fs.IntVar(&cfg.cycles, "cycles", 1, "number of measure+stitch cycles")
-	fs.IntVar(&cfg.measureLimit, "limit", 5, "issues per measure cycle")
+	fs.IntVar(&cfg.maxIssues, "max-issues", 5, "issues per measure cycle")
 	parseTargetFlags(fs)
 	return cfg
 }
@@ -44,19 +44,17 @@ func (Generation) Construct() error {
 
 	fmt.Println()
 	fmt.Println("========================================")
-	fmt.Printf("Generation construct: %d cycle(s), %d issues per cycle\n", cfg.cycles, cfg.measureLimit)
+	fmt.Printf("Generation construct: %d cycle(s), %d issues per cycle\n", cfg.cycles, cfg.maxIssues)
 	fmt.Println("========================================")
 	fmt.Println()
 
-	mCfg := measureConfig{
+	shared := cobblerConfig{
 		silenceAgent: cfg.silence,
-		limit:        cfg.measureLimit,
+		maxIssues:    cfg.maxIssues,
 		branch:       currentBranch,
 	}
-	sCfg := stitchConfig{
-		silence: cfg.silence,
-		branch:  currentBranch,
-	}
+	mCfg := measureConfig{cobblerConfig: shared}
+	sCfg := stitchConfig{cobblerConfig: shared}
 
 	for cycle := 1; cycle <= cfg.cycles; cycle++ {
 		fmt.Println()
@@ -99,7 +97,7 @@ func (Generation) Start() error {
 		return fmt.Errorf("a generation branch already exists: %s. Finish it first or delete it", branches[0])
 	}
 
-	genName := "generation-" + time.Now().Format("2006-01-02-15-04")
+	genName := genPrefix + time.Now().Format("2006-01-02-15-04")
 
 	fmt.Println()
 	fmt.Println("========================================")
@@ -109,51 +107,37 @@ func (Generation) Start() error {
 
 	// Tag current main.
 	fmt.Printf("Tagging current state as %s...\n", genName)
-	if err := exec.Command("git", "tag", genName).Run(); err != nil {
+	if err := exec.Command(binGit, "tag", genName).Run(); err != nil {
 		return fmt.Errorf("tagging main: %w", err)
 	}
 
 	// Create and switch to generation branch.
 	fmt.Printf("Creating branch %s...\n", genName)
-	if err := exec.Command("git", "checkout", "-b", genName).Run(); err != nil {
+	if err := exec.Command(binGit, "checkout", "-b", genName).Run(); err != nil {
 		return fmt.Errorf("creating branch: %w", err)
 	}
 
 	// Reset beads database and reinitialize with branch prefix.
 	fmt.Println("Resetting beads database...")
-	if err := exec.Command("bd", "admin", "reset").Run(); err != nil {
+	if err := exec.Command(binBd, "admin", "reset").Run(); err != nil {
 		return fmt.Errorf("resetting beads: %w", err)
 	}
 	fmt.Printf("Reinitializing beads with prefix %s...\n", genName)
-	if err := exec.Command("bd", "init", "--prefix", genName, "--force").Run(); err != nil {
+	if err := exec.Command(binBd, "init", "--prefix", genName, "--force").Run(); err != nil {
 		return fmt.Errorf("reinitializing beads: %w", err)
 	}
 
-	// Delete Go source files.
-	fmt.Println("Deleting Go source files...")
-	deleteGoFiles(".")
-
-	// Remove empty directories in Go source dirs.
-	for _, dir := range []string{"cmd/", "pkg/", "internal/", "tests/"} {
-		removeEmptyDirs(dir)
-	}
-
-	// Remove build artifacts and dependency lock.
-	os.RemoveAll("bin/")
-	os.Remove("go.sum")
-
-	// Reinitialize Go module.
-	fmt.Println("Reinitializing Go module...")
-	os.Remove("go.mod")
-	if err := exec.Command("go", "mod", "init", "github.com/mesh-intelligence/crumbs").Run(); err != nil {
-		return fmt.Errorf("reinitializing module: %w", err)
+	// Reset Go sources and reinitialize module.
+	fmt.Println("Resetting Go sources...")
+	if err := resetGoSources(); err != nil {
+		return fmt.Errorf("resetting Go sources: %w", err)
 	}
 
 	// Commit the clean state.
 	fmt.Println("Committing clean state...")
-	_ = exec.Command("git", "add", "-A").Run()
-	commitMsg := fmt.Sprintf("Start generation: %s\n\nDelete Go files, reinitialize module.\nTagged previous state as %s.", genName, genName)
-	if err := exec.Command("git", "commit", "-m", commitMsg).Run(); err != nil {
+	_ = exec.Command(binGit, "add", "-A").Run()
+	msg := commitMsg("gen-start", genName)
+	if err := exec.Command(binGit, "commit", "-m", msg).Run(); err != nil {
 		return fmt.Errorf("committing clean state: %w", err)
 	}
 
@@ -174,7 +158,7 @@ func (Generation) Finish() error {
 	if err != nil {
 		return fmt.Errorf("getting current branch: %w", err)
 	}
-	if !strings.HasPrefix(branch, "generation-") {
+	if !strings.HasPrefix(branch, genPrefix) {
 		return fmt.Errorf("must be on a generation branch (currently on %s)", branch)
 	}
 
@@ -188,56 +172,19 @@ func (Generation) Finish() error {
 
 	// Tag the final state of the generation branch.
 	fmt.Printf("Tagging generation as %s...\n", closedTag)
-	if err := exec.Command("git", "tag", closedTag).Run(); err != nil {
+	if err := exec.Command(binGit, "tag", closedTag).Run(); err != nil {
 		return fmt.Errorf("tagging generation: %w", err)
 	}
 
 	// Switch to main.
 	fmt.Println("Switching to main...")
-	if err := exec.Command("git", "checkout", "main").Run(); err != nil {
+	if err := exec.Command(binGit, "checkout", "main").Run(); err != nil {
 		return fmt.Errorf("checking out main: %w", err)
 	}
 
-	// Delete Go code from main to prepare for clean merge.
-	fmt.Println("Deleting Go code from main...")
-	deleteGoFiles(".")
-
-	for _, dir := range []string{"cmd/", "pkg/", "internal/", "tests/"} {
-		removeEmptyDirs(dir)
+	if err := mergeGenerationIntoMain(branch); err != nil {
+		return err
 	}
-
-	os.RemoveAll("bin/")
-	os.Remove("go.sum")
-
-	// Reinitialize Go module.
-	os.Remove("go.mod")
-	_ = exec.Command("go", "mod", "init", "github.com/mesh-intelligence/crumbs").Run()
-
-	_ = exec.Command("git", "add", "-A").Run()
-	prepareMsg := fmt.Sprintf("Prepare main for generation merge: delete Go code\n\nDocumentation preserved for merge. Code will be replaced by %s.", branch)
-	if err := exec.Command("git", "commit", "-m", prepareMsg).Run(); err != nil {
-		return fmt.Errorf("committing prepare step: %w", err)
-	}
-
-	// Merge the generation branch.
-	fmt.Printf("Merging %s into main...\n", branch)
-	cmd := exec.Command("git", "merge", branch, "--no-edit")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("merging %s: %w", branch, err)
-	}
-
-	// Tag main after merge.
-	mainTag := branch + "-merged"
-	fmt.Printf("Tagging main as %s...\n", mainTag)
-	if err := exec.Command("git", "tag", mainTag).Run(); err != nil {
-		return fmt.Errorf("tagging merge: %w", err)
-	}
-
-	// Delete the generation branch.
-	fmt.Printf("Deleting branch %s...\n", branch)
-	_ = exec.Command("git", "branch", "-d", branch).Run()
 
 	fmt.Println()
 	fmt.Println("Generation finished. Work is on main.")
@@ -245,9 +192,40 @@ func (Generation) Finish() error {
 	return nil
 }
 
+// mergeGenerationIntoMain resets Go sources, commits the clean state,
+// merges the generation branch, tags the result, and deletes the branch.
+func mergeGenerationIntoMain(branch string) error {
+	fmt.Println("Resetting Go sources on main...")
+	_ = resetGoSources()
+
+	_ = exec.Command(binGit, "add", "-A").Run()
+	prepareMsg := commitMsg("gen-prepare", branch)
+	if err := exec.Command(binGit, "commit", "-m", prepareMsg).Run(); err != nil {
+		return fmt.Errorf("committing prepare step: %w", err)
+	}
+
+	fmt.Printf("Merging %s into main...\n", branch)
+	cmd := exec.Command(binGit, "merge", branch, "--no-edit")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("merging %s: %w", branch, err)
+	}
+
+	mainTag := branch + "-merged"
+	fmt.Printf("Tagging main as %s...\n", mainTag)
+	if err := exec.Command(binGit, "tag", mainTag).Run(); err != nil {
+		return fmt.Errorf("tagging merge: %w", err)
+	}
+
+	fmt.Printf("Deleting branch %s...\n", branch)
+	_ = exec.Command(binGit, "branch", "-d", branch).Run()
+	return nil
+}
+
 // listGenerationBranches returns all generation-* branch names.
 func listGenerationBranches() []string {
-	out, _ := exec.Command("git", "branch", "--list", "generation-*").Output()
+	out, _ := exec.Command(binGit, "branch", "--list", genPrefix+"*").Output()
 	return parseBranchList(string(out))
 }
 
@@ -257,7 +235,7 @@ func listGenerationBranches() []string {
 func resolveBranch(explicit string) (string, error) {
 	if explicit != "" {
 		ref := "refs/heads/" + explicit
-		if exec.Command("git", "show-ref", "--verify", "--quiet", ref).Run() != nil {
+		if exec.Command(binGit, "show-ref", "--verify", "--quiet", ref).Run() != nil {
 			return "", fmt.Errorf("branch does not exist: %s", explicit)
 		}
 		return explicit, nil
@@ -285,7 +263,7 @@ func ensureOnBranch(branch string) error {
 		return nil
 	}
 	fmt.Printf("Switching to branch %s...\n", branch)
-	return exec.Command("git", "checkout", branch).Run()
+	return exec.Command(binGit, "checkout", branch).Run()
 }
 
 // List shows all generation branches.
@@ -304,6 +282,22 @@ func (Generation) List() error {
 		}
 	}
 	return nil
+}
+
+// goSourceDirs lists the directories that contain Go source files.
+var goSourceDirs = []string{"cmd/", "pkg/", "internal/", "tests/"}
+
+// resetGoSources deletes Go files, removes empty source dirs,
+// clears build artifacts, and reinitializes the Go module.
+func resetGoSources() error {
+	deleteGoFiles(".")
+	for _, dir := range goSourceDirs {
+		removeEmptyDirs(dir)
+	}
+	os.RemoveAll("bin/")
+	os.Remove("go.sum")
+	os.Remove("go.mod")
+	return exec.Command(binGo, "mod", "init", modulePath).Run()
 }
 
 // deleteGoFiles removes all .go files except those in .git/.
