@@ -54,8 +54,7 @@ func stitch(cfg stitchConfig) error {
 		return fmt.Errorf("getting working directory: %w", err)
 	}
 
-	projectName := filepath.Base(repoRoot)
-	worktreeBase := filepath.Join(os.TempDir(), projectName+"-worktrees")
+	worktreeBase := worktreeBasePath()
 
 	baseBranch, err := gitCurrentBranch()
 	if err != nil {

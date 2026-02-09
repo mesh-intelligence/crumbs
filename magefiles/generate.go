@@ -295,6 +295,11 @@ func resetGoSources() error {
 		removeEmptyDirs(dir)
 	}
 	os.RemoveAll("bin/")
+	return reinitGoModule()
+}
+
+// reinitGoModule removes go.sum and go.mod, then runs go mod init.
+func reinitGoModule() error {
 	os.Remove("go.sum")
 	os.Remove("go.mod")
 	return exec.Command(binGo, "mod", "init", modulePath).Run()
