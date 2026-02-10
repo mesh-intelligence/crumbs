@@ -1,7 +1,7 @@
 FROM node:20-bookworm
 
 ARG CLAUDE_CODE_VERSION=latest
-ARG GO_VERSION=1.25.7
+ARG GO_VERSION=1.25.6
 ARG MAGE_VERSION=1.15.0
 ARG BEADS_VERSION=0.49.3
 ARG GOLANGCI_LINT_VERSION=2.1.6
@@ -35,10 +35,13 @@ RUN go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v${GOLANGC
 # Claude Code.
 RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
 
+# Claude Code credentials directory.
+RUN mkdir -p /root/.claude
+
 WORKDIR /workspace
 
-# Claude Code reads ANTHROPIC_API_KEY at runtime.
-# Pass it via: docker run -e ANTHROPIC_API_KEY=sk-...
-# Or mount your config: docker run -v ~/.claude:/root/.claude
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["bash"]
