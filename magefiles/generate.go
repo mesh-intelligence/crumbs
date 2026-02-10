@@ -146,18 +146,31 @@ func (Generation) Start() error {
 	return nil
 }
 
-// Finish completes the current generation session and merges into main.
+// Finish completes a generation session and merges it into main.
+//
+// Pass the generation name as a positional argument, or omit it to
+// auto-detect (works when exactly one generation branch exists).
+//
+//	mage generation:finish                          # auto-detect
+//	mage generation:finish generation-2026-02-10-15-04  # explicit
 //
 // Tags the generation branch, switches to main, deletes Go code from main,
 // merges the generation branch, tags the merge, and deletes the generation branch.
-// Must be run from a generation-* branch.
 func (Generation) Finish() error {
-	branch, err := gitCurrentBranch()
+	fs := flag.NewFlagSet("generation:finish", flag.ContinueOnError)
+	parseTargetFlags(fs)
+
+	explicit := ""
+	if fs.NArg() > 0 {
+		explicit = fs.Arg(0)
+	}
+
+	branch, err := resolveBranch(explicit)
 	if err != nil {
-		return fmt.Errorf("getting current branch: %w", err)
+		return err
 	}
 	if !strings.HasPrefix(branch, genPrefix) {
-		return fmt.Errorf("must be on a generation branch (currently on %s)", branch)
+		return fmt.Errorf("not a generation branch: %s", branch)
 	}
 
 	finishedTag := branch + "-finished"
@@ -168,7 +181,10 @@ func (Generation) Finish() error {
 	fmt.Println("========================================")
 	fmt.Println()
 
-	// Tag the final state of the generation branch.
+	// Switch to the generation branch and tag its final state.
+	if err := ensureOnBranch(branch); err != nil {
+		return fmt.Errorf("switching to generation branch: %w", err)
+	}
 	fmt.Printf("Tagging generation as %s...\n", finishedTag)
 	if err := gitTag(finishedTag); err != nil {
 		return fmt.Errorf("tagging generation: %w", err)
