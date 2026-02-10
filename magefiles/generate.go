@@ -198,7 +198,7 @@ func mergeGenerationIntoMain(branch string) error {
 
 	_ = gitStageAll()
 	prepareMsg := fmt.Sprintf("Prepare main for generation merge: delete Go code\n\nDocumentation preserved for merge. Code will be replaced by %s.", branch)
-	if err := gitCommit(prepareMsg); err != nil {
+	if err := gitCommitAllowEmpty(prepareMsg); err != nil {
 		return fmt.Errorf("committing prepare step: %w", err)
 	}
 
