@@ -94,6 +94,47 @@ crumbs/
 └── .claude/             # Claude Code configuration
 ```
 
+## Docker
+
+Build the container image:
+
+```bash
+docker build -t crumbs .
+```
+
+The image includes Go, Claude Code, Mage, Beads (`bd`), and golangci-lint.
+
+### Authentication
+
+Place your Claude OAuth token files in `.claude-tokens/` (already gitignored). The entrypoint copies the token to where Claude Code expects it on Linux.
+
+```bash
+# Uses .claude-tokens/claude-max.json by default
+docker run -it \
+  -v ./.claude-tokens:/claude-tokens:ro \
+  -v $(pwd):/workspace \
+  crumbs
+
+# Pick a different token profile
+docker run -it \
+  -v ./.claude-tokens:/claude-tokens:ro \
+  -e CLAUDE_TOKEN_FILE=claude-pro.json \
+  -v $(pwd):/workspace \
+  crumbs
+```
+
+Token files use the `claudeAiOauth` format that Claude Code writes during `claude setup-token`.
+
+### Running a generation
+
+```bash
+docker run -it \
+  -v ./.claude-tokens:/claude-tokens:ro \
+  -v $(pwd):/workspace \
+  crumbs \
+  mage generation:construct -- --cycles 3
+```
+
 ## AI-Assisted Development
 
 This project uses [Claude Code](https://claude.ai/claude-code) for AI-assisted development. The `.claude/` directory contains commands and rules that guide the AI agent.
