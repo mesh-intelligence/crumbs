@@ -126,6 +126,13 @@ func (Cobbler) Cleanup() error {
 		return fmt.Errorf("reinitializing go module: %w", err)
 	}
 
+	// Commit the clean state.
+	fmt.Println("Committing clean state...")
+	_ = gitStageAll()
+	if err := gitCommit("Cobbler cleanup: reset to clean state"); err != nil {
+		return fmt.Errorf("committing cleanup: %w", err)
+	}
+
 	fmt.Println()
 	fmt.Println("Cleanup complete. Only main branch remains.")
 	fmt.Println()
