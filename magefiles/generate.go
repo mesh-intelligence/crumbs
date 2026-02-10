@@ -290,14 +290,29 @@ func (Generation) List() error {
 var goSourceDirs = []string{"cmd/", "pkg/", "internal/", "tests/"}
 
 // resetGoSources deletes Go files, removes empty source dirs,
-// clears build artifacts, and reinitializes the Go module.
+// clears build artifacts, reinitializes the Go module, and seeds
+// the source tree with a version file.
 func resetGoSources() error {
 	deleteGoFiles(".")
 	for _, dir := range goSourceDirs {
 		removeEmptyDirs(dir)
 	}
 	os.RemoveAll("bin/")
+	if err := seedVersionFile(); err != nil {
+		return fmt.Errorf("seeding version file: %w", err)
+	}
 	return reinitGoModule()
+}
+
+// seedVersionFile creates pkg/crumbs/version.go with a Version constant.
+// This ensures the Go source tree has at least one package after a reset.
+func seedVersionFile() error {
+	dir := filepath.Dir(versionFile)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	content := "package crumbs\n\nconst Version = \"0.0.0-dev\"\n"
+	return os.WriteFile(versionFile, []byte(content), 0o644)
 }
 
 // reinitGoModule removes go.sum and go.mod, then creates a fresh module

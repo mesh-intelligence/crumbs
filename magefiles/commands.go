@@ -13,9 +13,10 @@ const (
 
 // Paths and prefixes.
 const (
-	beadsDir   = ".beads/"
-	modulePath = "github.com/mesh-intelligence/crumbs"
-	genPrefix  = "generation-"
+	beadsDir    = ".beads/"
+	modulePath  = "github.com/mesh-intelligence/crumbs"
+	genPrefix   = "generation-"
+	versionFile = "pkg/crumbs/version.go"
 )
 
 // Flag names for cobbler targets.
