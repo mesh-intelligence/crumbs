@@ -17,6 +17,7 @@ const (
 // Paths and prefixes.
 const (
 	beadsDir    = ".beads/"
+	cobblerDir  = ".cobbler/"
 	modulePath  = "github.com/mesh-intelligence/crumbs"
 	genPrefix   = "generation-"
 	versionFile  = "pkg/crumbs/version.go"

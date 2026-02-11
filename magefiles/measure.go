@@ -57,11 +57,12 @@ func measure(cfg measureConfig) error {
 		return fmt.Errorf("switching to branch: %w", err)
 	}
 
+	_ = os.MkdirAll(cobblerDir, 0o755)
 	timestamp := time.Now().Format("20060102-150405")
-	outputFile := filepath.Join("docs", fmt.Sprintf("proposed-issues-%s.json", timestamp))
+	outputFile := filepath.Join(cobblerDir, fmt.Sprintf("proposed-issues-%s.json", timestamp))
 
 	// Clean up old proposed-issues files.
-	matches, _ := filepath.Glob("docs/proposed-issues-*.json")
+	matches, _ := filepath.Glob(cobblerDir + "proposed-issues-*.json")
 	for _, f := range matches {
 		os.Remove(f)
 	}
@@ -77,7 +78,7 @@ func measure(cfg measureConfig) error {
 	fmt.Println()
 
 	// Build and run prompt.
-	prompt := buildMeasurePrompt(cfg.userPrompt, existingIssues, cfg.maxIssues, "docs/"+filepath.Base(outputFile))
+	prompt := buildMeasurePrompt(cfg.userPrompt, existingIssues, cfg.maxIssues, outputFile)
 
 	if err := runClaude(prompt, "", cfg.silenceAgent, cfg.tokenFile, cfg.noContainer); err != nil {
 		return fmt.Errorf("running Claude: %w", err)

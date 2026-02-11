@@ -538,6 +538,7 @@ func (Generator) Reset() error {
 		os.RemoveAll(dir)
 	}
 	os.RemoveAll("bin/")
+	os.RemoveAll(cobblerDir)
 
 	fmt.Println("Seeding Go sources and reinitializing go.mod...")
 	if err := seedVersionFile("main"); err != nil {
