@@ -157,7 +157,75 @@ test_cases:
     expected:
       exit_code: 0
 
-  # ── 4. --no-container flag ──
+  # ── 4. Build and test targets ──
+
+  - name: build succeeds without container runtime
+    inputs:
+      command: mage build
+    expected:
+      exit_code: 0
+      stderr_contains: "skipping image build"
+      state:
+        binary_exists: bin/cupboard
+
+  - name: lint passes on clean codebase
+    inputs:
+      command: mage lint
+    expected:
+      exit_code: 0
+
+  - name: test:unit runs without test files
+    inputs:
+      command: mage test:unit
+    expected:
+      exit_code: 0
+      stdout_contains: "no test files"
+
+  - name: test:integration skips when tests/ directory is missing
+    inputs:
+      setup:
+        - rm -rf tests/
+      command: mage test:integration
+    expected:
+      exit_code: 0
+      stdout_contains: "No integration test directory found"
+
+  - name: test:all succeeds with no test files
+    inputs:
+      command: mage test:all
+    expected:
+      exit_code: 0
+
+  - name: install copies binary to GOPATH/bin
+    inputs:
+      command: mage install
+    expected:
+      exit_code: 0
+
+  - name: clean removes build artifacts
+    inputs:
+      setup:
+        - mage build
+      command: mage clean
+    expected:
+      exit_code: 0
+      state:
+        binary_exists: false
+
+  - name: stats outputs JSON with expected fields
+    inputs:
+      command: mage stats
+    expected:
+      exit_code: 0
+      stdout_json:
+        go_loc: integer
+        go_loc_prod: integer
+        go_loc_test: integer
+        spec_wc_prd: integer
+        spec_wc_test: integer
+        spec_wc_uc: integer
+
+  # ── 5. --no-container flag ──
 
   - name: cobbler:measure respects --no-container
     inputs:
