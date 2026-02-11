@@ -64,8 +64,7 @@ func runClaude(prompt, dir string, silence bool, tokenFile string, noContainer b
 
 	if !noContainer {
 		if rt := containerRuntime(); rt != "" {
-			logf("runClaude: using container runtime %s", rt)
-			fmt.Fprintf(os.Stderr, "Running Claude (%s)...\n", rt)
+			logf("runClaude: Running Claude (%s)", rt)
 			start := time.Now()
 			err := runClaudeContainer(rt, prompt, dir, tokenFile, silence)
 			logf("runClaude: container finished in %s (err=%v)", time.Since(start).Round(time.Second), err)
@@ -74,7 +73,7 @@ func runClaude(prompt, dir string, silence bool, tokenFile string, noContainer b
 		logf("runClaude: no container runtime available, falling back to direct")
 	}
 
-	fmt.Fprintln(os.Stderr, "Running Claude (direct)...")
+	logf("runClaude: Running Claude (direct)")
 	logf("runClaude: exec %s %v", binClaude, claudeArgs)
 	cmd := exec.Command(binClaude, claudeArgs...)
 	cmd.Stdin = strings.NewReader(prompt)
