@@ -139,6 +139,11 @@ func bdAdminReset() error {
 	if _, err := os.Stat(beadsDir); os.IsNotExist(err) {
 		return nil // nothing to reset
 	}
+	// Stop the daemon before destroying the database; otherwise the
+	// stale daemon blocks subsequent bd commands. The daemon stop
+	// subcommand itself requires a database, so we must stop it while
+	// .beads/ still exists.
+	_ = exec.Command(binBd, "daemon", "stop", ".").Run()
 	return exec.Command(binBd, "admin", "reset", "--force").Run()
 }
 
