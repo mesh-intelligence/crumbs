@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/magefile/mage/mg"
@@ -38,6 +39,10 @@ func (Test) Unit() error {
 
 // Integration builds first, then runs only integration tests.
 func (Test) Integration() error {
+	if _, err := os.Stat("tests"); os.IsNotExist(err) {
+		fmt.Println("No integration test directory found (tests/).")
+		return nil
+	}
 	mg.Deps(Build)
 	return sh.RunV(binGo, "test", "-v", "./tests/...")
 }
