@@ -1,0 +1,172 @@
+id: test-mage-reset-lifecycle
+title: Mage init/reset target isolation and orchestration
+traces:
+  - eng02-generation-workflow
+
+preconditions:
+  - On main branch with clean working tree
+  - bd CLI available on PATH
+  - mage available (go/bin/mage or PATH)
+
+test_cases:
+
+  # ── 1. Individual reset targets (independence) ──
+
+  - name: cobbler:reset only removes .cobbler/
+    inputs:
+      setup:
+        - mkdir -p .cobbler && echo test > .cobbler/dummy.json
+        - mage beads:init
+      command: mage cobbler:reset
+    expected:
+      exit_code: 0
+      state:
+        cobbler_dir_exists: false
+        beads_dir_exists: true
+        generation_branches: unchanged
+
+  - name: beads:reset only touches .beads/
+    inputs:
+      setup:
+        - mage beads:init
+        - mkdir -p .cobbler && echo test > .cobbler/dummy.json
+      command: mage beads:reset
+    expected:
+      exit_code: 0
+      state:
+        beads_dir_exists: true
+        beads_issues_empty: true
+        cobbler_file_exists: true
+
+  - name: beads:reset does not resurrect issues
+    inputs:
+      setup:
+        - mage beads:init
+        - bd create --type task --json "Dummy task" --description "Should not survive reset"
+        - bd list --json
+      command: mage beads:reset
+    expected:
+      exit_code: 0
+      state:
+        beads_issues_empty: true
+      stdout_not_contains: "Dummy task"
+
+  - name: generator:reset only touches branches and Go sources
+    inputs:
+      setup:
+        - mage generator:start
+        - mkdir -p .cobbler && echo test > .cobbler/dummy.json
+      command: mage generator:reset
+    expected:
+      exit_code: 0
+      state:
+        current_branch: main
+        generation_branches: none
+        go_sources_seeded: true
+        cobbler_file_exists: true
+
+  # ── 2. Top-level orchestrators ──
+
+  - name: init is idempotent
+    inputs:
+      setup:
+        - rm -rf .beads/
+      commands:
+        - mage init
+        - mage init
+    expected:
+      exit_code: 0
+      state:
+        beads_dir_exists: true
+      stdout_contains: "already initialized"
+
+  - name: init creates beads from scratch
+    inputs:
+      setup:
+        - rm -rf .beads/
+      command: mage init
+    expected:
+      exit_code: 0
+      state:
+        beads_dir_exists: true
+
+  - name: reset wipes all artifact types
+    inputs:
+      setup:
+        - mage generator:start
+        - mkdir -p .cobbler && echo test > .cobbler/dummy.json
+      command: mage reset
+    expected:
+      exit_code: 0
+      state:
+        cobbler_dir_exists: false
+        current_branch: main
+        generation_branches: none
+        go_sources_seeded: true
+        beads_dir_exists: true
+        beads_issues_empty: true
+
+  - name: reset ordering (generator before beads)
+    description: >
+      generator:reset commits a clean-state commit. beads:reset commits
+      empty JSONL. Verify the git log shows the generator commit before
+      the beads commit.
+    inputs:
+      setup:
+        - mage generator:start
+      command: mage reset
+    expected:
+      exit_code: 0
+      git_log_order:
+        - "Reset beads"
+        - "Generator reset"
+
+  # ── 3. Edge cases ──
+
+  - name: cobbler:reset when .cobbler/ does not exist
+    inputs:
+      setup:
+        - rm -rf .cobbler/
+      command: mage cobbler:reset
+    expected:
+      exit_code: 0
+
+  - name: beads:reset when .beads/ does not exist
+    inputs:
+      setup:
+        - rm -rf .beads/
+      command: mage beads:reset
+    expected:
+      exit_code: 0
+
+  - name: generator:reset when already on main with no branches
+    inputs:
+      setup: []
+      command: mage generator:reset
+    expected:
+      exit_code: 0
+      state:
+        current_branch: main
+        go_sources_seeded: true
+
+  - name: reset from fully clean state
+    inputs:
+      setup:
+        - rm -rf .cobbler/ .beads/
+      command: mage reset
+    expected:
+      exit_code: 0
+
+  # ── 4. --no-container flag ──
+
+  - name: cobbler:measure respects --no-container
+    inputs:
+      setup:
+        - mage beads:init
+      command: mage cobbler:measure --no-container --max-issues 1 --silence-agent=false
+    expected:
+      stderr_contains: "Running Claude (direct)"
+      stderr_not_contains: "Running Claude (podman)"
+
+cleanup:
+  - mage reset
