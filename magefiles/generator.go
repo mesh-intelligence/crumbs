@@ -548,9 +548,9 @@ func (Generator) Reset() error {
 
 	fmt.Println("Committing clean state...")
 	_ = gitStageAll()
-	if err := gitCommit("Generator reset: return to clean state"); err != nil {
-		return fmt.Errorf("committing cleanup: %w", err)
-	}
+	// Commit may fail when the tree is already in the seeded state
+	// (e.g. running reset twice). That is not an error.
+	_ = gitCommit("Generator reset: return to clean state")
 
 	fmt.Println()
 	fmt.Println("Reset complete. Only main branch remains.")
