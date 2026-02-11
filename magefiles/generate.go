@@ -367,6 +367,53 @@ func (Generation) List() error {
 	return nil
 }
 
+// Switch commits current work and checks out another generation branch.
+//
+// Usage:
+//
+//	mage generation:switch generation-2026-02-10-15-04
+//
+// The target must be a generation branch or "main". Any uncommitted
+// changes on the current branch are staged and committed before
+// switching.
+func (Generation) Switch() error {
+	fs := flag.NewFlagSet("generation:switch", flag.ContinueOnError)
+	parseTargetFlags(fs)
+
+	if fs.NArg() == 0 {
+		return fmt.Errorf("usage: mage generation:switch <branch>\nAvailable branches: %s, main", strings.Join(listGenerationBranches(), ", "))
+	}
+	target := fs.Arg(0)
+
+	if target != "main" && !strings.HasPrefix(target, genPrefix) {
+		return fmt.Errorf("not a generation branch or main: %s", target)
+	}
+	if !gitBranchExists(target) {
+		return fmt.Errorf("branch does not exist: %s", target)
+	}
+
+	current, err := gitCurrentBranch()
+	if err != nil {
+		return fmt.Errorf("getting current branch: %w", err)
+	}
+	if current == target {
+		fmt.Printf("Already on %s\n", target)
+		return nil
+	}
+
+	// Commit any uncommitted work on the current branch.
+	_ = gitStageAll()
+	_ = gitCommit(fmt.Sprintf("WIP: save state before switching to %s", target))
+
+	fmt.Printf("Switching from %s to %s...\n", current, target)
+	if err := gitCheckout(target); err != nil {
+		return fmt.Errorf("switching to %s: %w", target, err)
+	}
+
+	fmt.Printf("Now on %s\n", target)
+	return nil
+}
+
 // goSourceDirs lists the directories that contain Go source files.
 var goSourceDirs = []string{"cmd/", "pkg/", "internal/", "tests/"}
 
