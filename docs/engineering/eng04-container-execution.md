@@ -1,6 +1,6 @@
 # Container Execution
 
-We run Claude Code inside a container during generation. The container provides a reproducible environment with Go tooling, beads, and Claude Code pre-installed. All git operations remain on the host; the container only performs file reads and writes against a mounted directory.
+We run Claude Code inside a container during generation. The container provides a reproducible environment with Go tooling and Claude Code pre-installed. All git operations remain on the host; the container only performs file reads and writes against a mounted directory.
 
 ## Runtime Detection
 
@@ -33,7 +33,7 @@ The container runs as a non-root user (`crumbs`). Claude Code refuses `--dangero
 
 ## Credential Handling
 
-Claude Code authenticates via a JSON credential file. On the host, credentials live in the `.secrets/` directory at the repository root. The `--token-file` flag (default: `claude.json`) selects which file to use.
+Claude Code authenticates via a JSON credential file. On the host, credentials live in the `.secrets/` directory at the repository root. The `--token-file` flag (default: `claude.json`) selects which file to use. This design supports multiple Claude accounts: each account's credentials are stored as a separate file in `.secrets/`, and the caller picks the account by name at invocation time.
 
 At container startup, the credential file is bind-mounted read-only into the location Claude Code expects on Linux:
 
