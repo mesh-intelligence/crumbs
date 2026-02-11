@@ -17,20 +17,24 @@ ARG CLAUDE_CODE_VERSION=latest
 
 RUN apk add --no-cache git bash
 
+# Non-root user (Claude Code refuses --dangerously-skip-permissions as root).
+RUN addgroup -S crumbs && adduser -S crumbs -G crumbs
+
 # Go runtime copied from the official image (no download step).
 COPY --from=golang:1.25.6-alpine /usr/local/go /usr/local/go
-ENV PATH="/usr/local/go/bin:/root/go/bin:${PATH}"
-ENV GOPATH="/root/go"
+ENV PATH="/usr/local/go/bin:/home/crumbs/go/bin:${PATH}"
+ENV GOPATH="/home/crumbs/go"
 
 # Compiled tool binaries from the builder stage.
-COPY --from=go-tools /go/bin/mage /root/go/bin/
-COPY --from=go-tools /go/bin/bd /root/go/bin/
-COPY --from=go-tools /go/bin/golangci-lint /root/go/bin/
+COPY --from=go-tools /go/bin/mage /home/crumbs/go/bin/
+COPY --from=go-tools /go/bin/bd /home/crumbs/go/bin/
+COPY --from=go-tools /go/bin/golangci-lint /home/crumbs/go/bin/
 
 # Claude Code.
 RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} && \
     npm cache clean --force
 
-RUN mkdir -p /root/.claude
+RUN mkdir -p /home/crumbs/.claude && chown -R crumbs:crumbs /home/crumbs
 
 WORKDIR /workspace
+USER crumbs

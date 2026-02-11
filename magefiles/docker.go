@@ -17,7 +17,7 @@ const (
 	dockerfileDir    = "magefiles"
 	secretsDir       = ".secrets"
 	defaultTokenFile = "claude.json"
-	containerCredDst = "/root/.claude/.credentials.json"
+	containerCredDst = "/home/crumbs/.claude/.credentials.json"
 )
 
 // containerRuntime returns "podman" or "docker" if a working runtime
