@@ -292,7 +292,7 @@ func ensureOnBranch(branch string) error {
 	return gitCheckout(branch)
 }
 
-// List shows active generation branches and past generations
+// List shows active branches and past generations
 // discoverable through tags.
 func (Generator) List() error {
 	branches := listGenerationBranches()
@@ -420,8 +420,8 @@ func (Generator) Switch() error {
 	return nil
 }
 
-// Reset destroys all generation branches, worktrees, beads, and Go
-// source directories, returning the project to a bare main branch.
+// Reset destroys all branches, worktrees, beads, and Go
+// source directories.
 // Generation tags are preserved so past generations remain discoverable.
 func (Generator) Reset() error {
 	fmt.Println()
