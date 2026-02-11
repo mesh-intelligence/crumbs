@@ -79,12 +79,12 @@ func (Generation) Construct() error {
 	return nil
 }
 
-// Start begins a new generation session.
+// Create begins a new generation session.
 //
 // Tags current main state, creates a generation branch, deletes Go files,
 // reinitializes the Go module, and commits the clean state.
-// Must be run from main with no existing generation branches.
-func (Generation) Start() error {
+// Must be run from main.
+func (Generation) Create() error {
 	if err := ensureOnBranch("main"); err != nil {
 		return fmt.Errorf("switching to main: %w", err)
 	}
@@ -292,7 +292,7 @@ func ensureOnBranch(branch string) error {
 	return gitCheckout(branch)
 }
 
-// List shows all generations: active branches and past generations
+// List shows active branches and past generations
 // discoverable through tags.
 func (Generation) List() error {
 	branches := listGenerationBranches()
