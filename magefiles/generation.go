@@ -420,6 +420,84 @@ func (Generation) Switch() error {
 	return nil
 }
 
+// Reset destroys all generation branches, worktrees, beads, and Go
+// source directories, returning the project to a bare main branch.
+// Generation tags are preserved so past generations remain discoverable.
+func (Generation) Reset() error {
+	fmt.Println()
+	fmt.Println("========================================")
+	fmt.Println("Generation cleanup: resetting to clean state")
+	fmt.Println("========================================")
+	fmt.Println()
+
+	// Must be on main before deleting other branches.
+	if err := ensureOnBranch("main"); err != nil {
+		return fmt.Errorf("switching to main: %w", err)
+	}
+
+	// Remove task branches and worktrees for each generation branch.
+	wtBase := worktreeBasePath()
+	genBranches := listGenerationBranches()
+	if len(genBranches) > 0 {
+		fmt.Println("Removing task branches and worktrees...")
+		for _, gb := range genBranches {
+			recoverStaleBranches(gb, wtBase)
+		}
+	}
+
+	_ = gitWorktreePrune()
+
+	if _, err := os.Stat(wtBase); err == nil {
+		fmt.Printf("Removing worktree directory: %s\n", wtBase)
+		os.RemoveAll(wtBase)
+	}
+
+	if len(genBranches) > 0 {
+		fmt.Println("Removing generation branches...")
+		for _, gb := range genBranches {
+			fmt.Printf("  Deleting branch: %s\n", gb)
+			_ = gitForceDeleteBranch(gb)
+		}
+	}
+
+	// Generation tags are preserved so past generations remain
+	// discoverable via generation:list and can be checked out.
+
+	fmt.Println("Resetting beads...")
+	if err := bdAdminReset(); err != nil {
+		return fmt.Errorf("resetting beads: %w", err)
+	}
+
+	fmt.Println("Removing Go source directories...")
+	for _, dir := range goSourceDirs {
+		fmt.Printf("  Removing %s\n", dir)
+		os.RemoveAll(dir)
+	}
+	os.RemoveAll("bin/")
+
+	fmt.Println("Seeding Go sources and reinitializing go.mod...")
+	if err := seedVersionFile("main"); err != nil {
+		return fmt.Errorf("seeding version file: %w", err)
+	}
+	if err := seedCupboardMain(); err != nil {
+		return fmt.Errorf("seeding cupboard main: %w", err)
+	}
+	if err := reinitGoModule(); err != nil {
+		return fmt.Errorf("reinitializing go module: %w", err)
+	}
+
+	fmt.Println("Committing clean state...")
+	_ = gitStageAll()
+	if err := gitCommit("Generation cleanup: reset to clean state"); err != nil {
+		return fmt.Errorf("committing cleanup: %w", err)
+	}
+
+	fmt.Println()
+	fmt.Println("Cleanup complete. Only main branch remains.")
+	fmt.Println()
+	return nil
+}
+
 // goSourceDirs lists the directories that contain Go source files.
 var goSourceDirs = []string{"cmd/", "pkg/", "internal/", "tests/"}
 
