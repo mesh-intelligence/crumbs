@@ -225,7 +225,7 @@ test_cases:
         spec_wc_test: integer
         spec_wc_uc: integer
 
-  # ── 5. --no-container flag ──
+  # ── 5. Cobbler integration (requires Claude CLI) ──
 
   - name: cobbler:measure respects --no-container
     description: >
@@ -241,6 +241,27 @@ test_cases:
       exit_code: ignored
       stderr_contains: "Running Claude (direct)"
       stderr_not_contains: "Running Claude (podman)"
+
+  - name: cobbler:measure creates issues and reset clears them
+    description: >
+      End-to-end: measure proposes one issue, verify it exists in beads,
+      then reset beads and verify it is gone. Confirms the full
+      measure-to-reset lifecycle.
+    inputs:
+      setup:
+        - mage beads:init
+      commands:
+        - mage cobbler:measure --no-container --max-issues 1
+        - bd list --json
+      command: mage beads:reset
+    expected:
+      after_measure:
+        bd_list_json_length: ">= 1"
+      after_reset:
+        exit_code: 0
+        bd_list_json_length: 0
+        state:
+          beads_issues_empty: true
 
 cleanup:
   - mage reset
