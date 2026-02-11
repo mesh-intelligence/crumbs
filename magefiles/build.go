@@ -24,11 +24,12 @@ func Build() error {
 		return err
 	}
 
-	if rt := containerRuntime(); rt != "" {
-		return buildImage(rt)
+	rt := containerRuntime()
+	if rt == "" {
+		fmt.Println("WARNING: no container runtime found (tried podman, docker); skipping image build")
+		return nil
 	}
-	fmt.Println("No container runtime found; skipping image build.")
-	return nil
+	return buildImage(rt)
 }
 
 // Clean removes build artifacts and the container image.
@@ -40,7 +41,10 @@ func Clean() error {
 		return err
 	}
 
-	if rt := containerRuntime(); rt != "" {
+	rt := containerRuntime()
+	if rt == "" {
+		fmt.Println("WARNING: no container runtime found (tried podman, docker); skipping image removal")
+	} else {
 		removeImage(rt)
 	}
 	return nil
