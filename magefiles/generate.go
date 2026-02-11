@@ -336,7 +336,7 @@ func resetGoSources(version string) error {
 	if err := seedVersionFile(version); err != nil {
 		return fmt.Errorf("seeding version file: %w", err)
 	}
-	if err := seedCupboardMain(version); err != nil {
+	if err := seedCupboardMain(); err != nil {
 		return fmt.Errorf("seeding cupboard main: %w", err)
 	}
 	return reinitGoModule()
@@ -357,7 +357,7 @@ func seedVersionFile(version string) error {
 // seedCupboardMain creates cmd/cupboard/main.go with a minimal main
 // function that prints the version. This ensures the build target has
 // an entry point after a reset.
-func seedCupboardMain(version string) error {
+func seedCupboardMain() error {
 	dir := filepath.Dir(cupboardMain)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
@@ -367,13 +367,13 @@ func seedCupboardMain(version string) error {
 import (
 	"fmt"
 
-	"github.com/mesh-intelligence/crumbs/pkg/crumbs"
+	"%s/pkg/crumbs"
 )
 
 func main() {
 	fmt.Println("cupboard", crumbs.Version)
 }
-`)
+`, modulePath)
 	return os.WriteFile(cupboardMain, []byte(content), 0o644)
 }
 

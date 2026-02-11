@@ -134,7 +134,7 @@ func (Generation) Cleanup() error {
 	if err := seedVersionFile("dev"); err != nil {
 		return fmt.Errorf("seeding version file: %w", err)
 	}
-	if err := seedCupboardMain("dev"); err != nil {
+	if err := seedCupboardMain(); err != nil {
 		return fmt.Errorf("seeding cupboard main: %w", err)
 	}
 	if err := reinitGoModule(); err != nil {
