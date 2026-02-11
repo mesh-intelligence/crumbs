@@ -66,13 +66,10 @@ func worktreeBasePath() string {
 	return filepath.Join(os.TempDir(), filepath.Base(repoRoot)+"-worktrees")
 }
 
-// Cleanup resets the project to a clean state.
-//
-// Switches to main, removes all generation worktrees, task branches,
-// and generation branches. Resets beads, deletes Go source directories
-// (cmd/, pkg/, internal/, tests/, bin/), and reinitializes go.mod.
+// Reset destroys all generation branches, worktrees, beads, and Go
+// source directories, returning the project to a bare main branch.
 // Generation tags are preserved so past generations remain discoverable.
-func (Generation) Cleanup() error {
+func (Generation) Reset() error {
 	fmt.Println()
 	fmt.Println("========================================")
 	fmt.Println("Generation cleanup: resetting to clean state")
