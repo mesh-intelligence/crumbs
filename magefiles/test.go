@@ -206,9 +206,24 @@ func (Test) Generator() error {
 
 	t := logStep("test 1: start/stop lifecycle")
 
+	beforeResetSHA, err := gitRevParseHEAD()
+	if err != nil {
+		return fmt.Errorf("getting HEAD before reset: %w", err)
+	}
+
 	logf("test:generator: resetting to clean state")
 	if err := Reset(); err != nil {
 		return fmt.Errorf("setup reset: %w", err)
+	}
+
+	// Verify Reset() squashed into at most 1 commit.
+	resetCommits, err := gitCountCommits(beforeResetSHA, "HEAD")
+	if err != nil {
+		return fmt.Errorf("counting reset commits: %w", err)
+	}
+	logf("test:generator: reset produced %d commit(s)", resetCommits)
+	if resetCommits > 1 {
+		return fmt.Errorf("expected reset to produce at most 1 commit, got %d", resetCommits)
 	}
 
 	logf("test:generator: starting generation")
@@ -232,6 +247,21 @@ func (Test) Generator() error {
 		return fmt.Errorf("expected tag %s to exist", startTag)
 	}
 	logf("test:generator: start tag %s exists", startTag)
+
+	// Verify Start() squashed into exactly 1 commit ahead of start tag.
+	startCommits, err := gitCountCommits(startTag, "HEAD")
+	if err != nil {
+		return fmt.Errorf("counting start commits: %w", err)
+	}
+	logf("test:generator: generation branch is %d commit(s) ahead of %s", startCommits, startTag)
+	if startCommits != 1 {
+		return fmt.Errorf("expected generation branch to be 1 commit ahead of %s, got %d", startTag, startCommits)
+	}
+
+	// Verify no stale worktrees.
+	if wt := gitWorktreeCount(); wt > 0 {
+		return fmt.Errorf("expected 0 linked worktrees after start, got %d", wt)
+	}
 
 	logf("test:generator: stopping generation")
 	if err := (Generator{}).Stop(); err != nil {
@@ -258,15 +288,34 @@ func (Test) Generator() error {
 	}
 	logf("test:generator: tags verified: start, finished, merged")
 
+	// Verify no stale worktrees after stop.
+	if wt := gitWorktreeCount(); wt > 0 {
+		return fmt.Errorf("expected 0 linked worktrees after stop, got %d", wt)
+	}
+
 	logDone("test 1: start/stop", t)
 
 	// ── Test 2: start/run(1 cycle, 1 issue)/stop ──
 
 	t = logStep("test 2: start/run/stop (1 cycle, 1 issue)")
 
+	beforeResetSHA, err = gitRevParseHEAD()
+	if err != nil {
+		return fmt.Errorf("getting HEAD before reset: %w", err)
+	}
+
 	logf("test:generator: resetting to clean state")
 	if err := Reset(); err != nil {
 		return fmt.Errorf("setup reset: %w", err)
+	}
+
+	resetCommits, err = gitCountCommits(beforeResetSHA, "HEAD")
+	if err != nil {
+		return fmt.Errorf("counting reset commits: %w", err)
+	}
+	logf("test:generator: reset produced %d commit(s)", resetCommits)
+	if resetCommits > 1 {
+		return fmt.Errorf("expected reset to produce at most 1 commit, got %d", resetCommits)
 	}
 
 	logf("test:generator: starting generation")
@@ -275,6 +324,17 @@ func (Test) Generator() error {
 	}
 
 	genBranch, _ = gitCurrentBranch()
+
+	startTag = genBranch + "-start"
+	startCommits, err = gitCountCommits(startTag, "HEAD")
+	if err != nil {
+		return fmt.Errorf("counting start commits: %w", err)
+	}
+	logf("test:generator: generation branch is %d commit(s) ahead of %s", startCommits, startTag)
+	if startCommits != 1 {
+		return fmt.Errorf("expected generation branch to be 1 commit ahead of %s, got %d", startTag, startCommits)
+	}
+
 	logf("test:generator: on branch %s, running 1 cycle with 1 issue", genBranch)
 
 	runCfg := runConfig{
@@ -320,9 +380,23 @@ func (Test) Generator() error {
 
 	t = logStep("test 3: stitch --max-issues limit")
 
+	beforeResetSHA, err = gitRevParseHEAD()
+	if err != nil {
+		return fmt.Errorf("getting HEAD before reset: %w", err)
+	}
+
 	logf("test:generator: resetting to clean state")
 	if err := Reset(); err != nil {
 		return fmt.Errorf("setup reset: %w", err)
+	}
+
+	resetCommits, err = gitCountCommits(beforeResetSHA, "HEAD")
+	if err != nil {
+		return fmt.Errorf("counting reset commits: %w", err)
+	}
+	logf("test:generator: reset produced %d commit(s)", resetCommits)
+	if resetCommits > 1 {
+		return fmt.Errorf("expected reset to produce at most 1 commit, got %d", resetCommits)
 	}
 
 	logf("test:generator: starting generation")
@@ -331,6 +405,17 @@ func (Test) Generator() error {
 	}
 
 	genBranch, _ = gitCurrentBranch()
+
+	startTag = genBranch + "-start"
+	startCommits, err = gitCountCommits(startTag, "HEAD")
+	if err != nil {
+		return fmt.Errorf("counting start commits: %w", err)
+	}
+	logf("test:generator: generation branch is %d commit(s) ahead of %s", startCommits, startTag)
+	if startCommits != 1 {
+		return fmt.Errorf("expected generation branch to be 1 commit ahead of %s, got %d", startTag, startCommits)
+	}
+
 	logf("test:generator: on branch %s, measuring 2 issues", genBranch)
 
 	mCfg := measureConfig{cobblerConfig: cobblerConfig{
@@ -386,9 +471,29 @@ func (Test) Generator() error {
 	// ── Cleanup ──
 
 	t = logStep("cleanup: reset")
+
+	beforeResetSHA, err = gitRevParseHEAD()
+	if err != nil {
+		return fmt.Errorf("getting HEAD before cleanup reset: %w", err)
+	}
+
 	if err := Reset(); err != nil {
 		return fmt.Errorf("cleanup reset: %w", err)
 	}
+
+	resetCommits, err = gitCountCommits(beforeResetSHA, "HEAD")
+	if err != nil {
+		return fmt.Errorf("counting cleanup reset commits: %w", err)
+	}
+	logf("test:generator: cleanup reset produced %d commit(s)", resetCommits)
+	if resetCommits > 1 {
+		return fmt.Errorf("expected cleanup reset to produce at most 1 commit, got %d", resetCommits)
+	}
+
+	if wt := gitWorktreeCount(); wt > 0 {
+		return fmt.Errorf("expected 0 linked worktrees after cleanup, got %d", wt)
+	}
+
 	logDone("cleanup", t)
 
 	// Summary.
@@ -428,9 +533,23 @@ func (Test) Resume() error {
 
 	t := logStep("setup: create generation with pending issues")
 
+	beforeResetSHA, err := gitRevParseHEAD()
+	if err != nil {
+		return fmt.Errorf("getting HEAD before reset: %w", err)
+	}
+
 	logf("test:resume: resetting to clean state")
 	if err := Reset(); err != nil {
 		return fmt.Errorf("setup reset: %w", err)
+	}
+
+	resetCommits, err := gitCountCommits(beforeResetSHA, "HEAD")
+	if err != nil {
+		return fmt.Errorf("counting reset commits: %w", err)
+	}
+	logf("test:resume: reset produced %d commit(s)", resetCommits)
+	if resetCommits > 1 {
+		return fmt.Errorf("expected reset to produce at most 1 commit, got %d", resetCommits)
 	}
 
 	logf("test:resume: starting generation")
@@ -439,6 +558,17 @@ func (Test) Resume() error {
 	}
 
 	genBranch, _ := gitCurrentBranch()
+
+	startTag := genBranch + "-start"
+	startCommits, err := gitCountCommits(startTag, "HEAD")
+	if err != nil {
+		return fmt.Errorf("counting start commits: %w", err)
+	}
+	logf("test:resume: generation branch is %d commit(s) ahead of %s", startCommits, startTag)
+	if startCommits != 1 {
+		return fmt.Errorf("expected generation branch to be 1 commit ahead of %s, got %d", startTag, startCommits)
+	}
+
 	logf("test:resume: on branch %s, measuring 1 issue", genBranch)
 
 	mCfg := measureConfig{cobblerConfig: cobblerConfig{
@@ -528,14 +658,38 @@ func (Test) Resume() error {
 	}
 	logf("test:resume: no stale task branches")
 
+	if wt := gitWorktreeCount(); wt > 0 {
+		return fmt.Errorf("expected 0 linked worktrees after resume, got %d", wt)
+	}
+
 	logDone("resume", t)
 
 	// ── Cleanup ──
 
 	t = logStep("cleanup: reset")
+
+	beforeResetSHA, err = gitRevParseHEAD()
+	if err != nil {
+		return fmt.Errorf("getting HEAD before cleanup reset: %w", err)
+	}
+
 	if err := Reset(); err != nil {
 		return fmt.Errorf("cleanup reset: %w", err)
 	}
+
+	resetCommits, err = gitCountCommits(beforeResetSHA, "HEAD")
+	if err != nil {
+		return fmt.Errorf("counting cleanup reset commits: %w", err)
+	}
+	logf("test:resume: cleanup reset produced %d commit(s)", resetCommits)
+	if resetCommits > 1 {
+		return fmt.Errorf("expected cleanup reset to produce at most 1 commit, got %d", resetCommits)
+	}
+
+	if wt := gitWorktreeCount(); wt > 0 {
+		return fmt.Errorf("expected 0 linked worktrees after cleanup, got %d", wt)
+	}
+
 	logDone("cleanup", t)
 
 	// Summary.
