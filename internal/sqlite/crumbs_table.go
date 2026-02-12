@@ -1,6 +1,7 @@
 // This file implements the crumbs table accessor for the SQLite backend.
 // Implements: prd002-sqlite-backend R12-R15 (table routing, interface, hydration, persistence);
 //             prd003-crumbs-interface R3 (creation), R6-R10 (retrieval/update/delete/filter);
+//             prd004-properties-interface R3.5, R4.2 (auto-init on crumb creation);
 //             prd001-cupboard-core R3 (Table interface), R8 (UUID v7).
 package sqlite
 
@@ -43,6 +44,9 @@ func (ct *crumbsTable) Get(id string) (any, error) {
 		}
 		return nil, fmt.Errorf("getting crumb %s: %w", id, err)
 	}
+	if err := ct.hydrateProperties(crumb); err != nil {
+		return nil, fmt.Errorf("hydrating properties for crumb %s: %w", id, err)
+	}
 	return crumb, nil
 }
 
@@ -61,7 +65,9 @@ func (ct *crumbsTable) Set(id string, data any) (string, error) {
 
 	now := time.Now().UTC()
 
-	if id == "" {
+	isCreate := id == ""
+
+	if isCreate {
 		// Create: generate UUID v7, set defaults (prd003-crumbs-interface R3.2).
 		newID, err := uuid.NewV7()
 		if err != nil {
@@ -112,6 +118,14 @@ func (ct *crumbsTable) Set(id string, data any) (string, error) {
 		return "", fmt.Errorf("persisting crumb: %w", err)
 	}
 
+	// Auto-initialize all defined properties on new crumbs
+	// (prd004-properties-interface R3.5, R4.2).
+	if isCreate {
+		if err := ct.autoInitProperties(tx, crumb); err != nil {
+			return "", fmt.Errorf("auto-initializing properties: %w", err)
+		}
+	}
+
 	if err := tx.Commit(); err != nil {
 		return "", fmt.Errorf("committing crumb: %w", err)
 	}
@@ -119,6 +133,11 @@ func (ct *crumbsTable) Set(id string, data any) (string, error) {
 	// Persist to crumbs.jsonl atomically (prd002-sqlite-backend R5.1, R5.2).
 	if err := ct.persistAllCrumbsJSONL(); err != nil {
 		return "", fmt.Errorf("persisting crumbs.jsonl: %w", err)
+	}
+	if isCreate {
+		if err := persistTableJSONL(ct.backend, "crumb_properties", "crumb_properties.jsonl"); err != nil {
+			return "", fmt.Errorf("persisting crumb_properties.jsonl: %w", err)
+		}
 	}
 
 	return id, nil
@@ -287,11 +306,127 @@ func (ct *crumbsTable) Fetch(filter types.Filter) ([]any, error) {
 		return nil, fmt.Errorf("iterating crumbs: %w", err)
 	}
 
+	// Hydrate properties for each crumb.
+	for _, r := range results {
+		crumb := r.(*types.Crumb)
+		if err := ct.hydrateProperties(crumb); err != nil {
+			return nil, fmt.Errorf("hydrating properties for crumb %s: %w", crumb.CrumbID, err)
+		}
+	}
+
 	// Return empty slice, not nil (prd003-crumbs-interface R10.3).
 	if results == nil {
 		results = []any{}
 	}
 	return results, nil
+}
+
+// autoInitProperties inserts a crumb_properties row for every defined property,
+// using the type's default value. Explicit values already in crumb.Properties
+// are preserved (prd004-properties-interface R3.5, R4.2).
+func (ct *crumbsTable) autoInitProperties(tx *sql.Tx, crumb *types.Crumb) error {
+	rows, err := tx.Query("SELECT property_id, value_type FROM properties")
+	if err != nil {
+		return fmt.Errorf("querying properties for auto-init: %w", err)
+	}
+	type propDef struct {
+		id        string
+		valueType string
+	}
+	var props []propDef
+	for rows.Next() {
+		var pd propDef
+		if err := rows.Scan(&pd.id, &pd.valueType); err != nil {
+			rows.Close()
+			return fmt.Errorf("scanning property for auto-init: %w", err)
+		}
+		props = append(props, pd)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterating properties for auto-init: %w", err)
+	}
+
+	for _, pd := range props {
+		// If the caller already set an explicit value, persist it instead of
+		// the type default.
+		if explicitVal, ok := crumb.Properties[pd.id]; ok {
+			valJSON, err := json.Marshal(explicitVal)
+			if err != nil {
+				return fmt.Errorf("marshaling explicit property %s: %w", pd.id, err)
+			}
+			_, err = tx.Exec(
+				"INSERT OR IGNORE INTO crumb_properties (crumb_id, property_id, value_type, value) VALUES (?, ?, ?, ?)",
+				crumb.CrumbID, pd.id, pd.valueType, string(valJSON),
+			)
+			if err != nil {
+				return fmt.Errorf("inserting explicit property %s: %w", pd.id, err)
+			}
+			continue
+		}
+		defaultVal := defaultValueJSON(pd.valueType)
+		_, err := tx.Exec(
+			"INSERT OR IGNORE INTO crumb_properties (crumb_id, property_id, value_type, value) VALUES (?, ?, ?, ?)",
+			crumb.CrumbID, pd.id, pd.valueType, defaultVal,
+		)
+		if err != nil {
+			return fmt.Errorf("inserting default property %s: %w", pd.id, err)
+		}
+		crumb.Properties[pd.id] = parseDefaultValue(pd.valueType)
+	}
+	return nil
+}
+
+// hydrateProperties loads crumb_properties rows into the crumb's Properties map.
+func (ct *crumbsTable) hydrateProperties(crumb *types.Crumb) error {
+	rows, err := ct.backend.db.Query(
+		"SELECT property_id, value_type, value FROM crumb_properties WHERE crumb_id = ?",
+		crumb.CrumbID,
+	)
+	if err != nil {
+		return fmt.Errorf("querying crumb_properties: %w", err)
+	}
+	defer rows.Close()
+
+	props := make(map[string]any)
+	for rows.Next() {
+		var propID, valueType, rawValue string
+		if err := rows.Scan(&propID, &valueType, &rawValue); err != nil {
+			return fmt.Errorf("scanning crumb_property: %w", err)
+		}
+		var parsed any
+		if err := json.Unmarshal([]byte(rawValue), &parsed); err != nil {
+			return fmt.Errorf("parsing property value for %s: %w", propID, err)
+		}
+		props[propID] = parsed
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterating crumb_properties: %w", err)
+	}
+
+	crumb.Properties = props
+	return nil
+}
+
+// parseDefaultValue returns the Go value corresponding to a value type's
+// default (prd004-properties-interface R3.5).
+func parseDefaultValue(valueType string) any {
+	switch valueType {
+	case types.ValueTypeCategorical:
+		return nil
+	case types.ValueTypeText:
+		return ""
+	case types.ValueTypeInteger:
+		return float64(0) // JSON numbers decode as float64
+	case types.ValueTypeBoolean:
+		return false
+	case types.ValueTypeTimestamp:
+		return nil
+	case types.ValueTypeList:
+		return []any{}
+	default:
+		return nil
+	}
 }
 
 // hydrateCrumb converts a single SQLite row into a *types.Crumb
