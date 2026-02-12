@@ -1,3 +1,3 @@
 package crumbs
 
-const Version = "generation-2026-02-11-21-24-06"
+const Version = "main"
