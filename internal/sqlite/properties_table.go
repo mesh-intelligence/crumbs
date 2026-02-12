@@ -163,7 +163,7 @@ func (pt *propertiesTable) Set(id string, data any) (string, error) {
 
 		for _, cid := range crumbIDs {
 			_, err := tx.Exec(
-				"INSERT INTO crumb_properties (crumb_id, property_id, value_type, value) VALUES (?, ?, ?, ?)",
+				"INSERT OR IGNORE INTO crumb_properties (crumb_id, property_id, value_type, value) VALUES (?, ?, ?, ?)",
 				cid, id, prop.ValueType, defaultVal,
 			)
 			if err != nil {
