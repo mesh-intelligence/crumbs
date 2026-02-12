@@ -52,6 +52,8 @@ mage test:unit           # Run unit tests
 mage test:integration    # Build, then run integration tests
 mage test:all            # Run all tests
 mage test:cobbler        # Cobbler regression suite (measure 3, stitch, verify)
+mage test:generator      # Generator lifecycle tests (start/stop, run, max-issues)
+mage test:resume         # Generator resume recovery test
 mage test:docker         # Smoke test: build image, run Claude with "Hello World"
 mage lint                # Run golangci-lint
 ```
@@ -64,7 +66,11 @@ A generation is a cycle where Claude reads the project specifications and produc
 2. **Run**: `mage generator:run --cycles N` runs N rounds of measure (propose issues) and stitch (implement issues). Each cycle invokes Claude to analyze project state and produce code.
 3. **Stop**: `mage generator:stop` tags the finished generation, merges it into main, and cleans up the generation branch.
 
-Flags for `generator:run`:
+Start and reset operations squash their intermediate commits into a single commit so main and generation branches stay clean.
+
+If a run is interrupted (crash, context exhaustion, manual stop), use `mage generator:resume` to recover. Resume switches to the generation branch, cleans up stale worktrees and task branches, and continues with measure/stitch cycles. You can resume from any branch; uncommitted work on the current branch is committed before switching.
+
+Flags for `generator:run` and `generator:resume`:
 
 | Flag | Default | Description |
 | ---- | ------- | ----------- |
@@ -77,7 +83,7 @@ Flags for `generator:run`:
 ### Inspecting Past Generations
 
 ```bash
-# List all generations (active, merged, and incomplete)
+# List all generations (active, merged, and abandoned)
 mage generator:list --all
 
 # Check out a specific generation's code
@@ -91,7 +97,7 @@ Generation tags follow the naming convention `generation-YYYY-MM-DD-HH-MM-SS` wi
 | `-start` | State of main before the generation began |
 | `-finished` | Final state of the generation branch |
 | `-merged` | State of main after the generation was merged |
-| `-incomplete` | Generation that was abandoned before merging |
+| `-abandoned` | Generation that was never merged |
 
 ## Docker
 
