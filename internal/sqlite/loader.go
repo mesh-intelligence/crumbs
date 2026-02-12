@@ -1,6 +1,6 @@
 // This file implements JSONL loading for startup.
 // Implements: prd002-sqlite-backend R4 (startup sequence), R4.2 (malformed lines),
-//             R4.4 (transactional loading).
+//             R4.4 (transactional loading), R7.2 (unknown field tolerance).
 package sqlite
 
 import (
@@ -31,7 +31,8 @@ var jsonlTableMapping = []struct {
 // loadAllJSONL reads each JSONL file from DataDir and inserts records into the
 // corresponding SQLite tables. Loading is transactional: all succeed or the
 // database remains empty (prd002-sqlite-backend R4.4). Malformed lines are
-// skipped per R4.2.
+// skipped per R4.2. Unknown fields in JSONL records are silently ignored,
+// enabling forward compatibility across generations (R7.2).
 func loadAllJSONL(db *sql.DB, dataDir string) error {
 	tx, err := db.Begin()
 	if err != nil {
@@ -71,7 +72,10 @@ func loadAllJSONL(db *sql.DB, dataDir string) error {
 	return nil
 }
 
-// insertRecords inserts parsed JSONL records into a SQLite table.
+// insertRecords inserts parsed JSONL records into a SQLite table. Unknown
+// fields in the JSON are silently ignored (forward compatibility per
+// prd002-sqlite-backend R7.2). Only columns listed in the mapping are
+// extracted; extra fields from future generations do not cause errors.
 func insertRecords(tx *sql.Tx, table string, columns []string, records []json.RawMessage) error {
 	placeholders := make([]string, len(columns))
 	for i := range placeholders {
