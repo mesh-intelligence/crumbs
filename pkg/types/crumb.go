@@ -67,3 +67,47 @@ func (c *Crumb) Dust() error {
 	c.UpdatedAt = time.Now()
 	return nil
 }
+
+// SetProperty assigns a value to a property in the Properties map
+// (prd003-crumbs-interface R5.2). The method updates the map entry and refreshes
+// UpdatedAt. It returns ErrPropertyNotFound if the property does not exist in
+// the map. Full type and category validation is deferred to Table.Set per R5.7.
+func (c *Crumb) SetProperty(propertyID string, value any) error {
+	if _, ok := c.Properties[propertyID]; !ok {
+		return ErrPropertyNotFound
+	}
+	c.Properties[propertyID] = value
+	c.UpdatedAt = time.Now()
+	return nil
+}
+
+// GetProperty retrieves a single property value from the Properties map
+// (prd003-crumbs-interface R5.3). Returns ErrPropertyNotFound if the property
+// does not exist in the map.
+func (c *Crumb) GetProperty(propertyID string) (any, error) {
+	v, ok := c.Properties[propertyID]
+	if !ok {
+		return nil, ErrPropertyNotFound
+	}
+	return v, nil
+}
+
+// GetProperties returns the full Properties map (prd003-crumbs-interface R5.4).
+// The map contains an entry for every defined property.
+func (c *Crumb) GetProperties() map[string]any {
+	return c.Properties
+}
+
+// ClearProperty resets a property to its type-based default value
+// (prd003-crumbs-interface R5.5). The map entry is set to nil rather than
+// deleted; properties are never unset. Full default-value resolution (matching
+// the property's ValueType) is deferred to Table.Set per R5.7. Returns
+// ErrPropertyNotFound if the property does not exist in the map.
+func (c *Crumb) ClearProperty(propertyID string) error {
+	if _, ok := c.Properties[propertyID]; !ok {
+		return ErrPropertyNotFound
+	}
+	c.Properties[propertyID] = nil
+	c.UpdatedAt = time.Now()
+	return nil
+}

@@ -26,6 +26,8 @@ var (
 	ErrSchemaNotFound    = errors.New("schema not found")
 	ErrInvalidContent    = errors.New("content must not be empty")
 	ErrInvalidFilter     = errors.New("invalid filter value type")
+	ErrDuplicateName     = errors.New("duplicate name")
+	ErrInvalidValueType  = errors.New("invalid value type")
 )
 
 // Filter is the query parameter type for Fetch operations. Keys are field names;
