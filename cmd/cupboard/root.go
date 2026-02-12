@@ -22,10 +22,28 @@ var (
 	flagJSON      bool
 )
 
+// configDataDir holds the data_dir value loaded from config.yaml.
+// Set by PersistentPreRunE so all subcommands can use it.
+var configDataDir string
+
 var rootCmd = &cobra.Command{
 	Use:     "cupboard",
 	Short:   "Cupboard is a local-first issue tracker",
 	Version: crumbs.Version,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		configDir, err := resolveConfigDir()
+		if err != nil {
+			return err
+		}
+
+		cfg, err := loadConfig(configDir)
+		if err != nil {
+			return err
+		}
+
+		configDataDir = cfg.GetString(cfgKeyDataDir)
+		return nil
+	},
 }
 
 func init() {
@@ -43,9 +61,8 @@ func init() {
 
 // resolveDataDir returns the data directory path following prd010 R2.3 precedence:
 // --data-dir flag > config.yaml data_dir > CRUMBS_DATA_DIR env > default $(CWD)/.crumbs-db.
-// The configYAMLValue parameter is empty until config.yaml loading is wired in.
 func resolveDataDir() (string, error) {
-	return paths.ResolveDataDir(flagDataDir, "" /* configYAMLValue */)
+	return paths.ResolveDataDir(flagDataDir, configDataDir)
 }
 
 // resolveConfigDir returns the configuration directory following prd010 R1.3 precedence:
