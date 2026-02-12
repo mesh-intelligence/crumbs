@@ -128,6 +128,19 @@ func (b *Backend) Attach(config types.Config) error {
 
 	b.db = db
 	b.config = config
+
+	// Load JSONL files into SQLite tables (prd002-sqlite-backend R4).
+	if err := loadAllJSONL(db, config.DataDir); err != nil {
+		db.Close()
+		return fmt.Errorf("loading JSONL files: %w", err)
+	}
+
+	// Seed built-in properties and categories on first run (prd002-sqlite-backend R9).
+	if err := seedBuiltInProperties(db, config.DataDir); err != nil {
+		db.Close()
+		return fmt.Errorf("seeding built-in properties: %w", err)
+	}
+
 	b.tables = buildTables(b)
 	b.attached = true
 
@@ -163,31 +176,8 @@ func buildTables(b *Backend) map[string]types.Table {
 		types.TableCrumbs:     &crumbsTable{backend: b},
 		types.TableTrails:     &trailsTable{backend: b},
 		types.TableProperties: &propertiesTable{backend: b},
-		types.TableMetadata:   &tableAccessor{backend: b, tableName: types.TableMetadata},
+		types.TableMetadata:   &metadataTable{backend: b},
 		types.TableLinks:      &linksTable{backend: b},
-		types.TableStashes:    &tableAccessor{backend: b, tableName: types.TableStashes},
+		types.TableStashes:    &stashesTable{backend: b},
 	}
-}
-
-// tableAccessor is a stub Table implementation bound to a specific entity type.
-// Full CRUD operations will be implemented in subsequent tasks.
-type tableAccessor struct {
-	backend   *Backend
-	tableName string
-}
-
-func (t *tableAccessor) Get(id string) (any, error) {
-	return nil, fmt.Errorf("Get not yet implemented for table %s", t.tableName)
-}
-
-func (t *tableAccessor) Set(id string, data any) (string, error) {
-	return "", fmt.Errorf("Set not yet implemented for table %s", t.tableName)
-}
-
-func (t *tableAccessor) Delete(id string) error {
-	return fmt.Errorf("Delete not yet implemented for table %s", t.tableName)
-}
-
-func (t *tableAccessor) Fetch(filter types.Filter) ([]any, error) {
-	return nil, fmt.Errorf("Fetch not yet implemented for table %s", t.tableName)
 }
