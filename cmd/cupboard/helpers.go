@@ -3,6 +3,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -45,6 +46,51 @@ func attachBackend() (*sqlite.Backend, error) {
 	}
 
 	return backend, nil
+}
+
+// parseEntityJSON unmarshals JSON data into the correct entity struct based on
+// the table name. Each table maps to a specific entity type per prd001-cupboard-core R2.5.
+func parseEntityJSON(tableName string, data []byte) (any, error) {
+	switch tableName {
+	case types.TableCrumbs:
+		var e types.Crumb
+		if err := json.Unmarshal(data, &e); err != nil {
+			return nil, err
+		}
+		return &e, nil
+	case types.TableTrails:
+		var e types.Trail
+		if err := json.Unmarshal(data, &e); err != nil {
+			return nil, err
+		}
+		return &e, nil
+	case types.TableProperties:
+		var e types.Property
+		if err := json.Unmarshal(data, &e); err != nil {
+			return nil, err
+		}
+		return &e, nil
+	case types.TableMetadata:
+		var e types.Metadata
+		if err := json.Unmarshal(data, &e); err != nil {
+			return nil, err
+		}
+		return &e, nil
+	case types.TableLinks:
+		var e types.Link
+		if err := json.Unmarshal(data, &e); err != nil {
+			return nil, err
+		}
+		return &e, nil
+	case types.TableStashes:
+		var e types.Stash
+		if err := json.Unmarshal(data, &e); err != nil {
+			return nil, err
+		}
+		return &e, nil
+	default:
+		return nil, fmt.Errorf("unknown table %q", tableName)
+	}
 }
 
 // isTableNotFound returns true if the error wraps ErrTableNotFound.

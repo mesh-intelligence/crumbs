@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/mesh-intelligence/crumbs/internal/sqlite"
-	"github.com/mesh-intelligence/crumbs/pkg/types"
 	"github.com/spf13/cobra"
 )
 
@@ -16,19 +14,8 @@ var initCmd = &cobra.Command{
 	Short: "Initialize cupboard storage",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		dataDir, err := resolveDataDir()
+		backend, err := attachBackend()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "init:", err)
-			os.Exit(exitSysError)
-		}
-
-		cfg := types.Config{
-			Backend: "sqlite",
-			DataDir: dataDir,
-		}
-
-		backend := sqlite.NewBackend()
-		if err := backend.Attach(cfg); err != nil {
 			fmt.Fprintln(os.Stderr, "init:", err)
 			os.Exit(exitSysError)
 		}
