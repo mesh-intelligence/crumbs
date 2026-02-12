@@ -18,17 +18,29 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// cleanEnv returns os.Environ() with all CRUMBS_* and XDG_* variables removed,
+// providing a clean baseline for subprocess isolation.
+func cleanEnv() []string {
+	var env []string
+	for _, e := range os.Environ() {
+		if strings.HasPrefix(e, "CRUMBS_") || strings.HasPrefix(e, "XDG_") {
+			continue
+		}
+		env = append(env, e)
+	}
+	return env
+}
+
 // runCupboardWith executes the cupboard binary with explicit control over
 // flags, environment, and working directory. Unlike runCupboard (which always
 // injects --data-dir), this helper passes args unchanged so callers can test
-// the full precedence chain.
+// the full precedence chain. The subprocess environment is cleaned of CRUMBS_*
+// and XDG_* variables before adding the provided env overrides.
 func runCupboardWith(t *testing.T, env []string, workDir string, args ...string) (stdout, stderr string, exitCode int) {
 	t.Helper()
 	bin := ensureBinary(t)
 	cmd := exec.Command(bin, args...)
-	if len(env) > 0 {
-		cmd.Env = append(os.Environ(), env...)
-	}
+	cmd.Env = append(cleanEnv(), env...)
 	if workDir != "" {
 		cmd.Dir = workDir
 	}
@@ -101,22 +113,23 @@ func TestConfigLoading_EnvironmentOverrides(t *testing.T) {
 		assert.NoError(t, err, "crumbs.jsonl should exist in env-data dir")
 	})
 
-	t.Run("S3: data_dir via --data-dir flag is respected", func(t *testing.T) {
+	t.Run("S3: CRUMBS_DATA_DIR env overrides data directory", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		yamlConfigDir := filepath.Join(tmpDir, "yaml-config")
-		yamlDataDir := filepath.Join(tmpDir, "yaml-data")
+		configDir := filepath.Join(tmpDir, "config")
+		envDataDir := filepath.Join(tmpDir, "env-data")
 
+		// CRUMBS_DATA_DIR should be used when no --data-dir flag and no
+		// config.yaml data_dir are provided.
 		_, stderr, code := runCupboardWith(t,
-			[]string{"CRUMBS_CONFIG_DIR=" + yamlConfigDir},
+			[]string{"CRUMBS_DATA_DIR=" + envDataDir},
 			"",
-			"--config-dir", yamlConfigDir,
-			"--data-dir", yamlDataDir,
+			"--config-dir", configDir,
 			"init",
 		)
 		assert.Equal(t, 0, code, "init failed: %s", stderr)
 
-		_, err := os.Stat(filepath.Join(yamlDataDir, "crumbs.jsonl"))
-		assert.NoError(t, err, "crumbs.jsonl should exist in yaml-data dir")
+		_, err := os.Stat(filepath.Join(envDataDir, "crumbs.jsonl"))
+		assert.NoError(t, err, "crumbs.jsonl should exist in CRUMBS_DATA_DIR location")
 	})
 }
 
