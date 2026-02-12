@@ -41,7 +41,7 @@ releases:
         status: done
       - id: rel01.0-uc005-crumbs-table-benchmarks
         summary: Benchmark crumbs Table operations (Get, Set, Delete, Fetch) at various scales
-        status: not_started
+        status: done
 
   - version: "01.1"
     name: Post-Core Validation
