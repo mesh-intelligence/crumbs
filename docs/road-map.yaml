@@ -38,7 +38,7 @@ releases:
         status: done
       - id: rel01.0-uc004-scaffolding-validation
         summary: Types, interfaces, and CLI compile; version command works; all tables accessible
-        status: not_started
+        status: done
       - id: rel01.0-uc005-crumbs-table-benchmarks
         summary: Benchmark crumbs Table operations (Get, Set, Delete, Fetch) at various scales
         status: not_started
