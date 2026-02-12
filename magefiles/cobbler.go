@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -71,21 +74,53 @@ func resolveCobblerBranch(cfg *cobblerConfig, fs *flag.FlagSet) {
 	}
 }
 
-// runClaude executes Claude with the given prompt.
+// claudeResult holds token usage from a Claude invocation.
+type claudeResult struct {
+	InputTokens  int
+	OutputTokens int
+}
+
+// parseClaudeTokens extracts token usage from Claude's stream-json
+// output. The final JSON line has "type":"result" with a "usage" object
+// containing "input_tokens" and "output_tokens".
+func parseClaudeTokens(output []byte) claudeResult {
+	lines := bytes.Split(bytes.TrimSpace(output), []byte("\n"))
+	for i := len(lines) - 1; i >= 0; i-- {
+		var msg struct {
+			Type  string `json:"type"`
+			Usage struct {
+				InputTokens  int `json:"input_tokens"`
+				OutputTokens int `json:"output_tokens"`
+			} `json:"usage"`
+		}
+		if err := json.Unmarshal(lines[i], &msg); err != nil {
+			continue
+		}
+		if msg.Type == "result" {
+			return claudeResult{
+				InputTokens:  msg.Usage.InputTokens,
+				OutputTokens: msg.Usage.OutputTokens,
+			}
+		}
+	}
+	return claudeResult{}
+}
+
+// runClaude executes Claude with the given prompt and returns token usage.
 // Auto-detects runtime: podman → docker → direct claude binary.
 // If dir is non-empty, the command runs in that directory (or it
 // becomes the container's /workspace mount). tokenFile selects
 // which credential file from .secrets/ to use (container mode only).
-func runClaude(prompt, dir string, silence bool, tokenFile string, noContainer bool) error {
+func runClaude(prompt, dir string, silence bool, tokenFile string, noContainer bool) (claudeResult, error) {
 	logf("runClaude: promptLen=%d dir=%q silence=%v noContainer=%v", len(prompt), dir, silence, noContainer)
 
 	if !noContainer {
 		if rt := containerRuntime(); rt != "" {
 			logf("runClaude: Running Claude (%s)", rt)
 			start := time.Now()
-			err := runClaudeContainer(rt, prompt, dir, tokenFile, silence)
+			result, err := runClaudeContainer(rt, prompt, dir, tokenFile, silence)
 			logf("runClaude: container finished in %s (err=%v)", time.Since(start).Round(time.Second), err)
-			return err
+			return result, err
 		}
 		logf("runClaude: no container runtime available, falling back to direct")
 	}
@@ -97,14 +132,21 @@ func runClaude(prompt, dir string, silence bool, tokenFile string, noContainer b
 	if dir != "" {
 		cmd.Dir = dir
 	}
-	if !silence {
-		cmd.Stdout = os.Stdout
+
+	var stdoutBuf bytes.Buffer
+	if silence {
+		cmd.Stdout = &stdoutBuf
+	} else {
+		cmd.Stdout = io.MultiWriter(os.Stdout, &stdoutBuf)
 		cmd.Stderr = os.Stderr
 	}
+
 	start := time.Now()
 	err := cmd.Run()
-	logf("runClaude: direct finished in %s (err=%v)", time.Since(start).Round(time.Second), err)
-	return err
+	result := parseClaudeTokens(stdoutBuf.Bytes())
+	logf("runClaude: direct finished in %s tokens(in=%d out=%d) (err=%v)",
+		time.Since(start).Round(time.Second), result.InputTokens, result.OutputTokens, err)
+	return result, err
 }
 
 // worktreeBasePath returns the directory used for stitch worktrees.

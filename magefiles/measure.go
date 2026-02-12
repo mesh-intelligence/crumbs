@@ -93,7 +93,7 @@ func measure(cfg measureConfig) error {
 
 	logf("measure: invoking Claude")
 	claudeStart := time.Now()
-	if err := runClaude(prompt, "", cfg.silenceAgent, cfg.tokenFile, cfg.noContainer); err != nil {
+	if _, err := runClaude(prompt, "", cfg.silenceAgent, cfg.tokenFile, cfg.noContainer); err != nil {
 		logf("measure: Claude failed after %s: %v", time.Since(claudeStart).Round(time.Second), err)
 		return fmt.Errorf("running Claude: %w", err)
 	}
