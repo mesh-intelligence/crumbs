@@ -411,3 +411,253 @@ func TestInsertRecordsIgnoresUnknownFields(t *testing.T) {
 		assert.Equal(t, "Insert test", name)
 	})
 }
+
+// TestLoadJSONLBackwardCompatibility verifies that JSONL written by an older
+// generation (fewer fields than current structs) loads correctly. Nullable
+// fields receive NULL when absent; records with all required NOT NULL fields
+// load without error. This simulates loading data from generation N that
+// predates fields added in N+1.
+func TestLoadJSONLBackwardCompatibility(t *testing.T) {
+	tests := []struct {
+		name     string
+		file     string
+		jsonl    string
+		countSQL string
+		wantRows int
+		checkSQL string
+		checkVal string
+		nullSQL  string
+		nullCol  string
+	}{
+		{
+			name:     "trail JSONL missing nullable completed_at loads with null",
+			file:     "trails.jsonl",
+			jsonl:    "{\"trail_id\":\"old-t01\",\"state\":\"active\",\"created_at\":\"2025-01-15T10:30:00Z\"}\n",
+			countSQL: "SELECT COUNT(*) FROM trails",
+			wantRows: 1,
+			checkSQL: "SELECT state FROM trails WHERE trail_id = 'old-t01'",
+			checkVal: "active",
+			nullSQL:  "SELECT completed_at IS NULL FROM trails WHERE trail_id = 'old-t01'",
+			nullCol:  "completed_at",
+		},
+		{
+			name:     "property JSONL missing nullable description loads with null",
+			file:     "properties.jsonl",
+			jsonl:    "{\"property_id\":\"old-p01\",\"name\":\"legacy\",\"value_type\":\"text\",\"created_at\":\"2025-01-15T10:30:00Z\"}\n",
+			countSQL: "SELECT COUNT(*) FROM properties",
+			wantRows: 1,
+			checkSQL: "SELECT name FROM properties WHERE property_id = 'old-p01'",
+			checkVal: "legacy",
+			nullSQL:  "SELECT description IS NULL FROM properties WHERE property_id = 'old-p01'",
+			nullCol:  "description",
+		},
+		{
+			name:     "crumb JSONL with all required fields loads without extras",
+			file:     "crumbs.jsonl",
+			jsonl:    "{\"crumb_id\":\"old-001\",\"name\":\"Old crumb\",\"state\":\"draft\",\"created_at\":\"2025-01-15T10:30:00Z\",\"updated_at\":\"2025-01-15T10:30:00Z\"}\n",
+			countSQL: "SELECT COUNT(*) FROM crumbs",
+			wantRows: 1,
+			checkSQL: "SELECT name FROM crumbs WHERE crumb_id = 'old-001'",
+			checkVal: "Old crumb",
+			nullSQL:  "", // no nullable column to check
+			nullCol:  "",
+		},
+		{
+			name:     "stash JSONL with all required fields loads without extras",
+			file:     "stashes.jsonl",
+			jsonl:    "{\"stash_id\":\"old-s01\",\"name\":\"min_stash\",\"stash_type\":\"resource\",\"value\":\"{}\",\"version\":1,\"created_at\":\"2025-01-15T10:30:00Z\",\"updated_at\":\"2025-01-15T10:30:00Z\"}\n",
+			countSQL: "SELECT COUNT(*) FROM stashes",
+			wantRows: 1,
+			checkSQL: "SELECT name FROM stashes WHERE stash_id = 'old-s01'",
+			checkVal: "min_stash",
+			nullSQL:  "", // no nullable column to check
+			nullCol:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, dataDir := setupTestDB(t)
+
+			err := os.WriteFile(filepath.Join(dataDir, tt.file), []byte(tt.jsonl), 0o644)
+			require.NoError(t, err)
+
+			err = loadAllJSONL(db, dataDir)
+			require.NoError(t, err, "loadAllJSONL must succeed with old-generation JSONL")
+
+			var count int
+			err = db.QueryRow(tt.countSQL).Scan(&count)
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantRows, count)
+
+			var val string
+			err = db.QueryRow(tt.checkSQL).Scan(&val)
+			require.NoError(t, err)
+			assert.Equal(t, tt.checkVal, val)
+
+			if tt.nullSQL != "" {
+				var isNull bool
+				err = db.QueryRow(tt.nullSQL).Scan(&isNull)
+				require.NoError(t, err)
+				assert.True(t, isNull, "%s should be NULL for old-generation JSONL", tt.nullCol)
+			}
+		})
+	}
+}
+
+// TestEntityStructUnmarshalUnknownFields verifies that json.Unmarshal on each
+// entity struct silently ignores unknown fields. This is Go's default behavior,
+// but we test it explicitly as a regression guard: if anyone adds a custom
+// UnmarshalJSON or a json.Decoder with DisallowUnknownFields, these tests fail.
+func TestEntityStructUnmarshalUnknownFields(t *testing.T) {
+	tests := []struct {
+		name   string
+		jsonl  string
+		target any
+		check  func(t *testing.T, v any)
+	}{
+		{
+			name:   "Crumb ignores unknown fields",
+			jsonl:  `{"crumb_id":"u-001","name":"Test","state":"draft","created_at":"2025-01-15T10:30:00Z","updated_at":"2025-01-15T10:30:00Z","future_field":"ignored","score":99}`,
+			target: &types.Crumb{},
+			check: func(t *testing.T, v any) {
+				c := v.(*types.Crumb)
+				assert.Equal(t, "u-001", c.CrumbID)
+				assert.Equal(t, "Test", c.Name)
+				assert.Equal(t, "draft", c.State)
+			},
+		},
+		{
+			name:   "Trail ignores unknown fields",
+			jsonl:  `{"trail_id":"u-t01","state":"active","created_at":"2025-01-15T10:30:00Z","completed_at":null,"duration_ms":5000}`,
+			target: &types.Trail{},
+			check: func(t *testing.T, v any) {
+				tr := v.(*types.Trail)
+				assert.Equal(t, "u-t01", tr.TrailID)
+				assert.Equal(t, "active", tr.State)
+			},
+		},
+		{
+			name:   "Property ignores unknown fields",
+			jsonl:  `{"property_id":"u-p01","name":"custom","description":"desc","value_type":"text","created_at":"2025-01-15T10:30:00Z","validation_pattern":"^.*$"}`,
+			target: &types.Property{},
+			check: func(t *testing.T, v any) {
+				p := v.(*types.Property)
+				assert.Equal(t, "u-p01", p.PropertyID)
+				assert.Equal(t, "custom", p.Name)
+				assert.Equal(t, "text", p.ValueType)
+			},
+		},
+		{
+			name:   "Category ignores unknown fields",
+			jsonl:  `{"category_id":"u-c01","property_id":"u-p01","name":"high","ordinal":1,"color":"#ff0000"}`,
+			target: &types.Category{},
+			check: func(t *testing.T, v any) {
+				c := v.(*types.Category)
+				assert.Equal(t, "u-c01", c.CategoryID)
+				assert.Equal(t, "high", c.Name)
+				assert.Equal(t, 1, c.Ordinal)
+			},
+		},
+		{
+			name:   "Link ignores unknown fields",
+			jsonl:  `{"link_id":"u-l01","link_type":"belongs_to","from_id":"a","to_id":"b","created_at":"2025-01-15T10:30:00Z","weight":1.5}`,
+			target: &types.Link{},
+			check: func(t *testing.T, v any) {
+				l := v.(*types.Link)
+				assert.Equal(t, "u-l01", l.LinkID)
+				assert.Equal(t, "belongs_to", l.LinkType)
+			},
+		},
+		{
+			name:   "Metadata ignores unknown fields",
+			jsonl:  `{"metadata_id":"u-m01","crumb_id":"c1","table_name":"notes","content":"text","property_id":null,"created_at":"2025-01-15T10:30:00Z","format":"markdown"}`,
+			target: &types.Metadata{},
+			check: func(t *testing.T, v any) {
+				m := v.(*types.Metadata)
+				assert.Equal(t, "u-m01", m.MetadataID)
+				assert.Equal(t, "text", m.Content)
+			},
+		},
+		{
+			name:   "Stash ignores unknown fields",
+			jsonl:  `{"stash_id":"u-s01","name":"test","stash_type":"resource","value":"{}","version":1,"created_at":"2025-01-15T10:30:00Z","last_operation":"set","changed_by":null,"ttl_seconds":3600}`,
+			target: &types.Stash{},
+			check: func(t *testing.T, v any) {
+				s := v.(*types.Stash)
+				assert.Equal(t, "u-s01", s.StashID)
+				assert.Equal(t, "test", s.Name)
+				assert.Equal(t, "resource", s.StashType)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := json.Unmarshal([]byte(tt.jsonl), tt.target)
+			require.NoError(t, err, "json.Unmarshal must not error on unknown fields")
+			tt.check(t, tt.target)
+		})
+	}
+}
+
+// TestLoadJSONLCategoriesAndCrumbPropertiesWithUnknownFields verifies that
+// categories and crumb_properties JSONL records with unknown fields load
+// through the full pipeline.
+func TestLoadJSONLCategoriesAndCrumbPropertiesWithUnknownFields(t *testing.T) {
+	t.Run("categories with unknown fields load successfully", func(t *testing.T) {
+		db, dataDir := setupTestDB(t)
+
+		// Insert the referenced property first (foreign key).
+		propJSONL := "{\"property_id\":\"p-001\",\"name\":\"prio\",\"description\":\"d\",\"value_type\":\"categorical\",\"created_at\":\"2025-01-15T10:30:00Z\"}\n"
+		err := os.WriteFile(filepath.Join(dataDir, "properties.jsonl"), []byte(propJSONL), 0o644)
+		require.NoError(t, err)
+
+		catJSONL := "{\"category_id\":\"cat-001\",\"property_id\":\"p-001\",\"name\":\"high\",\"ordinal\":0,\"color_hex\":\"#ff0000\",\"icon\":\"fire\"}\n" +
+			"{\"category_id\":\"cat-002\",\"property_id\":\"p-001\",\"name\":\"low\",\"ordinal\":1,\"display_weight\":0.5}\n"
+		err = os.WriteFile(filepath.Join(dataDir, "categories.jsonl"), []byte(catJSONL), 0o644)
+		require.NoError(t, err)
+
+		err = loadAllJSONL(db, dataDir)
+		require.NoError(t, err)
+
+		var count int
+		err = db.QueryRow("SELECT COUNT(*) FROM categories").Scan(&count)
+		require.NoError(t, err)
+		assert.Equal(t, 2, count)
+
+		var name string
+		err = db.QueryRow("SELECT name FROM categories WHERE category_id = 'cat-001'").Scan(&name)
+		require.NoError(t, err)
+		assert.Equal(t, "high", name)
+	})
+
+	t.Run("crumb_properties with unknown fields load successfully", func(t *testing.T) {
+		db, dataDir := setupTestDB(t)
+
+		// Insert referenced crumb and property (foreign keys).
+		crumbJSONL := "{\"crumb_id\":\"c-001\",\"name\":\"C1\",\"state\":\"draft\",\"created_at\":\"2025-01-15T10:30:00Z\",\"updated_at\":\"2025-01-15T10:30:00Z\"}\n"
+		propJSONL := "{\"property_id\":\"p-001\",\"name\":\"prio\",\"description\":\"d\",\"value_type\":\"text\",\"created_at\":\"2025-01-15T10:30:00Z\"}\n"
+		cpJSONL := "{\"crumb_id\":\"c-001\",\"property_id\":\"p-001\",\"value_type\":\"text\",\"value\":\"hello\",\"confidence_score\":0.95,\"source\":\"agent-v2\"}\n"
+
+		err := os.WriteFile(filepath.Join(dataDir, "crumbs.jsonl"), []byte(crumbJSONL), 0o644)
+		require.NoError(t, err)
+		err = os.WriteFile(filepath.Join(dataDir, "properties.jsonl"), []byte(propJSONL), 0o644)
+		require.NoError(t, err)
+		err = os.WriteFile(filepath.Join(dataDir, "crumb_properties.jsonl"), []byte(cpJSONL), 0o644)
+		require.NoError(t, err)
+
+		err = loadAllJSONL(db, dataDir)
+		require.NoError(t, err)
+
+		var count int
+		err = db.QueryRow("SELECT COUNT(*) FROM crumb_properties").Scan(&count)
+		require.NoError(t, err)
+		assert.Equal(t, 1, count)
+
+		var val string
+		err = db.QueryRow("SELECT value FROM crumb_properties WHERE crumb_id = 'c-001' AND property_id = 'p-001'").Scan(&val)
+		require.NoError(t, err)
+		assert.Equal(t, "hello", val)
+	})
+}
