@@ -175,13 +175,13 @@ func (ct *crumbsTable) Delete(id string) error {
 	if err := ct.persistAllCrumbsJSONL(); err != nil {
 		return fmt.Errorf("persisting crumbs.jsonl: %w", err)
 	}
-	if err := ct.persistTableJSONL("crumb_properties", "crumb_properties.jsonl"); err != nil {
+	if err := persistTableJSONL(ct.backend, "crumb_properties", "crumb_properties.jsonl"); err != nil {
 		return fmt.Errorf("persisting crumb_properties.jsonl: %w", err)
 	}
-	if err := ct.persistTableJSONL("metadata", "metadata.jsonl"); err != nil {
+	if err := persistTableJSONL(ct.backend, "metadata", "metadata.jsonl"); err != nil {
 		return fmt.Errorf("persisting metadata.jsonl: %w", err)
 	}
-	if err := ct.persistTableJSONL("links", "links.jsonl"); err != nil {
+	if err := persistTableJSONL(ct.backend, "links", "links.jsonl"); err != nil {
 		return fmt.Errorf("persisting links.jsonl: %w", err)
 	}
 
@@ -372,8 +372,9 @@ func (ct *crumbsTable) persistAllCrumbsJSONL() error {
 
 // persistTableJSONL reads all rows from the given SQLite table and writes
 // them as JSONL to the given filename, using the atomic write pattern.
-func (ct *crumbsTable) persistTableJSONL(tableName, fileName string) error {
-	rows, err := ct.backend.db.Query("SELECT * FROM " + tableName)
+// Shared across all table accessors.
+func persistTableJSONL(b *Backend, tableName, fileName string) error {
+	rows, err := b.db.Query("SELECT * FROM " + tableName)
 	if err != nil {
 		return fmt.Errorf("querying %s for JSONL: %w", tableName, err)
 	}
@@ -409,7 +410,7 @@ func (ct *crumbsTable) persistTableJSONL(tableName, fileName string) error {
 	}
 
 	return writeJSONL(
-		fmt.Sprintf("%s/%s", ct.backend.config.DataDir, fileName),
+		fmt.Sprintf("%s/%s", b.config.DataDir, fileName),
 		records,
 	)
 }

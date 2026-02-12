@@ -91,6 +91,7 @@ const (
 const (
 	idxCrumbsState            = `CREATE INDEX idx_crumbs_state ON crumbs(state);`
 	idxTrailsState            = `CREATE INDEX idx_trails_state ON trails(state);`
+	idxLinksUnique            = `CREATE UNIQUE INDEX idx_links_unique ON links(link_type, from_id, to_id);`
 	idxLinksTypeFrom          = `CREATE INDEX idx_links_type_from ON links(link_type, from_id);`
 	idxLinksTypeTo            = `CREATE INDEX idx_links_type_to ON links(link_type, to_id);`
 	idxCrumbPropertiesCrumb   = `CREATE INDEX idx_crumb_properties_crumb ON crumb_properties(crumb_id);`
@@ -120,6 +121,7 @@ var schemaDDL = []string{
 var indexDDL = []string{
 	idxCrumbsState,
 	idxTrailsState,
+	idxLinksUnique,
 	idxLinksTypeFrom,
 	idxLinksTypeTo,
 	idxCrumbPropertiesCrumb,

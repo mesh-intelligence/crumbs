@@ -161,10 +161,10 @@ func (b *Backend) Detach() error {
 func buildTables(b *Backend) map[string]types.Table {
 	return map[string]types.Table{
 		types.TableCrumbs:     &crumbsTable{backend: b},
-		types.TableTrails:     &tableAccessor{backend: b, tableName: types.TableTrails},
-		types.TableProperties: &tableAccessor{backend: b, tableName: types.TableProperties},
+		types.TableTrails:     &trailsTable{backend: b},
+		types.TableProperties: &propertiesTable{backend: b},
 		types.TableMetadata:   &tableAccessor{backend: b, tableName: types.TableMetadata},
-		types.TableLinks:      &tableAccessor{backend: b, tableName: types.TableLinks},
+		types.TableLinks:      &linksTable{backend: b},
 		types.TableStashes:    &tableAccessor{backend: b, tableName: types.TableStashes},
 	}
 }
