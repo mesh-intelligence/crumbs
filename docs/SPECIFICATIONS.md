@@ -16,7 +16,7 @@ Table 1 Roadmap Summary
 | 01.1 | Post-Core Validation | 5 / 5 | done |
 | 02.0 | Properties with Enforcement | 2 / 2 | done |
 | 02.1 | Issue-Tracking and Self-Hosting | 4 / 4 | done |
-| 03.0 | Trails and Stashes | 2 / 4 | in progress |
+| 03.0 | Trails and Stashes | 4 / 4 | done |
 | 03.1 | Post-Trails Validation | 0 / 1 | not started |
 | 99.0 | Unscheduled | 0 / 2 | not started |
 
@@ -59,10 +59,10 @@ Table 3 Use Case Index
 | [rel02.1-uc002-table-benchmarks](specs/use-cases/rel02.1-uc002-table-benchmarks.yaml) | Table Benchmarks | 02.1 | done | [test-rel02.1-uc002-table-benchmarks](specs/test-suites/test-rel02.1-uc002-table-benchmarks.yaml) |
 | [rel02.1-uc003-self-hosting](specs/use-cases/rel02.1-uc003-self-hosting.yaml) | Self-Hosting | 02.1 | done | [test-rel02.1-uc003-self-hosting](specs/test-suites/test-rel02.1-uc003-self-hosting.yaml) |
 | [rel02.1-uc004-metadata-lifecycle](specs/use-cases/rel02.1-uc004-metadata-lifecycle.yaml) | Metadata Lifecycle Operations | 02.1 | done | [test-rel02.1-uc004-metadata-lifecycle](specs/test-suites/test-rel02.1-uc004-metadata-lifecycle.yaml) |
-| [rel03.0-uc001-trail-exploration](specs/use-cases/rel03.0-uc001-trail-exploration.yaml) | Trail-Based Exploration | 03.0 | not started | [test-rel03.0-uc001-trail-exploration](specs/test-suites/test-rel03.0-uc001-trail-exploration.yaml) |
+| [rel03.0-uc001-trail-exploration](specs/use-cases/rel03.0-uc001-trail-exploration.yaml) | Trail-Based Exploration | 03.0 | done | [test-rel03.0-uc001-trail-exploration](specs/test-suites/test-rel03.0-uc001-trail-exploration.yaml) |
 | [rel03.0-uc002-link-management](specs/use-cases/rel03.0-uc002-link-management.yaml) | Link Management | 03.0 | done | [test-rel03.0-uc002-link-management](specs/test-suites/test-rel03.0-uc002-link-management.yaml) |
 | [rel03.0-uc003-stash-operations](specs/use-cases/rel03.0-uc003-stash-operations.yaml) | Stash Operations | 03.0 | done | [test-rel03.0-uc003-stash-operations](specs/test-suites/test-rel03.0-uc003-stash-operations.yaml) |
-| [rel03.0-uc004-trail-crumb-lifecycle](specs/use-cases/rel03.0-uc004-trail-crumb-lifecycle.yaml) | Trail-Crumb Lifecycle Control | 03.0 | not started | [test-rel03.0-uc004-trail-crumb-lifecycle](specs/test-suites/test-rel03.0-uc004-trail-crumb-lifecycle.yaml) |
+| [rel03.0-uc004-trail-crumb-lifecycle](specs/use-cases/rel03.0-uc004-trail-crumb-lifecycle.yaml) | Trail-Crumb Lifecycle Control | 03.0 | done | [test-rel03.0-uc004-trail-crumb-lifecycle](specs/test-suites/test-rel03.0-uc004-trail-crumb-lifecycle.yaml) |
 | [rel03.1-uc001-self-hosting-with-epics](specs/use-cases/rel03.1-uc001-self-hosting-with-epics.yaml) | Self-Hosting with Epics via Trails | 03.1 | not started | [test-rel03.1-uc001-self-hosting-with-epics](specs/test-suites/test-rel03.1-uc001-self-hosting-with-epics.yaml) |
 | [rel99.0-uc001-blazes-templates](specs/use-cases/rel99.0-uc001-blazes-templates.yaml) | Agent Uses Blazes (Workflow Templates) | 99.0 | not started | [test-rel99.0-uc001-blazes-templates](specs/test-suites/test-rel99.0-uc001-blazes-templates.yaml) |
 | [rel99.0-uc002-docker-bootstrap](specs/use-cases/rel99.0-uc002-docker-bootstrap.yaml) | Docker Bootstrap (Docs to Working System) | 99.0 | not started | [test-rel99.0-uc002-docker-bootstrap](specs/test-suites/test-rel99.0-uc002-docker-bootstrap.yaml) |
