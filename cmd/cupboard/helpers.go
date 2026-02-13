@@ -18,6 +18,7 @@ var validTableNames = []string{
 	types.TableCrumbs,
 	types.TableTrails,
 	types.TableProperties,
+	types.TableCategories,
 	types.TableMetadata,
 	types.TableLinks,
 	types.TableStashes,
@@ -66,6 +67,12 @@ func parseEntityJSON(tableName string, data []byte) (any, error) {
 		return &e, nil
 	case types.TableProperties:
 		var e types.Property
+		if err := json.Unmarshal(data, &e); err != nil {
+			return nil, err
+		}
+		return &e, nil
+	case types.TableCategories:
+		var e types.Category
 		if err := json.Unmarshal(data, &e); err != nil {
 			return nil, err
 		}

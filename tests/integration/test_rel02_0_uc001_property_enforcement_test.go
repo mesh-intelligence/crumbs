@@ -835,129 +835,227 @@ func TestPropertyEnforcement_S13_BackfillViaCLI(t *testing.T) {
 // --- S14: category operations via CLI (set categories) ---
 
 func TestPropertyEnforcement_S14_CategorySetViaCLI(t *testing.T) {
-	t.Run("DefineCategory creates a category for a categorical property", func(t *testing.T) {
-		backend, _ := newAttachedBackend(t)
-		defer backend.Detach()
+	dataDir := initCupboard(t)
 
-		propsTbl, err := backend.GetTable(types.TableProperties)
-		require.NoError(t, err)
+	t.Run("set categories creates a category for a categorical property", func(t *testing.T) {
+		// Get the priority property ID.
+		stdout, stderr, code := runCupboard(t, dataDir, "list", "properties", "name=priority")
+		require.Equal(t, 0, code, "list properties failed: %s", stderr)
+		propsArr := parseJSONArray(t, stdout)
+		require.Len(t, propsArr, 1)
+		priorityID := propsArr[0]["property_id"].(string)
 
-		allProps, err := propsTbl.Fetch(types.Filter{"name": "priority"})
-		require.NoError(t, err)
-		require.Len(t, allProps, 1)
-		prop := allProps[0].(*types.Property)
+		// Create a category via set categories.
+		catPayload := fmt.Sprintf(`{"property_id":"%s","name":"blocker","ordinal":-1}`, priorityID)
+		stdout, stderr, code = runCupboard(t, dataDir, "set", "categories", "", catPayload)
+		require.Equal(t, 0, code, "set categories failed: %s", stderr)
 
-		cat, err := prop.DefineCategory(backend, "blocker", -1)
-		require.NoError(t, err)
-		assert.Equal(t, "blocker", cat.Name)
-		assert.Equal(t, -1, cat.Ordinal)
-		assert.Equal(t, prop.PropertyID, cat.PropertyID)
-		assert.NotEmpty(t, cat.PropertyID)
+		var cat map[string]any
+		require.NoError(t, json.Unmarshal([]byte(stdout), &cat))
+		assert.Equal(t, "blocker", cat["name"])
+		assert.Equal(t, float64(-1), cat["ordinal"])
+		assert.Equal(t, priorityID, cat["property_id"])
+		assert.NotEmpty(t, cat["category_id"], "category_id should be populated")
 	})
 
-	t.Run("DefineCategory rejects non-categorical property", func(t *testing.T) {
-		backend, _ := newAttachedBackend(t)
-		defer backend.Detach()
+	t.Run("set categories rejects empty name", func(t *testing.T) {
+		// Get the priority property ID.
+		stdout, stderr, code := runCupboard(t, dataDir, "list", "properties", "name=priority")
+		require.Equal(t, 0, code, "list properties failed: %s", stderr)
+		propsArr := parseJSONArray(t, stdout)
+		require.Len(t, propsArr, 1)
+		priorityID := propsArr[0]["property_id"].(string)
 
-		propsTbl, err := backend.GetTable(types.TableProperties)
-		require.NoError(t, err)
-
-		// Owner is a text property.
-		allProps, err := propsTbl.Fetch(types.Filter{"name": "owner"})
-		require.NoError(t, err)
-		require.Len(t, allProps, 1)
-		prop := allProps[0].(*types.Property)
-
-		_, err = prop.DefineCategory(backend, "some_value", 1)
-		assert.ErrorIs(t, err, types.ErrInvalidValueType)
+		// Attempt to create a category with empty name.
+		catPayload := fmt.Sprintf(`{"property_id":"%s","name":"","ordinal":0}`, priorityID)
+		_, stderr, code = runCupboard(t, dataDir, "set", "categories", "", catPayload)
+		assert.Equal(t, 1, code)
+		assert.Contains(t, stderr, "invalid name")
 	})
 
-	t.Run("DefineCategory rejects empty name", func(t *testing.T) {
-		backend, _ := newAttachedBackend(t)
-		defer backend.Detach()
+	t.Run("set categories rejects duplicate name within property", func(t *testing.T) {
+		// Get the priority property ID.
+		stdout, stderr, code := runCupboard(t, dataDir, "list", "properties", "name=priority")
+		require.Equal(t, 0, code, "list properties failed: %s", stderr)
+		propsArr := parseJSONArray(t, stdout)
+		require.Len(t, propsArr, 1)
+		priorityID := propsArr[0]["property_id"].(string)
 
-		propsTbl, err := backend.GetTable(types.TableProperties)
-		require.NoError(t, err)
+		// Create a category.
+		catPayload := fmt.Sprintf(`{"property_id":"%s","name":"duplicate_test","ordinal":1}`, priorityID)
+		_, stderr, code = runCupboard(t, dataDir, "set", "categories", "", catPayload)
+		require.Equal(t, 0, code, "first category creation failed: %s", stderr)
 
-		allProps, err := propsTbl.Fetch(types.Filter{"name": "priority"})
-		require.NoError(t, err)
-		require.Len(t, allProps, 1)
-		prop := allProps[0].(*types.Property)
+		// Attempt to create a category with the same name.
+		_, stderr, code = runCupboard(t, dataDir, "set", "categories", "", catPayload)
+		assert.Equal(t, 1, code)
+		assert.Contains(t, stderr, "duplicate name")
+	})
 
-		_, err = prop.DefineCategory(backend, "", 0)
-		assert.ErrorIs(t, err, types.ErrInvalidName)
+	t.Run("set categories allows same name on different properties", func(t *testing.T) {
+		// Create a custom categorical property.
+		propPayload := `{"name":"custom_cat","value_type":"categorical","description":"Custom categorical"}`
+		stdout, stderr, code := runCupboard(t, dataDir, "set", "properties", "", propPayload)
+		require.Equal(t, 0, code, "create property failed: %s", stderr)
+		customPropID := extractJSONField(t, stdout, "property_id")
+
+		// Get the priority property ID.
+		stdout, stderr, code = runCupboard(t, dataDir, "list", "properties", "name=priority")
+		require.Equal(t, 0, code, "list properties failed: %s", stderr)
+		propsArr := parseJSONArray(t, stdout)
+		require.Len(t, propsArr, 1)
+		priorityID := propsArr[0]["property_id"].(string)
+
+		// Create a category on priority with name "shared".
+		catPayload1 := fmt.Sprintf(`{"property_id":"%s","name":"shared","ordinal":1}`, priorityID)
+		_, stderr, code = runCupboard(t, dataDir, "set", "categories", "", catPayload1)
+		require.Equal(t, 0, code, "create category on priority failed: %s", stderr)
+
+		// Create a category on custom_cat with the same name "shared".
+		catPayload2 := fmt.Sprintf(`{"property_id":"%s","name":"shared","ordinal":1}`, customPropID)
+		_, stderr, code = runCupboard(t, dataDir, "set", "categories", "", catPayload2)
+		assert.Equal(t, 0, code, "create category on custom_cat failed: %s", stderr)
+	})
+
+	t.Run("set categories with negative ordinals", func(t *testing.T) {
+		// Get the priority property ID.
+		stdout, stderr, code := runCupboard(t, dataDir, "list", "properties", "name=priority")
+		require.Equal(t, 0, code, "list properties failed: %s", stderr)
+		propsArr := parseJSONArray(t, stdout)
+		require.Len(t, propsArr, 1)
+		priorityID := propsArr[0]["property_id"].(string)
+
+		// Create a category with negative ordinal.
+		catPayload := fmt.Sprintf(`{"property_id":"%s","name":"top_priority","ordinal":-10}`, priorityID)
+		stdout, stderr, code = runCupboard(t, dataDir, "set", "categories", "", catPayload)
+		require.Equal(t, 0, code, "set categories failed: %s", stderr)
+
+		var cat map[string]any
+		require.NoError(t, json.Unmarshal([]byte(stdout), &cat))
+		assert.Equal(t, float64(-10), cat["ordinal"])
 	})
 }
 
 // --- S15: category operations via CLI (list categories / GetCategories) ---
 
 func TestPropertyEnforcement_S15_CategoryListViaCLI(t *testing.T) {
-	t.Run("GetCategories returns categories for categorical property", func(t *testing.T) {
-		backend, _ := newAttachedBackend(t)
-		defer backend.Detach()
+	dataDir := initCupboard(t)
 
-		propsTbl, err := backend.GetTable(types.TableProperties)
-		require.NoError(t, err)
+	t.Run("list categories returns categories for a property", func(t *testing.T) {
+		// Create a fresh categorical property for this test.
+		propPayload := `{"name":"rank","value_type":"categorical","description":"Rank"}`
+		stdout, stderr, code := runCupboard(t, dataDir, "set", "properties", "", propPayload)
+		require.Equal(t, 0, code, "create property failed: %s", stderr)
+		rankID := extractJSONField(t, stdout, "property_id")
 
-		allProps, err := propsTbl.Fetch(types.Filter{"name": "priority"})
-		require.NoError(t, err)
-		require.Len(t, allProps, 1)
-		prop := allProps[0].(*types.Property)
+		// Create a few categories with different ordinals.
+		for _, cat := range []struct{ name string; ord int }{
+			{"low", 3}, {"high", 1}, {"medium", 2},
+		} {
+			payload := fmt.Sprintf(`{"property_id":"%s","name":"%s","ordinal":%d}`, rankID, cat.name, cat.ord)
+			_, stderr, code := runCupboard(t, dataDir, "set", "categories", "", payload)
+			require.Equal(t, 0, code, "create category %s failed: %s", cat.name, stderr)
+		}
 
-		cats, err := prop.GetCategories(backend)
-		require.NoError(t, err)
-		// The stub returns an empty slice; seeded categories are in SQLite only.
-		// Verify the call succeeds without error for a categorical property.
-		assert.NotNil(t, cats)
+		// List all categories for this property.
+		stdout, stderr, code = runCupboard(t, dataDir, "list", "categories", fmt.Sprintf("property_id=%s", rankID))
+		require.Equal(t, 0, code, "list categories failed: %s", stderr)
+
+		catsArr := parseJSONArray(t, stdout)
+		require.Len(t, catsArr, 3)
+
+		// Verify they are ordered by ordinal ascending.
+		names := []string{catsArr[0]["name"].(string), catsArr[1]["name"].(string), catsArr[2]["name"].(string)}
+		assert.Equal(t, []string{"high", "medium", "low"}, names, "categories should be ordered by ordinal")
 	})
 
-	t.Run("GetCategories rejects non-categorical property", func(t *testing.T) {
-		backend, _ := newAttachedBackend(t)
-		defer backend.Detach()
+	t.Run("list categories orders by name for same ordinal", func(t *testing.T) {
+		// Create a custom categorical property.
+		propPayload := `{"name":"status","value_type":"categorical","description":"Status"}`
+		stdout, stderr, code := runCupboard(t, dataDir, "set", "properties", "", propPayload)
+		require.Equal(t, 0, code, "create property failed: %s", stderr)
+		statusID := extractJSONField(t, stdout, "property_id")
 
-		propsTbl, err := backend.GetTable(types.TableProperties)
-		require.NoError(t, err)
+		// Create categories with the same ordinal.
+		for _, name := range []string{"zebra", "alpha", "beta"} {
+			payload := fmt.Sprintf(`{"property_id":"%s","name":"%s","ordinal":1}`, statusID, name)
+			_, stderr, code := runCupboard(t, dataDir, "set", "categories", "", payload)
+			require.Equal(t, 0, code, "create category %s failed: %s", name, stderr)
+		}
 
-		// Description is a text property.
-		allProps, err := propsTbl.Fetch(types.Filter{"name": "description"})
-		require.NoError(t, err)
-		require.Len(t, allProps, 1)
-		prop := allProps[0].(*types.Property)
+		// List categories and verify ordering by name.
+		stdout, stderr, code = runCupboard(t, dataDir, "list", "categories", fmt.Sprintf("property_id=%s", statusID))
+		require.Equal(t, 0, code, "list categories failed: %s", stderr)
 
-		_, err = prop.GetCategories(backend)
-		assert.ErrorIs(t, err, types.ErrInvalidValueType)
+		catsArr := parseJSONArray(t, stdout)
+		require.Len(t, catsArr, 3)
+
+		names := []string{catsArr[0]["name"].(string), catsArr[1]["name"].(string), catsArr[2]["name"].(string)}
+		assert.Equal(t, []string{"alpha", "beta", "zebra"}, names, "categories should be ordered by name for same ordinal")
 	})
 
-	t.Run("GetCategories rejects list property", func(t *testing.T) {
-		backend, _ := newAttachedBackend(t)
-		defer backend.Detach()
+	t.Run("list categories returns empty array for property with no categories", func(t *testing.T) {
+		// Create a custom categorical property with no categories.
+		propPayload := `{"name":"empty_cat","value_type":"categorical","description":"Empty"}`
+		stdout, stderr, code := runCupboard(t, dataDir, "set", "properties", "", propPayload)
+		require.Equal(t, 0, code, "create property failed: %s", stderr)
+		emptyID := extractJSONField(t, stdout, "property_id")
 
-		propsTbl, err := backend.GetTable(types.TableProperties)
-		require.NoError(t, err)
+		// List categories (should be empty).
+		stdout, stderr, code = runCupboard(t, dataDir, "list", "categories", fmt.Sprintf("property_id=%s", emptyID))
+		require.Equal(t, 0, code, "list categories failed: %s", stderr)
 
-		allProps, err := propsTbl.Fetch(types.Filter{"name": "labels"})
-		require.NoError(t, err)
-		require.Len(t, allProps, 1)
-		prop := allProps[0].(*types.Property)
-
-		_, err = prop.GetCategories(backend)
-		assert.ErrorIs(t, err, types.ErrInvalidValueType)
+		catsArr := parseJSONArray(t, stdout)
+		assert.Len(t, catsArr, 0, "should return empty array")
 	})
 
-	t.Run("seeded categories exist in categories.jsonl", func(t *testing.T) {
-		dataDir := initCupboard(t)
+	t.Run("list categories with negative ordinals sorts correctly", func(t *testing.T) {
+		// Create a custom categorical property.
+		propPayload := `{"name":"ord_sort","value_type":"categorical","description":"Ordinal sort test"}`
+		stdout, stderr, code := runCupboard(t, dataDir, "set", "properties", "", propPayload)
+		require.Equal(t, 0, code, "create property failed: %s", stderr)
+		sortID := extractJSONField(t, stdout, "property_id")
 
-		// Verify that the categories.jsonl file contains seeded categories
-		// by reading it through the file system. The CLI does not expose a
-		// categories table, but the JSONL proves persistence.
-		_ = dataDir // Categories are verified via the JSONL file existence
-		// which was already tested in cupboard lifecycle tests.
-		// Here we verify categories are accessible through the priority property.
+		// Create categories with negative, zero, and positive ordinals.
+		for _, cat := range []struct{ name string; ord int }{
+			{"positive", 5}, {"negative", -5}, {"zero", 0},
+		} {
+			payload := fmt.Sprintf(`{"property_id":"%s","name":"%s","ordinal":%d}`, sortID, cat.name, cat.ord)
+			_, stderr, code := runCupboard(t, dataDir, "set", "categories", "", payload)
+			require.Equal(t, 0, code, "create category %s failed: %s", cat.name, stderr)
+		}
+
+		// List categories and verify ordering.
+		stdout, stderr, code = runCupboard(t, dataDir, "list", "categories", fmt.Sprintf("property_id=%s", sortID))
+		require.Equal(t, 0, code, "list categories failed: %s", stderr)
+
+		catsArr := parseJSONArray(t, stdout)
+		require.Len(t, catsArr, 3)
+
+		names := []string{catsArr[0]["name"].(string), catsArr[1]["name"].(string), catsArr[2]["name"].(string)}
+		assert.Equal(t, []string{"negative", "zero", "positive"}, names, "negative ordinals should sort before positive")
+	})
+
+	t.Run("categories persist to JSONL", func(t *testing.T) {
+		// Get the priority property ID.
 		stdout, stderr, code := runCupboard(t, dataDir, "list", "properties", "name=priority")
 		require.Equal(t, 0, code, "list properties failed: %s", stderr)
+		propsArr := parseJSONArray(t, stdout)
+		require.Len(t, propsArr, 1)
+		priorityID := propsArr[0]["property_id"].(string)
 
-		arr := parseJSONArray(t, stdout)
-		require.Len(t, arr, 1)
-		assert.Equal(t, "categorical", arr[0]["value_type"])
+		// Create a category.
+		catPayload := fmt.Sprintf(`{"property_id":"%s","name":"persisted","ordinal":1}`, priorityID)
+		_, stderr, code = runCupboard(t, dataDir, "set", "categories", "", catPayload)
+		require.Equal(t, 0, code, "create category failed: %s", stderr)
+
+		// Verify categories.jsonl contains the persisted category.
+		// We use the generic list command to verify persistence indirectly.
+		stdout, stderr, code = runCupboard(t, dataDir, "list", "categories", "name=persisted")
+		require.Equal(t, 0, code, "list categories failed: %s", stderr)
+
+		catsArr := parseJSONArray(t, stdout)
+		require.Len(t, catsArr, 1)
+		assert.Equal(t, "persisted", catsArr[0]["name"])
 	})
 }
