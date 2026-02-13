@@ -288,6 +288,44 @@ func TestLinkManagement_BranchesFromLinkIndicatesBranchPoint(t *testing.T) {
 	assert.Equal(t, branchPoint.CrumbID, gotLink.ToID)
 }
 
+func TestLinkManagement_BranchesFromLinkIndicatesTrailBranchPoint(t *testing.T) {
+	backend, _ := newAttachedBackend(t)
+	defer backend.Detach()
+
+	linksTbl, crumbsTbl, trailsTbl := getTestTables(t, backend)
+
+	// Create trail and branch point crumb.
+	trail := createTestTrail(t, trailsTbl)
+	branchPoint := createTestCrumb(t, crumbsTbl)
+
+	// Create branches_from link (from_id=trail_id, to_id=crumb_id).
+	link := &types.Link{
+		LinkType: types.LinkTypeBranchesFrom,
+		FromID:   trail.TrailID,
+		ToID:     branchPoint.CrumbID,
+	}
+	id, err := linksTbl.Set("", link)
+	require.NoError(t, err)
+	assert.NotEmpty(t, id, "Link ID should not be empty")
+
+	// Verify link is retrievable via Table.Get.
+	got, err := linksTbl.Get(id)
+	require.NoError(t, err)
+	gotLink := got.(*types.Link)
+
+	// Verify all Link struct fields.
+	assert.Equal(t, id, gotLink.LinkID, "LinkID should match returned ID")
+	assert.Equal(t, types.LinkTypeBranchesFrom, gotLink.LinkType, "LinkType should be branches_from")
+	assert.Equal(t, trail.TrailID, gotLink.FromID, "FromID should be trail ID")
+	assert.Equal(t, branchPoint.CrumbID, gotLink.ToID, "ToID should be branch point crumb ID")
+	assert.False(t, gotLink.CreatedAt.IsZero(), "CreatedAt should be set")
+
+	// Verify prd007-links-interface R2.1 semantics: trail branch point.
+	// FromID is the trail, ToID is the branch point crumb.
+	assert.Equal(t, trail.TrailID, gotLink.FromID, "branches_from link FromID should be trail")
+	assert.Equal(t, branchPoint.CrumbID, gotLink.ToID, "branches_from link ToID should be branch point crumb")
+}
+
 func TestLinkManagement_QueryBranchPointOfTrail(t *testing.T) {
 	backend, _ := newAttachedBackend(t)
 	defer backend.Detach()
@@ -332,6 +370,44 @@ func TestLinkManagement_ScopedToLinkScopesStashToTrail(t *testing.T) {
 	assert.Equal(t, types.LinkTypeScopedTo, gotLink.LinkType)
 	assert.Equal(t, stash.StashID, gotLink.FromID)
 	assert.Equal(t, trail.TrailID, gotLink.ToID)
+}
+
+func TestLinkManagement_ScopedToLinkScopesStashToTrailFull(t *testing.T) {
+	backend, _ := newAttachedBackend(t)
+	defer backend.Detach()
+
+	linksTbl, _, trailsTbl := getTestTables(t, backend)
+
+	// Create stash and trail.
+	trail := createTestTrail(t, trailsTbl)
+	stash := createTestStash(t, backend)
+
+	// Create scoped_to link (from_id=stash_id, to_id=trail_id).
+	link := &types.Link{
+		LinkType: types.LinkTypeScopedTo,
+		FromID:   stash.StashID,
+		ToID:     trail.TrailID,
+	}
+	id, err := linksTbl.Set("", link)
+	require.NoError(t, err)
+	assert.NotEmpty(t, id, "Link ID should not be empty")
+
+	// Verify link is retrievable via Table.Get.
+	got, err := linksTbl.Get(id)
+	require.NoError(t, err)
+	gotLink := got.(*types.Link)
+
+	// Verify all Link struct fields.
+	assert.Equal(t, id, gotLink.LinkID, "LinkID should match returned ID")
+	assert.Equal(t, types.LinkTypeScopedTo, gotLink.LinkType, "LinkType should be scoped_to")
+	assert.Equal(t, stash.StashID, gotLink.FromID, "FromID should be stash ID")
+	assert.Equal(t, trail.TrailID, gotLink.ToID, "ToID should be trail ID")
+	assert.False(t, gotLink.CreatedAt.IsZero(), "CreatedAt should be set")
+
+	// Verify prd007-links-interface R2.1 semantics: stash scoped to trail.
+	// FromID is the stash, ToID is the trail.
+	assert.Equal(t, stash.StashID, gotLink.FromID, "scoped_to link FromID should be stash")
+	assert.Equal(t, trail.TrailID, gotLink.ToID, "scoped_to link ToID should be trail")
 }
 
 func TestLinkManagement_QueryStashesScopedToTrail(t *testing.T) {
