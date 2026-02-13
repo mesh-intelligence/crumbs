@@ -111,6 +111,44 @@ func TestLinkManagement_BelongsToLinkCrumbToTrail(t *testing.T) {
 	assert.Equal(t, trail.TrailID, gotLink.ToID)
 }
 
+func TestLinkManagement_BelongsToLinkAssociatesCrumbWithTrail(t *testing.T) {
+	backend, _ := newAttachedBackend(t)
+	defer backend.Detach()
+
+	linksTbl, crumbsTbl, trailsTbl := getTestTables(t, backend)
+
+	// Create prerequisite entities.
+	trail := createTestTrail(t, trailsTbl)
+	crumb := createTestCrumb(t, crumbsTbl)
+
+	// Create belongs_to link (from_id=crumb_id, to_id=trail_id).
+	link := &types.Link{
+		LinkType: types.LinkTypeBelongsTo,
+		FromID:   crumb.CrumbID,
+		ToID:     trail.TrailID,
+	}
+	id, err := linksTbl.Set("", link)
+	require.NoError(t, err)
+	assert.NotEmpty(t, id, "Link ID should not be empty")
+
+	// Verify link is retrievable via Table.Get.
+	got, err := linksTbl.Get(id)
+	require.NoError(t, err)
+	gotLink := got.(*types.Link)
+
+	// Verify all Link struct fields.
+	assert.Equal(t, id, gotLink.LinkID, "LinkID should match returned ID")
+	assert.Equal(t, types.LinkTypeBelongsTo, gotLink.LinkType, "LinkType should be belongs_to")
+	assert.Equal(t, crumb.CrumbID, gotLink.FromID, "FromID should be crumb ID")
+	assert.Equal(t, trail.TrailID, gotLink.ToID, "ToID should be trail ID")
+	assert.False(t, gotLink.CreatedAt.IsZero(), "CreatedAt should be set")
+
+	// Verify prd007-links-interface R2.1 semantics: crumb membership in trail.
+	// FromID is the crumb, ToID is the trail.
+	assert.Equal(t, crumb.CrumbID, gotLink.FromID, "belongs_to link FromID should be crumb")
+	assert.Equal(t, trail.TrailID, gotLink.ToID, "belongs_to link ToID should be trail")
+}
+
 // --- S3: child_of link establishes crumb hierarchy ---
 
 func TestLinkManagement_ChildOfLinkEstablishesHierarchy(t *testing.T) {
@@ -136,6 +174,44 @@ func TestLinkManagement_ChildOfLinkEstablishesHierarchy(t *testing.T) {
 	assert.Equal(t, types.LinkTypeChildOf, gotLink.LinkType)
 	assert.Equal(t, child.CrumbID, gotLink.FromID)
 	assert.Equal(t, parent.CrumbID, gotLink.ToID)
+}
+
+func TestLinkManagement_ChildOfLinkEstablishesCrumbHierarchy(t *testing.T) {
+	backend, _ := newAttachedBackend(t)
+	defer backend.Detach()
+
+	linksTbl, crumbsTbl, _ := getTestTables(t, backend)
+
+	// Create parent and child crumbs.
+	parent := createTestCrumb(t, crumbsTbl)
+	child := createTestCrumb(t, crumbsTbl)
+
+	// Create child_of link (from_id=child, to_id=parent).
+	link := &types.Link{
+		LinkType: types.LinkTypeChildOf,
+		FromID:   child.CrumbID,
+		ToID:     parent.CrumbID,
+	}
+	id, err := linksTbl.Set("", link)
+	require.NoError(t, err)
+	assert.NotEmpty(t, id, "Link ID should not be empty")
+
+	// Verify link is retrievable via Table.Get.
+	got, err := linksTbl.Get(id)
+	require.NoError(t, err)
+	gotLink := got.(*types.Link)
+
+	// Verify all Link struct fields.
+	assert.Equal(t, id, gotLink.LinkID, "LinkID should match returned ID")
+	assert.Equal(t, types.LinkTypeChildOf, gotLink.LinkType, "LinkType should be child_of")
+	assert.Equal(t, child.CrumbID, gotLink.FromID, "FromID should be child crumb ID")
+	assert.Equal(t, parent.CrumbID, gotLink.ToID, "ToID should be parent crumb ID")
+	assert.False(t, gotLink.CreatedAt.IsZero(), "CreatedAt should be set")
+
+	// Verify prd007-links-interface R2.1 semantics: crumb hierarchy.
+	// FromID is the child crumb, ToID is the parent crumb.
+	assert.Equal(t, child.CrumbID, gotLink.FromID, "child_of link FromID should be child")
+	assert.Equal(t, parent.CrumbID, gotLink.ToID, "child_of link ToID should be parent")
 }
 
 func TestLinkManagement_QueryChildrenOfParent(t *testing.T) {
