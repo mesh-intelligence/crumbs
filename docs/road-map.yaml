@@ -89,7 +89,7 @@ releases:
     use_cases:
       - id: rel02.1-uc001-issue-tracking-cli
         summary: Issue-tracking CLI commands for scripts
-        status: not_started
+        status: done
       - id: rel02.1-uc002-table-benchmarks
         summary: Benchmark Table operations at scale
         status: not_started
