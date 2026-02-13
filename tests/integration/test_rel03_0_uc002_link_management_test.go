@@ -352,9 +352,11 @@ func TestLinkManagement_ScopedToLinkScopesStashToTrail(t *testing.T) {
 	defer backend.Detach()
 
 	linksTbl, _, trailsTbl := getTestTables(t, backend)
+	stashesTbl, err := backend.GetTable(types.TableStashes)
+	require.NoError(t, err)
 
 	trail := createTestTrail(t, trailsTbl)
-	stash := createTestStash(t, backend)
+	stash := createTestStash(t, stashesTbl, types.StashTypeContext)
 
 	link := &types.Link{
 		LinkType: types.LinkTypeScopedTo,
@@ -377,10 +379,12 @@ func TestLinkManagement_ScopedToLinkScopesStashToTrailFull(t *testing.T) {
 	defer backend.Detach()
 
 	linksTbl, _, trailsTbl := getTestTables(t, backend)
+	stashesTbl, err := backend.GetTable(types.TableStashes)
+	require.NoError(t, err)
 
 	// Create stash and trail.
 	trail := createTestTrail(t, trailsTbl)
-	stash := createTestStash(t, backend)
+	stash := createTestStash(t, stashesTbl, types.StashTypeContext)
 
 	// Create scoped_to link (from_id=stash_id, to_id=trail_id).
 	link := &types.Link{
@@ -415,12 +419,14 @@ func TestLinkManagement_QueryStashesScopedToTrail(t *testing.T) {
 	defer backend.Detach()
 
 	linksTbl, _, trailsTbl := getTestTables(t, backend)
+	stashesTbl, err := backend.GetTable(types.TableStashes)
+	require.NoError(t, err)
 
 	trail := createTestTrail(t, trailsTbl)
-	stash1 := createTestStash(t, backend)
-	stash2 := createTestStash(t, backend)
+	stash1 := createTestStash(t, stashesTbl, types.StashTypeContext)
+	stash2 := createTestStash(t, stashesTbl, types.StashTypeContext)
 
-	_, err := linksTbl.Set("", &types.Link{LinkType: types.LinkTypeScopedTo, FromID: stash1.StashID, ToID: trail.TrailID})
+	_, err = linksTbl.Set("", &types.Link{LinkType: types.LinkTypeScopedTo, FromID: stash1.StashID, ToID: trail.TrailID})
 	require.NoError(t, err)
 	_, err = linksTbl.Set("", &types.Link{LinkType: types.LinkTypeScopedTo, FromID: stash2.StashID, ToID: trail.TrailID})
 	require.NoError(t, err)
@@ -436,11 +442,13 @@ func TestLinkManagement_QueryTrailScopeOfStash(t *testing.T) {
 	defer backend.Detach()
 
 	linksTbl, _, trailsTbl := getTestTables(t, backend)
+	stashesTbl, err := backend.GetTable(types.TableStashes)
+	require.NoError(t, err)
 
 	trail := createTestTrail(t, trailsTbl)
-	stash := createTestStash(t, backend)
+	stash := createTestStash(t, stashesTbl, types.StashTypeContext)
 
-	_, err := linksTbl.Set("", &types.Link{LinkType: types.LinkTypeScopedTo, FromID: stash.StashID, ToID: trail.TrailID})
+	_, err = linksTbl.Set("", &types.Link{LinkType: types.LinkTypeScopedTo, FromID: stash.StashID, ToID: trail.TrailID})
 	require.NoError(t, err)
 
 	filter := types.Filter{"link_type": types.LinkTypeScopedTo, "from_id": stash.StashID}
@@ -457,14 +465,16 @@ func TestLinkManagement_FetchByLinkTypeReturnsOnlyMatchingLinks(t *testing.T) {
 	defer backend.Detach()
 
 	linksTbl, crumbsTbl, trailsTbl := getTestTables(t, backend)
+	stashesTbl, err := backend.GetTable(types.TableStashes)
+	require.NoError(t, err)
 
 	trail := createTestTrail(t, trailsTbl)
 	crumb1 := createTestCrumb(t, crumbsTbl)
 	crumb2 := createTestCrumb(t, crumbsTbl)
-	stash := createTestStash(t, backend)
+	stash := createTestStash(t, stashesTbl, types.StashTypeContext)
 
 	// Create links of different types.
-	_, err := linksTbl.Set("", &types.Link{LinkType: types.LinkTypeBelongsTo, FromID: crumb1.CrumbID, ToID: trail.TrailID})
+	_, err = linksTbl.Set("", &types.Link{LinkType: types.LinkTypeBelongsTo, FromID: crumb1.CrumbID, ToID: trail.TrailID})
 	require.NoError(t, err)
 	_, err = linksTbl.Set("", &types.Link{LinkType: types.LinkTypeChildOf, FromID: crumb2.CrumbID, ToID: crumb1.CrumbID})
 	require.NoError(t, err)
@@ -484,13 +494,15 @@ func TestLinkManagement_FetchAllLinksWithoutFilter(t *testing.T) {
 	defer backend.Detach()
 
 	linksTbl, crumbsTbl, trailsTbl := getTestTables(t, backend)
+	stashesTbl, err := backend.GetTable(types.TableStashes)
+	require.NoError(t, err)
 
 	trail := createTestTrail(t, trailsTbl)
 	crumb1 := createTestCrumb(t, crumbsTbl)
 	crumb2 := createTestCrumb(t, crumbsTbl)
-	stash := createTestStash(t, backend)
+	stash := createTestStash(t, stashesTbl, types.StashTypeContext)
 
-	_, err := linksTbl.Set("", &types.Link{LinkType: types.LinkTypeBelongsTo, FromID: crumb1.CrumbID, ToID: trail.TrailID})
+	_, err = linksTbl.Set("", &types.Link{LinkType: types.LinkTypeBelongsTo, FromID: crumb1.CrumbID, ToID: trail.TrailID})
 	require.NoError(t, err)
 	_, err = linksTbl.Set("", &types.Link{LinkType: types.LinkTypeChildOf, FromID: crumb2.CrumbID, ToID: crumb1.CrumbID})
 	require.NoError(t, err)
@@ -748,12 +760,14 @@ func TestLinkManagement_FullWorkflow(t *testing.T) {
 	defer backend.Detach()
 
 	linksTbl, crumbsTbl, trailsTbl := getTestTables(t, backend)
+	stashesTbl, err := backend.GetTable(types.TableStashes)
+	require.NoError(t, err)
 
 	// Create entities.
 	trail := createTestTrail(t, trailsTbl)
 	parentCrumb := createTestCrumb(t, crumbsTbl)
 	childCrumb := createTestCrumb(t, crumbsTbl)
-	stash := createTestStash(t, backend)
+	stash := createTestStash(t, stashesTbl, types.StashTypeContext)
 
 	// Create all four link types.
 	belongsToID, err := linksTbl.Set("", &types.Link{LinkType: types.LinkTypeBelongsTo, FromID: childCrumb.CrumbID, ToID: trail.TrailID})
@@ -930,9 +944,11 @@ func TestLinkManagement_UniquenessConstraintForScopedTo(t *testing.T) {
 	defer backend.Detach()
 
 	linksTbl, _, trailsTbl := getTestTables(t, backend)
+	stashesTbl, err := backend.GetTable(types.TableStashes)
+	require.NoError(t, err)
 
 	trail := createTestTrail(t, trailsTbl)
-	stash := createTestStash(t, backend)
+	stash := createTestStash(t, stashesTbl, types.StashTypeContext)
 
 	// Create first scoped_to link.
 	link1 := &types.Link{
@@ -1240,24 +1256,3 @@ func createTestCrumb(t *testing.T, crumbsTbl types.Table) *types.Crumb {
 	return got.(*types.Crumb)
 }
 
-// createTestStash creates a stash with type context and a unique name.
-func createTestStash(t *testing.T, backend *sqlite.Backend) *types.Stash {
-	t.Helper()
-
-	stashesTbl, err := backend.GetTable(types.TableStashes)
-	require.NoError(t, err)
-
-	// Generate unique name using UUID to avoid duplicate name errors.
-	uniqueName := "stash-" + uuid.NewString()
-	stash := &types.Stash{
-		Name:      uniqueName,
-		StashType: types.StashTypeContext,
-		Value:     "test value",
-	}
-	id, err := stashesTbl.Set("", stash)
-	require.NoError(t, err)
-
-	got, err := stashesTbl.Get(id)
-	require.NoError(t, err)
-	return got.(*types.Stash)
-}
