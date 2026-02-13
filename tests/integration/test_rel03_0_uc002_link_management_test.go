@@ -798,6 +798,163 @@ func TestLinkManagement_FullWorkflow(t *testing.T) {
 	assert.Len(t, belongsToLinks, 0)
 }
 
+// --- Uniqueness constraint tests ---
+
+// TestLinkManagement_UniquenessConstraintEnforced validates that the uniqueness
+// constraint on (link_type, from_id, to_id) is enforced. Attempting to create a
+// duplicate link with the same combination should return an error
+// (prd007-links-interface R5.1, R5.2).
+func TestLinkManagement_UniquenessConstraintEnforced(t *testing.T) {
+	backend, _ := newAttachedBackend(t)
+	defer backend.Detach()
+
+	linksTbl, crumbsTbl, trailsTbl := getTestTables(t, backend)
+
+	// Test uniqueness for belongs_to link.
+	trail := createTestTrail(t, trailsTbl)
+	crumb := createTestCrumb(t, crumbsTbl)
+
+	// Create first belongs_to link.
+	link1 := &types.Link{
+		LinkType: types.LinkTypeBelongsTo,
+		FromID:   crumb.CrumbID,
+		ToID:     trail.TrailID,
+	}
+	id1, err := linksTbl.Set("", link1)
+	require.NoError(t, err)
+	assert.NotEmpty(t, id1)
+
+	// Attempt to create duplicate belongs_to link with same (link_type, from_id, to_id).
+	link2 := &types.Link{
+		LinkType: types.LinkTypeBelongsTo,
+		FromID:   crumb.CrumbID,
+		ToID:     trail.TrailID,
+	}
+	_, err = linksTbl.Set("", link2)
+	assert.Error(t, err, "Duplicate link should return an error")
+	assert.ErrorIs(t, err, types.ErrDuplicateName, "Error should be ErrDuplicateName")
+
+	// Verify only one link exists.
+	filter := types.Filter{
+		"link_type": types.LinkTypeBelongsTo,
+		"from_id":   crumb.CrumbID,
+		"to_id":     trail.TrailID,
+	}
+	results, err := linksTbl.Fetch(filter)
+	require.NoError(t, err)
+	assert.Len(t, results, 1, "Only one link should exist")
+}
+
+// TestLinkManagement_UniquenessConstraintPerLinkType validates that uniqueness
+// is enforced separately for each link type. The same (from_id, to_id) pair can
+// exist for different link types (prd007-links-interface R5.1).
+func TestLinkManagement_UniquenessConstraintPerLinkType(t *testing.T) {
+	backend, _ := newAttachedBackend(t)
+	defer backend.Detach()
+
+	linksTbl, crumbsTbl, _ := getTestTables(t, backend)
+
+	// Create two crumbs.
+	crumb1 := createTestCrumb(t, crumbsTbl)
+	crumb2 := createTestCrumb(t, crumbsTbl)
+
+	// Create child_of link from crumb1 to crumb2.
+	link1 := &types.Link{
+		LinkType: types.LinkTypeChildOf,
+		FromID:   crumb1.CrumbID,
+		ToID:     crumb2.CrumbID,
+	}
+	id1, err := linksTbl.Set("", link1)
+	require.NoError(t, err)
+	assert.NotEmpty(t, id1)
+
+	// Attempt to create duplicate child_of link with same (from_id, to_id).
+	link2 := &types.Link{
+		LinkType: types.LinkTypeChildOf,
+		FromID:   crumb1.CrumbID,
+		ToID:     crumb2.CrumbID,
+	}
+	_, err = linksTbl.Set("", link2)
+	assert.Error(t, err, "Duplicate child_of link should return an error")
+	assert.ErrorIs(t, err, types.ErrDuplicateName)
+
+	// Verify only one child_of link exists.
+	filter := types.Filter{
+		"link_type": types.LinkTypeChildOf,
+		"from_id":   crumb1.CrumbID,
+		"to_id":     crumb2.CrumbID,
+	}
+	results, err := linksTbl.Fetch(filter)
+	require.NoError(t, err)
+	assert.Len(t, results, 1, "Only one child_of link should exist")
+}
+
+// TestLinkManagement_UniquenessConstraintForBranchesFrom validates that a trail
+// can have at most one branches_from link due to the uniqueness constraint
+// (prd007-links-interface R5.1, R6.3).
+func TestLinkManagement_UniquenessConstraintForBranchesFrom(t *testing.T) {
+	backend, _ := newAttachedBackend(t)
+	defer backend.Detach()
+
+	linksTbl, crumbsTbl, trailsTbl := getTestTables(t, backend)
+
+	trail := createTestTrail(t, trailsTbl)
+	branchPoint := createTestCrumb(t, crumbsTbl)
+
+	// Create first branches_from link.
+	link1 := &types.Link{
+		LinkType: types.LinkTypeBranchesFrom,
+		FromID:   trail.TrailID,
+		ToID:     branchPoint.CrumbID,
+	}
+	id1, err := linksTbl.Set("", link1)
+	require.NoError(t, err)
+	assert.NotEmpty(t, id1)
+
+	// Attempt to create duplicate branches_from link for the same trail and branch point.
+	link2 := &types.Link{
+		LinkType: types.LinkTypeBranchesFrom,
+		FromID:   trail.TrailID,
+		ToID:     branchPoint.CrumbID,
+	}
+	_, err = linksTbl.Set("", link2)
+	assert.Error(t, err, "Duplicate branches_from link should return an error")
+	assert.ErrorIs(t, err, types.ErrDuplicateName)
+}
+
+// TestLinkManagement_UniquenessConstraintForScopedTo validates that a stash
+// can have at most one scoped_to link due to the uniqueness constraint
+// (prd007-links-interface R5.1, R6.4).
+func TestLinkManagement_UniquenessConstraintForScopedTo(t *testing.T) {
+	backend, _ := newAttachedBackend(t)
+	defer backend.Detach()
+
+	linksTbl, _, trailsTbl := getTestTables(t, backend)
+
+	trail := createTestTrail(t, trailsTbl)
+	stash := createTestStash(t, backend)
+
+	// Create first scoped_to link.
+	link1 := &types.Link{
+		LinkType: types.LinkTypeScopedTo,
+		FromID:   stash.StashID,
+		ToID:     trail.TrailID,
+	}
+	id1, err := linksTbl.Set("", link1)
+	require.NoError(t, err)
+	assert.NotEmpty(t, id1)
+
+	// Attempt to create duplicate scoped_to link for the same stash and trail.
+	link2 := &types.Link{
+		LinkType: types.LinkTypeScopedTo,
+		FromID:   stash.StashID,
+		ToID:     trail.TrailID,
+	}
+	_, err = linksTbl.Set("", link2)
+	assert.Error(t, err, "Duplicate scoped_to link should return an error")
+	assert.ErrorIs(t, err, types.ErrDuplicateName)
+}
+
 // --- Comprehensive filter AND semantics tests ---
 
 // TestLinkManagement_FetchMultipleLinksWithLinkTypeFilter validates that filtering
