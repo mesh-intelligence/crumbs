@@ -721,15 +721,9 @@ func TestStashOperations_DeleteWithEmptyIDReturnsError(t *testing.T) {
 	assert.ErrorIs(t, err, types.ErrInvalidID)
 }
 
-// --- S14, S15: History tracking (requires FetchStashHistory method) ---
+// --- S14, S15: History tracking ---
 
-// NOTE: The FetchStashHistory method is not yet implemented in the stashes table.
-// According to prd008-stash-interface R7.6, the SQLite backend should expose this method.
-// These tests will be skipped until the method is implemented.
-
-func TestStashOperations_HistoryTracking(t *testing.T) {
-	t.Skip("FetchStashHistory method not yet implemented in stashes table")
-
+func TestStashOperations_HistoryTracksAllMutations(t *testing.T) {
 	backend, _ := newAttachedBackend(t)
 	defer backend.Detach()
 
@@ -746,7 +740,9 @@ func TestStashOperations_HistoryTracking(t *testing.T) {
 	require.NoError(t, err)
 	stash = entity.(*types.Stash)
 
-	stash.Increment(5)
+	stash.LastOperation = types.StashOpIncrement
+	_, err = stash.Increment(5)
+	require.NoError(t, err)
 	_, err = stashesTbl.Set(id, stash)
 	require.NoError(t, err)
 
@@ -754,21 +750,128 @@ func TestStashOperations_HistoryTracking(t *testing.T) {
 	require.NoError(t, err)
 	stash = entity.(*types.Stash)
 
-	stash.Increment(3)
+	stash.LastOperation = types.StashOpIncrement
+	_, err = stash.Increment(3)
+	require.NoError(t, err)
 	_, err = stashesTbl.Set(id, stash)
 	require.NoError(t, err)
 
-	// Query history (requires FetchStashHistory method).
-	// stashesTable := stashesTbl.(*sqlite.StashesTable)
-	// history, err := stashesTable.FetchStashHistory(id)
-	// require.NoError(t, err)
-	// assert.Len(t, history, 3)
-	// assert.Equal(t, types.StashOpCreate, history[0].Operation)
-	// assert.Equal(t, types.StashOpIncrement, history[1].Operation)
-	// assert.Equal(t, types.StashOpIncrement, history[2].Operation)
-	// assert.Equal(t, int64(1), history[0].Version)
-	// assert.Equal(t, int64(2), history[1].Version)
-	// assert.Equal(t, int64(3), history[2].Version)
+	// Query history via FetchStashHistory.
+	// Type assert to access FetchStashHistory method.
+	stashesTable, ok := stashesTbl.(interface {
+		FetchStashHistory(string) ([]types.StashHistoryEntry, error)
+	})
+	require.True(t, ok, "stashes table does not implement FetchStashHistory")
+
+	history, err := stashesTable.FetchStashHistory(id)
+	require.NoError(t, err)
+	assert.Len(t, history, 3)
+
+	// Verify operations.
+	assert.Equal(t, types.StashOpCreate, history[0].Operation)
+	assert.Equal(t, types.StashOpIncrement, history[1].Operation)
+	assert.Equal(t, types.StashOpIncrement, history[2].Operation)
+
+	// Verify versions.
+	assert.Equal(t, int64(1), history[0].Version)
+	assert.Equal(t, int64(2), history[1].Version)
+	assert.Equal(t, int64(3), history[2].Version)
+
+	// Verify all entries have HistoryID, StashID, CreatedAt.
+	for i, entry := range history {
+		assert.NotEmpty(t, entry.HistoryID, "history entry %d missing HistoryID", i)
+		assert.Equal(t, id, entry.StashID, "history entry %d has wrong StashID", i)
+		assert.False(t, entry.CreatedAt.IsZero(), "history entry %d has zero CreatedAt", i)
+	}
+
+	// Verify value snapshots.
+	val0 := history[0].Value.(map[string]any)
+	assert.Equal(t, float64(0), val0["value"])
+
+	val1 := history[1].Value.(map[string]any)
+	assert.Equal(t, float64(5), val1["value"])
+
+	val2 := history[2].Value.(map[string]any)
+	assert.Equal(t, float64(8), val2["value"])
+}
+
+func TestStashOperations_HistoryOrderedByVersionAscending(t *testing.T) {
+	backend, _ := newAttachedBackend(t)
+	defer backend.Detach()
+
+	stashesTbl, err := backend.GetTable(types.TableStashes)
+	require.NoError(t, err)
+
+	// Create context stash.
+	stash := &types.Stash{Name: "config", StashType: types.StashTypeContext, Value: map[string]any{"key": "v0"}}
+	id, err := stashesTbl.Set("", stash)
+	require.NoError(t, err)
+
+	// Perform multiple mutations.
+	entity, err := stashesTbl.Get(id)
+	require.NoError(t, err)
+	stash = entity.(*types.Stash)
+
+	stash.LastOperation = types.StashOpSet
+	err = stash.SetValue(map[string]any{"key": "v1"})
+	require.NoError(t, err)
+	_, err = stashesTbl.Set(id, stash)
+	require.NoError(t, err)
+
+	entity, err = stashesTbl.Get(id)
+	require.NoError(t, err)
+	stash = entity.(*types.Stash)
+
+	stash.LastOperation = types.StashOpSet
+	err = stash.SetValue(map[string]any{"key": "v2"})
+	require.NoError(t, err)
+	_, err = stashesTbl.Set(id, stash)
+	require.NoError(t, err)
+
+	entity, err = stashesTbl.Get(id)
+	require.NoError(t, err)
+	stash = entity.(*types.Stash)
+
+	stash.LastOperation = types.StashOpSet
+	err = stash.SetValue(map[string]any{"key": "v3"})
+	require.NoError(t, err)
+	_, err = stashesTbl.Set(id, stash)
+	require.NoError(t, err)
+
+	// Query history.
+	stashesTable, ok := stashesTbl.(interface {
+		FetchStashHistory(string) ([]types.StashHistoryEntry, error)
+	})
+	require.True(t, ok, "stashes table does not implement FetchStashHistory")
+
+	history, err := stashesTable.FetchStashHistory(id)
+	require.NoError(t, err)
+	assert.Len(t, history, 4)
+
+	// Verify ordering by version ascending.
+	assert.Equal(t, int64(1), history[0].Version)
+	assert.Equal(t, int64(2), history[1].Version)
+	assert.Equal(t, int64(3), history[2].Version)
+	assert.Equal(t, int64(4), history[3].Version)
+
+	// Verify operations.
+	assert.Equal(t, types.StashOpCreate, history[0].Operation)
+	assert.Equal(t, types.StashOpSet, history[1].Operation)
+	assert.Equal(t, types.StashOpSet, history[2].Operation)
+	assert.Equal(t, types.StashOpSet, history[3].Operation)
+
+	// Verify value snapshots progressed.
+	val0 := history[0].Value.(map[string]any)
+	assert.Equal(t, "v0", val0["key"])
+
+	val1 := history[1].Value.(map[string]any)
+	assert.Equal(t, "v1", val1["key"])
+
+	val2 := history[2].Value.(map[string]any)
+	assert.Equal(t, "v2", val2["key"])
+
+	val3 := history[3].Value.(map[string]any)
+	assert.Equal(t, "v3", val3["key"])
 }
 
 // --- Full workflow test ---
