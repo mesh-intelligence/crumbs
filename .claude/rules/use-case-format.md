@@ -1,3 +1,5 @@
+<\!-- Copyright (c) 2026 Petar Djukic. All rights reserved. SPDX-License-Identifier: MIT -->
+
 # Use Case Format
 
 Use cases are YAML files stored at `docs/specs/use-cases/rel[NN].[N]-uc[NNN]-[short-name].yaml`.

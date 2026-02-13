@@ -1,6 +1,27 @@
+<\!-- Copyright (c) 2026 Petar Djukic. All rights reserved. SPDX-License-Identifier: MIT -->
+
 # Go Code Style
 
 Rules for writing maintainable Go code in this project.
+
+## Copyright Header
+
+Every Go file must start with the SPDX copyright header before the package declaration:
+
+```go
+// Copyright (c) 2026 Petar Djukic. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+package mypackage
+```
+
+This applies to hand-written files (magefiles/) and generated files (cmd/, pkg/, internal/, tests/). The header must appear on lines 1-2, followed by a blank line, then the package clause.
+
+For markdown files in `.claude/`, use an HTML comment on the first line:
+
+```markdown
+<!-- Copyright (c) 2026 Petar Djukic. All rights reserved. SPDX-License-Identifier: MIT -->
+```
 
 ## Never Duplicate Code
 

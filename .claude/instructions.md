@@ -1,3 +1,5 @@
+<\!-- Copyright (c) 2026 Petar Djukic. All rights reserved. SPDX-License-Identifier: MIT -->
+
 # Agent Instructions
 
 This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get started.

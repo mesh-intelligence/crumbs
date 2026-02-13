@@ -1,3 +1,5 @@
+<\!-- Copyright (c) 2026 Petar Djukic. All rights reserved. SPDX-License-Identifier: MIT -->
+
 # Code ↔ PRD and Architecture Linking
 
 When implementing code (e.g. via the **do-work** command), code must correspond to existing PRDs and architecture documents. Implementations must be traceable to those docs, and commits and comments must record the link.

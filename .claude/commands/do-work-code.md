@@ -1,3 +1,5 @@
+<\!-- Copyright (c) 2026 Petar Djukic. All rights reserved. SPDX-License-Identifier: MIT -->
+
 # Command: Do Work (Code)
 
 Use this command when the work is **code** (implementation): packages, internal logic, cmd, workers, tests. Follow the **code-prd-architecture-linking** rule (`.claude/rules/code-prd-architecture-linking.md`): code must correspond to existing PRDs and architecture; commits must mention PRDs; add PRD references in code where appropriate (e.g. top of file).

@@ -1,3 +1,5 @@
+<\!-- Copyright (c) 2026 Petar Djukic. All rights reserved. SPDX-License-Identifier: MIT -->
+
 # Cupboard Issue Tracking and Session Completion Workflow
 
 ## Working Offline

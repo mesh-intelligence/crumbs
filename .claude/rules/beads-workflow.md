@@ -1,3 +1,5 @@
+<\!-- Copyright (c) 2026 Petar Djukic. All rights reserved. SPDX-License-Identifier: MIT -->
+
 # Beads (bd) Issue Tracking and Session Completion Workflow
 
 **MIGRATION NOTE**: This project is migrating to the cupboard CLI for issue tracking. See `.claude/rules/cupboard-workflow.md` for the cupboard workflow. The beads (bd) commands documented below will be replaced by cupboard commands (e.g., `cupboard ready`, `cupboard show`, `cupboard close`). For new work, refer to cupboard-workflow.md.

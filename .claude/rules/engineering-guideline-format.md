@@ -1,3 +1,5 @@
+<\!-- Copyright (c) 2026 Petar Djukic. All rights reserved. SPDX-License-Identifier: MIT -->
+
 # Engineering Guideline Format
 
 Engineering guidelines document conventions, practices, and patterns that sit above the code and architecture. They are not PRDs (no numbered requirements) and not architecture docs (no component descriptions). They describe how the team works with the system.

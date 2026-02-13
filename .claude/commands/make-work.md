@@ -1,3 +1,5 @@
+<\!-- Copyright (c) 2026 Petar Djukic. All rights reserved. SPDX-License-Identifier: MIT -->
+
 # Command: Make Work
 
 Read VISION.md, ARCHITECTURE.md, road-map.yaml, docs/specs/product-requirements/README.md, and docs/specs/use-cases/README.md if they exist.

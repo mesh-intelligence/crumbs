@@ -1,3 +1,5 @@
+<\!-- Copyright (c) 2026 Petar Djukic. All rights reserved. SPDX-License-Identifier: MIT -->
+
 # Command: Do Work
 
 Pick **one** of the two workflows below depending on the type of work. Use **do-work-docs** for documentation tasks, **do-work-code** for implementation tasks.

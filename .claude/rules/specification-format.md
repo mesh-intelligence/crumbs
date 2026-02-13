@@ -1,3 +1,5 @@
+<\!-- Copyright (c) 2026 Petar Djukic. All rights reserved. SPDX-License-Identifier: MIT -->
+
 # Specification Document Format
 
 A specifications document is a human-readable summary that ties together the project's PRDs, use cases, test suites, and roadmap into one navigable page. It does not duplicate content from those files; it summarizes each artifact in a sentence or two and shows how they relate. A reader who finishes SPECIFICATIONS.md should understand what we are building, in what order, and where the details live.

@@ -1,3 +1,5 @@
+<\!-- Copyright (c) 2026 Petar Djukic. All rights reserved. SPDX-License-Identifier: MIT -->
+
 # Claude Code Configuration
 
 This directory contains custom instructions and rules for the Claude Code agent.
