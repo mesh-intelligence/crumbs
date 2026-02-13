@@ -235,6 +235,52 @@ func (st *stashesTable) Delete(id string) error {
 	return nil
 }
 
+// FetchStashHistory retrieves all history entries for a stash, ordered by
+// version ASC (prd008-stash-interface R7.6).
+func (st *stashesTable) FetchStashHistory(stashID string) ([]types.StashHistoryEntry, error) {
+	if stashID == "" {
+		return nil, types.ErrInvalidID
+	}
+	if st.backend.db == nil {
+		return nil, types.ErrCupboardDetached
+	}
+
+	rows, err := st.backend.db.Query(
+		"SELECT history_id, stash_id, version, value, operation, changed_by, created_at FROM stash_history WHERE stash_id = ? ORDER BY version ASC",
+		stashID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("querying stash history: %w", err)
+	}
+	defer rows.Close()
+
+	var entries []types.StashHistoryEntry
+	for rows.Next() {
+		var e types.StashHistoryEntry
+		var valueStr, createdAt string
+		if err := rows.Scan(&e.HistoryID, &e.StashID, &e.Version, &valueStr, &e.Operation, &e.ChangedBy, &createdAt); err != nil {
+			return nil, fmt.Errorf("scanning history entry: %w", err)
+		}
+		if err := json.Unmarshal([]byte(valueStr), &e.Value); err != nil {
+			return nil, fmt.Errorf("parsing history value: %w", err)
+		}
+		e.CreatedAt, err = time.Parse(time.RFC3339, createdAt)
+		if err != nil {
+			return nil, fmt.Errorf("parsing history created_at: %w", err)
+		}
+		entries = append(entries, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating history entries: %w", err)
+	}
+
+	// Return empty slice, not nil (consistent with other Fetch methods).
+	if entries == nil {
+		entries = []types.StashHistoryEntry{}
+	}
+	return entries, nil
+}
+
 // Fetch queries stashes matching the filter, ordered by created_at ASC
 // (prd008-stash-interface R9, R10).
 func (st *stashesTable) Fetch(filter types.Filter) ([]any, error) {
