@@ -14,6 +14,7 @@ const (
 	TableCrumbs     = "crumbs"
 	TableTrails     = "trails"
 	TableProperties = "properties"
+	TableCategories = "categories"
 	TableMetadata   = "metadata"
 	TableLinks      = "links"
 	TableStashes    = "stashes"

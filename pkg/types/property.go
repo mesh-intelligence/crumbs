@@ -68,6 +68,16 @@ func (p *Property) DefineCategory(cupboard Cupboard, name string, ordinal int) (
 		Name:       name,
 		Ordinal:    ordinal,
 	}
+	// Persist via categories table.
+	table, err := cupboard.GetTable(TableCategories)
+	if err != nil {
+		return nil, err
+	}
+	id, err := table.Set("", cat)
+	if err != nil {
+		return nil, err
+	}
+	cat.CategoryID = id
 	return cat, nil
 }
 
@@ -79,9 +89,21 @@ func (p *Property) GetCategories(cupboard Cupboard) ([]*Category, error) {
 	if p.ValueType != ValueTypeCategorical {
 		return nil, ErrInvalidValueType
 	}
-	// Category retrieval requires backend access. Return an empty slice here;
-	// full implementation lives in the backend (internal/sqlite).
-	return []*Category{}, nil
+	// Retrieve categories from backend storage.
+	table, err := cupboard.GetTable(TableCategories)
+	if err != nil {
+		return nil, err
+	}
+	filter := Filter{"property_id": p.PropertyID}
+	entities, err := table.Fetch(filter)
+	if err != nil {
+		return nil, err
+	}
+	categories := make([]*Category, len(entities))
+	for i, entity := range entities {
+		categories[i] = entity.(*Category)
+	}
+	return categories, nil
 }
 
 // Category represents an ordered value within a categorical property

@@ -176,6 +176,7 @@ func buildTables(b *Backend) map[string]types.Table {
 		types.TableCrumbs:     &crumbsTable{backend: b},
 		types.TableTrails:     &trailsTable{backend: b},
 		types.TableProperties: &propertiesTable{backend: b},
+		types.TableCategories: &categoriesTable{backend: b},
 		types.TableMetadata:   &metadataTable{backend: b},
 		types.TableLinks:      &linksTable{backend: b},
 		types.TableStashes:    &stashesTable{backend: b},
