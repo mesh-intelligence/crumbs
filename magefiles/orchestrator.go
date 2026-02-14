@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	orchestrator "github.com/mesh-intelligence/mage-claude-orchestrator"
+	"github.com/mesh-intelligence/mage-claude-orchestrator/pkg/orchestrator"
 	"github.com/magefile/mage/mg"
 )
 
