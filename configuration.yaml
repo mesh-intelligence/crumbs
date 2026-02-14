@@ -14,6 +14,9 @@ seed_files:
 measure_prompt: magefiles/prompts/measure.tmpl
 stitch_prompt: magefiles/prompts/stitch.tmpl
 podman_image: "crumbs:latest"
+podman_args:
+  - "-v"
+  - "/Users/petardjukic/WORKSPACE/crumbs/.secrets/claude.json:/home/crumbs/.claude.json:ro"
 max_issues: 10
 cycles: 1
 spec_globs:
