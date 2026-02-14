@@ -7,6 +7,8 @@ preconditions:
   - On main branch with clean working tree
   - bd CLI available on PATH
   - mage available (go/bin/mage or PATH)
+  - podman available on PATH with configured image
+  - configuration.yaml present at repository root
 
 test_cases:
 
@@ -106,11 +108,11 @@ test_cases:
         beads_dir_exists: true
         beads_issues_empty: true
 
-  - name: reset ordering (generator before beads)
+  - name: reset calls cobbler, generator, beads in order
     description: >
-      generator:reset commits a clean-state commit. beads:reset commits
-      empty JSONL. Verify the git log shows the generator commit before
-      the beads commit.
+      FullReset calls CobblerReset, GeneratorReset, and BeadsReset
+      sequentially. Verify the git log shows the generator commit
+      before the beads commit.
     inputs:
       setup:
         - mage generator:start
@@ -159,12 +161,11 @@ test_cases:
 
   # ── 4. Build and test targets ──
 
-  - name: build succeeds without container runtime
+  - name: build compiles binary
     inputs:
       command: mage build
     expected:
       exit_code: 0
-      stderr_contains: "skipping image build"
       state:
         binary_exists: bin/cupboard
 
@@ -213,6 +214,9 @@ test_cases:
         binary_exists: false
 
   - name: stats outputs JSON with expected fields
+    description: >
+      The library StatsRecord uses spec_words as a map keyed by the
+      labels defined in configuration.yaml spec_globs.
     inputs:
       command: mage stats
     expected:
@@ -221,37 +225,25 @@ test_cases:
         go_loc: integer
         go_loc_prod: integer
         go_loc_test: integer
-        spec_wc_prd: integer
-        spec_wc_test: integer
-        spec_wc_uc: integer
+        spec_words:
+          prd: integer
+          use_case: integer
+          test_suite: integer
 
-  # ── 5. Cobbler integration (requires Claude CLI) ──
-
-  - name: cobbler:measure respects --no-container
-    description: >
-      Ignore the exit code; Claude may fail if no API key is configured.
-      The test only checks that the --no-container flag routes to the
-      direct execution path by inspecting the stderr message printed
-      before Claude is invoked.
-    inputs:
-      setup:
-        - mage beads:init
-      command: mage cobbler:measure --no-container --max-issues 1 --silence-agent=false
-    expected:
-      exit_code: ignored
-      stderr_contains: "Running Claude (direct)"
-      stderr_not_contains: "Running Claude (podman)"
+  # ── 5. Cobbler integration (requires Claude + podman) ──
 
   - name: cobbler:measure creates issues and reset clears them
     description: >
-      End-to-end: measure proposes one issue, verify it exists in beads,
-      then reset beads and verify it is gone. Confirms the full
-      measure-to-reset lifecycle.
+      End-to-end: measure proposes issues (max_issues from config),
+      verify they exist in beads, then reset beads and verify they
+      are gone. Confirms the full measure-to-reset lifecycle.
+      Set max_issues=1 in configuration.yaml before running.
     inputs:
       setup:
         - mage beads:init
+        - "Set max_issues: 1 in configuration.yaml"
       commands:
-        - mage cobbler:measure --no-container --max-issues 1
+        - mage cobbler:measure
         - bd list --json
       command: mage beads:reset
     expected:
@@ -263,31 +255,18 @@ test_cases:
         state:
           beads_issues_empty: true
 
-  - name: cobbler:measure creates 3 issues and cobbler:stitch resolves them
+  - name: test:cobbler runs the full cobbler regression suite
     description: >
-      End-to-end generation cycle: measure proposes 3 issues, stitch
-      picks them up one at a time (creating worktrees, invoking Claude,
-      merging back), and closes each issue. After stitch completes,
-      all 3 issues should have status closed and no task branches or
-      worktrees should remain.
+      The mage test:cobbler target creates an orchestrator with
+      config overrides (max_issues=3, silence=true), measures 3
+      issues, stitches them, and verifies all are closed with no
+      stale branches. This replaces the manual cobbler integration
+      test.
     inputs:
-      setup:
-        - mage beads:init
-      commands:
-        - mage cobbler:measure --no-container --max-issues 3
-        - bd list --json
-        - mage cobbler:stitch --no-container
-        - bd list --json --status closed
+      command: mage test:cobbler
     expected:
-      after_measure:
-        bd_list_json_length: 3
-      after_stitch:
-        exit_code: 0
-        bd_list_closed_length: 3
-        state:
-          task_branches: none
-          worktrees_clean: true
-      stdout_contains: "Completed 3 task(s)"
+      exit_code: 0
+      stdout_contains: "Cobbler regression test PASSED"
 
   # ── 6. Generator lifecycle (no Claude) ──
 
@@ -327,94 +306,47 @@ test_cases:
       exit_code: 0
       stdout_contains: "tags: start, finished, merged"
 
-  # ── 7. Generator run (requires Claude, use small limits) ──
+  # ── 7. Generator run (requires Claude + podman) ──
 
-  - name: "run 1 cycle, 1 issue: creates and resolves exactly 1 issue"
+  - name: test:generator runs the full generator lifecycle suite
     description: >
-      Start a generation, run 1 cycle with --max-issues 1. Measure
-      should create 1 issue, stitch should resolve it. Stop and
-      verify 1 closed issue, no stale branches, correct tags.
+      The mage test:generator target runs three progressive tests:
+      (1) start/stop with no Claude, (2) start/run(1 cycle, 1 issue)/stop,
+      and (3) stitch respects max-issues limit. Config overrides are
+      applied in Go code (silence=true, max_issues=1-2, cycles=1).
+      This replaces the manual generator run tests.
     inputs:
-      setup:
-        - mage reset
-      commands:
-        - mage generator:start
-        - mage generator:run --cycles 1 --max-issues 1 --no-container
-        - bd list --json --status closed
-        - mage generator:stop
-    expected:
-      after_run:
-        bd_list_closed_length: 1
-      after_stop:
-        exit_code: 0
-        current_branch: main
-        generation_branches: none
-        task_branches: none
-
-  - name: "run 2 cycles, 1 issue each: creates issues across cycles"
-    description: >
-      Run 2 measure+stitch cycles with --max-issues 1 each. After
-      both cycles, at least 2 issues should be closed. Verifies
-      the cycle loop works correctly.
-    inputs:
-      setup:
-        - mage reset
-      commands:
-        - mage generator:start
-        - mage generator:run --cycles 2 --max-issues 1 --no-container
-        - bd list --json --status closed
-    expected:
-      bd_list_closed_length: ">= 2"
-
-  - name: "stitch respects --max-issues: processes at most N tasks"
-    description: >
-      Create 3 issues via measure, then run stitch with --max-issues 1.
-      Stitch should process only 1 task, leaving 2 ready. Run stitch
-      again with --max-issues 1 and verify another task is processed.
-    inputs:
-      setup:
-        - mage reset
-        - mage generator:start
-        - mage cobbler:measure --no-container --max-issues 3
-      commands:
-        - mage cobbler:stitch --no-container --max-issues 1
-        - bd list --json --status closed
-        - bd list --json --status ready
-    expected:
-      bd_list_closed_length: 1
-      bd_list_ready_length: 2
-      task_branches: none
-
-  # ── 8. Generator resume (requires Claude) ──
-
-  - name: "resume switches to generation branch and continues"
-    description: >
-      Start a generation, create issues via measure, switch to main,
-      then resume. Resume should switch back to the generation branch,
-      clean up, and run a stitch cycle to resolve the issues.
-    inputs:
-      setup:
-        - mage reset
-        - mage generator:start
-        - mage cobbler:measure --no-container --max-issues 1
-        - mage generator:switch main
-      command: mage generator:resume --cycles 1 --max-issues 0 --no-container
+      command: mage test:generator
     expected:
       exit_code: 0
-      current_branch: "generation-*"
-      bd_list_closed_length: ">= 1"
-      task_branches: none
+      stdout_contains: "Generator lifecycle tests PASSED"
+
+  # ── 8. Generator resume (requires Claude + podman) ──
+
+  - name: test:resume runs the resume recovery test
+    description: >
+      The mage test:resume target creates a generation, measures 1 issue,
+      switches to main (simulating an interruption), then calls resume.
+      Resume should switch back, clean up, and stitch the pending issue.
+      Config overrides are applied in Go code.
+    inputs:
+      command: mage test:resume
+    expected:
+      exit_code: 0
+      stdout_contains: "Generator resume test PASSED"
 
   - name: "resume auto-detects generation branch"
     description: >
       When only one generation branch exists and the user is on main,
-      resume should auto-detect it without requiring a positional arg.
+      resume should auto-detect it without requiring generation_branch
+      in configuration.yaml. Set max_issues=1 and cycles=1 in
+      configuration.yaml before running.
     inputs:
       setup:
         - mage reset
         - mage generator:start
-        - mage generator:switch main
-      command: mage generator:resume --cycles 1 --max-issues 1 --no-container
+        - "Set max_issues: 1 and cycles: 1 in configuration.yaml"
+        - mage generator:switch
     expected:
       exit_code: 0
       current_branch: "generation-*"

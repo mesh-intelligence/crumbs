@@ -6,11 +6,11 @@ A storage system for work items with built-in support for exploratory work sessi
 
 This repository does not contain released application code. The deliverables are **requirements** (PRDs, use cases, architecture docs) and **build tooling** (mage targets). Application code is generated automatically by running `mage generator:start` followed by `mage generator:run`, which invokes Claude to produce Go source code from the specifications.
 
-Each completed generation is tagged and merged into main. To see past generations and their tags, run `mage generator:list --all`. To check out the code from a specific generation, use `git checkout <tag>` with one of the generation tags (e.g. `generation-2026-02-10-15-04-30-merged`).
+Each completed generation is tagged and merged into main. To see past generations and their tags, run `mage generator:list`. To check out the code from a specific generation, use `git checkout <tag>` with one of the generation tags (e.g. `generation-2026-02-10-15-04-30-merged`).
 
 ## Prerequisites
 
-We use [Mage](https://magefile.org) for build automation and [Beads](https://github.com/petardjukic/beads) (`bd` CLI) for local issue tracking. Install both before using the build system.
+We use [Mage](https://magefile.org) for build automation, [Beads](https://github.com/petardjukic/beads) (`bd` CLI) for local issue tracking, and [Podman](https://podman.io) for running Claude in containers. Install all three before using the build system.
 
 ```bash
 go install github.com/magefile/mage@latest
@@ -18,14 +18,14 @@ go install github.com/magefile/mage@latest
 
 ## Mage Targets
 
-Targets are organized into namespaces. Use `mage -h <target>` to see help for a specific target.
+Targets are organized into namespaces. Use `mage -h <target>` to see help for a specific target. All settings are configured in `configuration.yaml` at the repository root.
 
 ```bash
 # Top-level
 mage init                # Initialize project state (beads)
 mage reset               # Full reset: cobbler, generator, beads
-mage build               # Compile Go binary + build container image
-mage clean               # Remove build artifacts + container image
+mage build               # Compile Go binary
+mage clean               # Remove build artifacts
 mage install             # Build and copy binary to GOPATH/bin
 mage stats               # Print Go LOC and documentation word counts
 
@@ -54,37 +54,45 @@ mage test:all            # Run all tests
 mage test:cobbler        # Cobbler regression suite (measure 3, stitch, verify)
 mage test:generator      # Generator lifecycle tests (start/stop, run, max-issues)
 mage test:resume         # Generator resume recovery test
-mage test:docker         # Smoke test: build image, run Claude with "Hello World"
 mage lint                # Run golangci-lint
 ```
+
+## Configuration
+
+All orchestration settings live in `configuration.yaml` at the repository root. The file is read at mage startup and passed to the [mage-claude-orchestrator](https://github.com/mesh-intelligence/mage-claude-orchestrator) library. There are no CLI flags; edit the configuration file to change behavior.
+
+| Setting | Default | Description |
+| ------- | ------- | ----------- |
+| `module_path` | — | Go module path |
+| `binary_name` | cupboard | Name of compiled binary |
+| `main_package` | — | Path to main.go entry point |
+| `go_source_dirs` | — | Directories containing Go source files |
+| `podman_image` | — | Container image for Claude execution |
+| `max_issues` | 10 | Issues proposed per measure cycle |
+| `cycles` | 1 | Number of measure+stitch cycles per run |
+| `measure_prompt` | — | Path to custom measure prompt template |
+| `stitch_prompt` | — | Path to custom stitch prompt template |
+| `silence_agent` | true | Suppress Claude output |
+
+See `configuration.yaml` for the full list of settings.
 
 ## Generating Code
 
 A generation is a cycle where Claude reads the project specifications and produces Go implementation code. The workflow is:
 
 1. **Start**: `mage generator:start` tags the current main state, creates a generation branch, and resets Go sources to a minimal scaffold.
-2. **Run**: `mage generator:run --cycles N` runs N rounds of measure (propose issues) and stitch (implement issues). Each cycle invokes Claude to analyze project state and produce code.
+2. **Run**: `mage generator:run` runs measure (propose issues) and stitch (implement issues) cycles. Each cycle invokes Claude inside a podman container to analyze project state and produce code.
 3. **Stop**: `mage generator:stop` tags the finished generation, merges it into main, and cleans up the generation branch.
 
 Start and reset operations squash their intermediate commits into a single commit so main and generation branches stay clean.
 
 If a run is interrupted (crash, context exhaustion, manual stop), use `mage generator:resume` to recover. Resume switches to the generation branch, cleans up stale worktrees and task branches, and continues with measure/stitch cycles. You can resume from any branch; uncommitted work on the current branch is committed before switching.
 
-Flags for `generator:run` and `generator:resume`:
-
-| Flag | Default | Description |
-| ---- | ------- | ----------- |
-| `--cycles` | 1 | Number of measure+stitch cycles |
-| `--max-issues` | 10 | Issues proposed per measure cycle |
-| `--silence-agent` | true | Suppress Claude output |
-| `--no-container` | false | Skip container runtime, use local claude binary |
-| `--token-file` | claude.json | Token file name in .secrets/ |
-
 ### Inspecting Past Generations
 
 ```bash
 # List all generations (active, merged, and abandoned)
-mage generator:list --all
+mage generator:list
 
 # Check out a specific generation's code
 git checkout generation-2026-02-10-15-04-30-merged
@@ -99,15 +107,13 @@ Generation tags follow the naming convention `generation-YYYY-MM-DD-HH-MM-SS` wi
 | `-merged` | State of main after the generation was merged |
 | `-abandoned` | Generation that was never merged |
 
-## Docker
+## Container Execution
 
-The Dockerfile lives in `magefiles/` and is built automatically by `mage build` when a container runtime (podman or docker) is available.
-
-The image includes Go, Claude Code, Mage, Beads (`bd`), and golangci-lint. Mage auto-detects the runtime in this order: podman, docker, direct claude binary. Use `--no-container` on cobbler targets to bypass container detection and run the local `claude` binary directly.
+Claude runs inside a podman container for isolation. Set `podman_image` in `configuration.yaml` to the image containing Go, Claude Code, Mage, Beads, and golangci-lint.
 
 ### Authentication
 
-Place your Claude OAuth token files in `.secrets/` (already gitignored). The default file is `claude.json`. Use the `--token-file` flag to select a different profile.
+Place your Claude OAuth token files in `.secrets/` (already gitignored). The default file is `claude.json`. Set `token_file` in `configuration.yaml` to select a different profile.
 
 Token files use the `claudeAiOauth` format that Claude Code writes during `claude setup-token`.
 
@@ -133,7 +139,8 @@ crumbs/
 ├── pkg/types/           # Public API: interfaces and types (generated)
 ├── internal/sqlite/     # SQLite backend implementation (generated)
 ├── docs/                # Documentation (VISION, ARCHITECTURE, PRDs)
-├── magefiles/           # Mage build targets
+├── magefiles/           # Mage build targets (thin wrappers over library)
+├── configuration.yaml   # Orchestrator settings
 ├── .beads/              # Beads issue tracker (managed by bd CLI)
 ├── .cobbler/            # Cobbler scratch directory (gitignored)
 ├── .secrets/            # Claude credentials (gitignored)

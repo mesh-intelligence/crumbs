@@ -2,21 +2,16 @@
 
 Build tooling for the crumbs project, implemented as [Mage](https://magefile.org) targets. Mage requires all target files to live in a single flat directory (no subdirectories for Go source), so we organize by concern: one file per subsystem.
 
+All orchestration logic (cobbler, generator, beads, stats, container execution) is provided by the shared [mage-claude-orchestrator](https://github.com/mesh-intelligence/mage-claude-orchestrator) library. The magefiles in this directory are thin wrappers that load `configuration.yaml` and delegate to the library.
+
 ## Files
 
 | File | Purpose |
 |------|---------|
+| orchestrator.go | Namespace types (`Cobbler`, `Generator`, `Beads`), config loading, one-liner target wrappers |
 | build.go | Top-level targets: `Build`, `Clean`, `Init`, `Reset`, `Install` |
-| generator.go | Generation lifecycle: `Start`, `Run`, `Resume`, `Stop`, `List`, `Switch`, `Reset` |
-| cobbler.go | Agent orchestrator: config, `runClaude`, `logf`, `beadsCommit`, cobbler reset |
-| measure.go | `cobbler:measure` target: proposes tasks by invoking Claude with project state |
-| stitch.go | `cobbler:stitch` target: executes tasks in worktrees, merges results |
-| beads.go | Beads lifecycle: `Init`, `Reset`, database helpers |
-| commands.go | Shell command wrappers: git, beads (`bd`), Go toolchain |
 | test.go | Test targets: `Cobbler`, `Generator`, `Resume`, `Unit`, `Integration`, `All` |
-| stats.go | `Stats` target: Go LOC and documentation word counts |
-| docker.go | Container image build and Claude container execution |
-| flags.go | Flag parsing helpers shared across targets |
+| stats.go | `Stats` target: delegates to library for Go LOC and documentation word counts |
 | lint.go | `Lint` target: runs golangci-lint |
 
 ## Directories
@@ -24,19 +19,20 @@ Build tooling for the crumbs project, implemented as [Mage](https://magefile.org
 | Directory | Contents |
 |-----------|----------|
 | prompts/ | Go templates (`measure.tmpl`, `stitch.tmpl`) rendered as Claude prompts |
-| bin/ | Mage binary cache (gitignored) |
+| seeds/ | Go templates for seed files created during generator start/reset |
 
 ## Other Files
 
 | File | Purpose |
 |------|---------|
-| Dockerfile.claude | Container image for running Claude with project tooling |
 | test-plan.yaml | Test plan for generator lifecycle and isolation tests |
 
 ## Architecture
 
 Mage targets are grouped into namespaces using Go struct types. The `Generator`, `Cobbler`, `Beads`, and `Test` structs each use `mg.Namespace` to create `generator:*`, `cobbler:*`, `beads:*`, and `test:*` targets. Top-level targets (`Build`, `Reset`, `Init`) live in build.go as package-level functions.
 
-All external commands (git, bd, go, claude) are wrapped in helper functions in commands.go. The `logf` function in cobbler.go provides timestamped logging with automatic generation name tagging.
+On startup, `orchestrator.go` loads `configuration.yaml` into a `baseCfg` variable. Each target creates a new `orchestrator.Orchestrator` from this config and calls the corresponding library method. There are no CLI flags; all settings come from the configuration file.
+
+Test targets in `test.go` create orchestrators with config overrides (e.g. `SilenceAgent`, `MaxIssues`, `Cycles`) to control test behavior. Verification helpers (git branch/tag checks, beads list queries) are defined inline using `exec.Command`.
 
 For the generation workflow, see [eng02-generation-workflow.md](../docs/engineering/eng02-generation-workflow.md).
