@@ -3,9 +3,7 @@
     "allow": [
       "Bash(bd show:*)",
       "Bash(export PATH=\"$HOME/go/bin:$PATH\")",
-      "Bash(bd init:*)",
-      "Bash(podman machine stop:*)",
-      "Bash(podman machine start:*)"
+      "Bash(bd init:*)"
     ]
   }
 }
