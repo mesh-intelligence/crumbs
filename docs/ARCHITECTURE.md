@@ -45,14 +45,21 @@ package "internal/sqlite" {
 
 Crumbs have a lifecycle driven by state transitions and trail operations. State is a core field on the Crumb struct, not a property (see prd003-crumbs-interface R1, R2).
 
+<!-- TODO: We should consider a to() method for crumbs and trails. It would gives a way to
+enforce rules about state transitions -->
 **Crumb states** (prd003-crumbs-interface R2): `draft` → `pending` → `ready` → `taken` → `pebble` or `dust`. Terminal states are `pebble` (completed successfully) and `dust` (failed or abandoned). Initial state on creation is `draft`. The Table interface tracks state but does not enforce transitions—agents or coordination layers define transition rules.
 
+<!-- TODO: You can add crumbs in both draft and active states, is there a difference? -->
+<!-- TODO: State methods for all states -->
 **Trail states**: `draft` → `pending` → `active` → `completed` or `abandoned`. A trail in `draft` state is being planned—the agent is considering what crumbs to include but has not committed to the exploration. A trail in `pending` state is defined but waiting for some precondition (e.g., a resource or a blocking crumb) before work can begin. The `active` state indicates the trail is open for work and crumbs can be added. The `Trail.Complete()` and `Trail.Abandon()` entity methods update the trail's state field. When persisted via `Table.Set`, the backend performs cascade operations: completing a trail removes `belongs_to` links (crumbs become permanent), abandoning a trail deletes its crumbs.
 
+<!-- TODO: Describe the stash states. draft (trail cannot become active unless its stashes are active, they wait for the stashes to become available, stashes can never go back to draft state from active state), active, archived (when trail completes)-->
 **Trail structure**: Trails group crumbs via `belongs_to` links. Crumbs can depend on other crumbs via `child_of` links, forming a DAG. Trails can branch from a crumb on another trail via `branches_from` links. A crumb belongs to at most one trail at a time.
 
 **Relationship semantics**: Each link type has distinct semantics that affect crumb and trail behavior.
 
+<!-- TODO: If a trail branches_from a crumb, it cannot transition to active state until the the crumb in the pebble state.-->
+<!-- TODO: The state of the crumb follows the lifecycle of a trail, the terminal states are pebble and dust, not permanent and delted -->
 | Link type | Direction | Semantics |
 |-----------|-----------|-----------|
 | child_of | crumb → crumb | The child crumb is blocked until the parent crumb reaches `pebble` state. This models dependencies within a trail or across trails. |
@@ -60,9 +67,7 @@ Crumbs have a lifecycle driven by state transitions and trail operations. State 
 | belongs_to | crumb → trail | The crumb is part of that trail and follows its lifecycle. When the trail completes, the crumb becomes permanent. When the trail is abandoned, the crumb is deleted. |
 | scoped_to | stash → trail | The stash is scoped to that trail and shares its lifecycle. |
 
-|  |
-|:--:|
-
+<!--TODO: update figure with latest state transition rules. -->
 ```plantuml
 @startuml graph-model
 !theme plain
@@ -136,8 +141,9 @@ endlegend
 @enduml
 ```
 
-|Figure 3 Graph model showing Link entity with four typed edges between entities |
+Figure 3. Graph model showing Link entity with four typed edges between entities
 
+<!-- FIXME: the belongs_to relationship or any other relationship is NEVER deleted. We want to have a permanent record of how the crumbs and trails evolved. -->
 **Trail ownership rule**: All crumbs must belong to a trail. A crumb without a `belongs_to` link is either permanent (was on a completed trail) or orphaned (should be cleaned up). When a trail is completed, the backend removes all `belongs_to` links for its crumbs—they no longer belong to any trail and become part of the permanent record. When a trail is abandoned, the backend deletes all crumbs that belong to it, along with their properties, metadata, and links.
 
 ### Coordination Pattern
