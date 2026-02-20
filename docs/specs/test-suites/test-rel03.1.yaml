@@ -1,18 +1,16 @@
-id: test-rel03.1-uc001-self-hosting-with-epics
-title: Self-Hosting with Epics via Trails
+id: test-rel03.1
+title: "Post-Trails Validation"
 release: "03.1"
-description: |
-  Validates trail-based epic management for self-hosting workflows. Tests the
-  complete lifecycle of using trails as epic containers: creating trails,
-  associating crumbs via belongs_to links, querying crumbs by trail, completing
-  trails (crumbs become permanent), and abandoning trails (crumbs deleted).
+description: >
+  Release test suite for post-trails validation.
+  Covers 1 use cases with 22 test cases total.
 traces:
   - rel03.1-uc001-self-hosting-with-epics
 tags:
   - cli
+  - integration
   - self-hosting
   - trails
-  - integration
 
 preconditions:
   - Cupboard initialized with SQLite backend
@@ -20,6 +18,9 @@ preconditions:
   - rel03.0 trail lifecycle features are implemented
 
 test_cases:
+
+  # --- uc: rel03.1-uc001-self-hosting-with-epics: Self-Hosting with Epics via Trails ---
+
   - name: Create epic trail in draft state
     inputs:
       command: cupboard set trails "" '{"State":"draft"}'
@@ -30,7 +31,6 @@ test_cases:
       state:
         trail_count: 1
         trail_state: draft
-
   - name: Transition trail from draft to active
     inputs:
       command: cupboard set trails <trail_id> '{"TrailID":"<trail_id>","State":"active"}'
@@ -40,17 +40,15 @@ test_cases:
         State: active
       state:
         trail_state: active
-
   - name: Create crumbs for epic
     inputs:
       commands:
-        - cupboard set crumbs "" '{"Name":"Epic Task 1","State":"draft"}'
-        - cupboard set crumbs "" '{"Name":"Epic Task 2","State":"draft"}'
+      - cupboard set crumbs "" '{"Name":"Epic Task 1","State":"draft"}'
+      - cupboard set crumbs "" '{"Name":"Epic Task 2","State":"draft"}'
     expected:
       exit_code: 0
       state:
         crumb_count: 2
-
   - name: Create belongs_to link from crumb to trail
     inputs:
       command: cupboard set links "" '{"LinkType":"belongs_to","FromID":"<crumb_id>","ToID":"<trail_id>"}'
@@ -60,7 +58,6 @@ test_cases:
         LinkType: belongs_to
       state:
         link_count: 1
-
   - name: Query crumbs by trail via belongs_to links
     inputs:
       command: cupboard list links LinkType=belongs_to ToID=<trail_id>
@@ -69,7 +66,6 @@ test_cases:
       stdout_contains: belongs_to
       state:
         result_count: 2
-
   - name: Crumbs in active trail are queryable
     inputs:
       command: cupboard get crumbs <crumb_id>
@@ -77,7 +73,6 @@ test_cases:
       exit_code: 0
       stdout_json:
         State: draft
-
   - name: Crumbs in active trail are modifiable
     inputs:
       command: cupboard set crumbs <crumb_id> '{"CrumbID":"<crumb_id>","Name":"Epic Task 1","State":"taken"}'
@@ -85,7 +80,6 @@ test_cases:
       exit_code: 0
       stdout_json:
         State: taken
-
   - name: Complete a crumb in the epic
     inputs:
       command: cupboard set crumbs <crumb_id> '{"CrumbID":"<crumb_id>","Name":"Epic Task 1","State":"pebble"}'
@@ -93,7 +87,6 @@ test_cases:
       exit_code: 0
       stdout_json:
         State: pebble
-
   - name: Complete trail removes belongs_to links
     inputs:
       command: cupboard set trails <trail_id> '{"TrailID":"<trail_id>","State":"completed"}'
@@ -103,21 +96,18 @@ test_cases:
         State: completed
       state:
         trail_state: completed
-
   - name: Crumbs persist after trail completion
     inputs:
       command: cupboard get crumbs <crumb_id>
     expected:
       exit_code: 0
       stdout_contains: CrumbID
-
   - name: No belongs_to links after trail completion
     inputs:
       command: cupboard list links LinkType=belongs_to ToID=<trail_id>
     expected:
       exit_code: 0
-      stdout_equals: "[]"
-
+      stdout_equals: '[]'
   - name: Create trail for abandonment test
     inputs:
       command: cupboard set trails "" '{"State":"active"}'
@@ -125,27 +115,24 @@ test_cases:
       exit_code: 0
       stdout_json:
         State: active
-
   - name: Create crumbs for abandonment trail
     inputs:
       commands:
-        - cupboard set crumbs "" '{"Name":"Abandon Task 1","State":"draft"}'
-        - cupboard set crumbs "" '{"Name":"Abandon Task 2","State":"draft"}'
+      - cupboard set crumbs "" '{"Name":"Abandon Task 1","State":"draft"}'
+      - cupboard set crumbs "" '{"Name":"Abandon Task 2","State":"draft"}'
     expected:
       exit_code: 0
       state:
         crumb_count_increase: 2
-
   - name: Link crumbs to abandonment trail
     inputs:
       commands:
-        - cupboard set links "" '{"LinkType":"belongs_to","FromID":"<crumb_a_id>","ToID":"<abandon_trail_id>"}'
-        - cupboard set links "" '{"LinkType":"belongs_to","FromID":"<crumb_b_id>","ToID":"<abandon_trail_id>"}'
+      - cupboard set links "" '{"LinkType":"belongs_to","FromID":"<crumb_a_id>","ToID":"<abandon_trail_id>"}'
+      - cupboard set links "" '{"LinkType":"belongs_to","FromID":"<crumb_b_id>","ToID":"<abandon_trail_id>"}'
     expected:
       exit_code: 0
       state:
         link_count_increase: 2
-
   - name: Abandon trail deletes associated crumbs
     inputs:
       command: cupboard set trails <abandon_trail_id> '{"TrailID":"<abandon_trail_id>","State":"abandoned"}'
@@ -153,14 +140,12 @@ test_cases:
       exit_code: 0
       stdout_json:
         State: abandoned
-
   - name: Abandoned crumbs return not found
     inputs:
       command: cupboard get crumbs <crumb_a_id>
     expected:
       exit_code: 1
       stderr_contains: not found
-
   - name: Trail remains after abandonment for audit
     inputs:
       command: cupboard get trails <abandon_trail_id>
@@ -168,63 +153,58 @@ test_cases:
       exit_code: 0
       stdout_json:
         State: abandoned
-
   - name: Belongs_to links removed after abandonment
     inputs:
       command: cupboard list links LinkType=belongs_to ToID=<abandon_trail_id>
     expected:
       exit_code: 0
-      stdout_equals: "[]"
-
+      stdout_equals: '[]'
   - name: Crumb cannot belong to multiple trails
     description: Attempting to create a second belongs_to link for the same crumb should fail or overwrite
     inputs:
       commands:
-        - cupboard set trails "" '{"State":"active"}'
-        - cupboard set crumbs "" '{"Name":"Single Owner","State":"draft"}'
-        - cupboard set links "" '{"LinkType":"belongs_to","FromID":"<crumb_id>","ToID":"<trail_1_id>"}'
-        - cupboard set links "" '{"LinkType":"belongs_to","FromID":"<crumb_id>","ToID":"<trail_2_id>"}'
+      - cupboard set trails "" '{"State":"active"}'
+      - cupboard set crumbs "" '{"Name":"Single Owner","State":"draft"}'
+      - cupboard set links "" '{"LinkType":"belongs_to","FromID":"<crumb_id>","ToID":"<trail_1_id>"}'
+      - cupboard set links "" '{"LinkType":"belongs_to","FromID":"<crumb_id>","ToID":"<trail_2_id>"}'
     expected:
       exit_code: 1
       stderr_contains: cardinality
-
   - name: JSONL files contain trail and link data
     inputs:
       commands:
-        - ls -la <data_dir>/trails.jsonl
-        - ls -la <data_dir>/links.jsonl
+      - ls -la <data_dir>/trails.jsonl
+      - ls -la <data_dir>/links.jsonl
     expected:
       exit_code: 0
       files:
-        - trails.jsonl exists
-        - links.jsonl exists
-
+      - trails.jsonl exists
+      - links.jsonl exists
   - name: Add crumb to active trail during work
     description: Test that new crumbs can be added to an active trail
     inputs:
       commands:
-        - cupboard set trails "" '{"State":"active"}'
-        - cupboard set crumbs "" '{"Name":"Initial task","State":"draft"}'
-        - cupboard set links "" '{"LinkType":"belongs_to","FromID":"<initial_crumb>","ToID":"<new_trail>"}'
-        - cupboard set crumbs "" '{"Name":"Added later","State":"draft"}'
-        - cupboard set links "" '{"LinkType":"belongs_to","FromID":"<later_crumb>","ToID":"<new_trail>"}'
-        - cupboard list links LinkType=belongs_to ToID=<new_trail>
+      - cupboard set trails "" '{"State":"active"}'
+      - cupboard set crumbs "" '{"Name":"Initial task","State":"draft"}'
+      - cupboard set links "" '{"LinkType":"belongs_to","FromID":"<initial_crumb>","ToID":"<new_trail>"}'
+      - cupboard set crumbs "" '{"Name":"Added later","State":"draft"}'
+      - cupboard set links "" '{"LinkType":"belongs_to","FromID":"<later_crumb>","ToID":"<new_trail>"}'
+      - cupboard list links LinkType=belongs_to ToID=<new_trail>
     expected:
       exit_code: 0
       state:
         link_count: 2
-
   - name: Move crumb between trails
     description: Test moving a crumb from one trail to another by deleting and recreating link
     inputs:
       commands:
-        - cupboard set trails "" '{"State":"active"}'
-        - cupboard set trails "" '{"State":"active"}'
-        - cupboard set crumbs "" '{"Name":"Movable task","State":"draft"}'
-        - cupboard set links "" '{"LinkType":"belongs_to","FromID":"<movable_crumb>","ToID":"<trail_A>"}'
-        - cupboard delete links <link_id>
-        - cupboard set links "" '{"LinkType":"belongs_to","FromID":"<movable_crumb>","ToID":"<trail_B>"}'
-        - cupboard list links LinkType=belongs_to FromID=<movable_crumb>
+      - cupboard set trails "" '{"State":"active"}'
+      - cupboard set trails "" '{"State":"active"}'
+      - cupboard set crumbs "" '{"Name":"Movable task","State":"draft"}'
+      - cupboard set links "" '{"LinkType":"belongs_to","FromID":"<movable_crumb>","ToID":"<trail_A>"}'
+      - cupboard delete links <link_id>
+      - cupboard set links "" '{"LinkType":"belongs_to","FromID":"<movable_crumb>","ToID":"<trail_B>"}'
+      - cupboard list links LinkType=belongs_to FromID=<movable_crumb>
     expected:
       exit_code: 0
       stdout_json:

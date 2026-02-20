@@ -38,7 +38,7 @@ out_of_scope:
   - Multi-workspace support (multiple data directories)
   - Network-based configuration fetching
   - Windows-specific path testing (platform not available in CI)
-test_suite: test-rel01.1-uc003-configuration-loading
+test_suite: test-rel01.1
 dependencies:
   - D1: prd010-configuration-directories (directory structure and precedence rules)
   - D2: prd009-cupboard-cli (global flags --config-dir, --data-dir)

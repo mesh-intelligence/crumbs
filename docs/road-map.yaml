@@ -16,7 +16,8 @@ updating_rules:
   - Add to 99.0 if not yet scheduled
 
 releases:
-  - version: "01.0"
+  - id: rel01.0
+    version: "01.0"
     name: Core Storage with SQLite Backend
     description: Implement the Cupboard and Table interfaces with SQLite backend. Validates core concepts and provides a working system for local use.
     done_when: All five use cases pass. An agent can create, query, and manage crumbs via the Table interface.
@@ -43,7 +44,8 @@ releases:
         summary: Benchmark crumbs Table operations (Get, Set, Delete, Fetch) at various scales
         status: done
 
-  - version: "01.1"
+  - id: rel01.1
+    version: "01.1"
     name: Post-Core Validation
     description: Validate the core storage layer with installation, persistence, and round-trip scenarios. Requires only rel01.0 features.
     done_when: cupboard installs via go install, JSONL files survive database deletion, config loading and generic table CLI validated.
@@ -64,7 +66,8 @@ releases:
         summary: "Self-hosting with flat crumbs only: no properties, no trails, no epics"
         status: done
 
-  - version: "02.0"
+  - id: rel02.0
+    version: "02.0"
     name: Properties with Enforcement
     description: Implement the property system with automatic initialization and backfill. Enables extensibility without schema changes.
     done_when: Every crumb always has a value for every defined property. No gaps, no partial state.
@@ -82,7 +85,8 @@ releases:
         summary: New generation reads and operates on previous generation's JSONL data
         status: done
 
-  - version: "02.1"
+  - id: rel02.1
+    version: "02.1"
     name: Issue-Tracking and Self-Hosting
     description: Validate cupboard as an issue tracker with CLI commands, benchmarks, and self-hosting. Requires properties (rel02.0) for type, priority, and labels.
     done_when: The crumbs system can track crumbs development work, replacing beads for this repository.
@@ -100,7 +104,8 @@ releases:
         summary: "Metadata CRUD: comments, attachments, filtering, cascade delete"
         status: done
 
-  - version: "03.0"
+  - id: rel03.0
+    version: "03.0"
     name: Trails and Stashes
     description: Implement trail lifecycle for exploratory workflows and stash for shared state coordination.
     done_when: An agent can explore implementation approaches with trails, abandoning failed attempts and completing successful ones.
@@ -123,7 +128,8 @@ releases:
         summary: "Trail-crumb lifecycle: container semantics, completion makes permanent, abandon cascades deletion"
         status: done
 
-  - version: "03.1"
+  - id: rel03.1
+    version: "03.1"
     name: Post-Trails Validation
     description: Validate trails functionality with self-hosting scenarios. Uses trails as epic equivalents to group and control related tasks.
     done_when: Self-hosting with trail-based epics works end-to-end. Agents can create trails as epics, add crumbs as tasks, and use trail lifecycle to finalize or discard grouped work.
@@ -132,7 +138,8 @@ releases:
         summary: "Self-hosting with trails as epics: group tasks, belongs_to links, complete/abandon lifecycle"
         status: done
 
-  - version: "99.0"
+  - id: rel99.0
+    version: "99.0"
     name: Unscheduled
     description: Use cases not yet assigned to a release. These will be scheduled as the roadmap evolves.
     use_cases:

@@ -64,7 +64,7 @@ out_of_scope:
   - Blocking lock acquisition with timeout
   - Stash name uniqueness validation (backend may enforce)
   - Concurrent stash operations
-test_suite: test-rel03.0-uc003-stash-operations
+test_suite: test-rel03.0
 dependencies:
   - D1: rel01.0-uc001 (Cupboard lifecycle) must pass
   - D2: rel01.0-uc002 (Table CRUD) must pass

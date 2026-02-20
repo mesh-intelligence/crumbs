@@ -44,7 +44,7 @@ out_of_scope:
   - Human-readable table output (only JSON output tested)
   - Issue-tracking workflow commands (ready, create, update, close)
   - Property operations on crumbs
-test_suite: test-rel01.1-uc004-generic-table-cli
+test_suite: test-rel01.1
 dependencies:
   - D1: prd001-cupboard-core (Cupboard and Table interface definitions)
   - D2: prd009-cupboard-cli (generic table command specifications)

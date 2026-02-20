@@ -50,7 +50,7 @@ out_of_scope:
   - Concurrent benchmark scenarios
   - Cross-table benchmarks (trails, metadata, links)
   - Benchmark regression detection automation
-test_suite: test-rel01.0-uc005-crumbs-table-benchmarks
+test_suite: test-rel01.0
 dependencies:
   - D1: prd001-cupboard-core (Table interface definition)
   - D2: prd002-sqlite-backend (SQLite backend, indexes, hydration)

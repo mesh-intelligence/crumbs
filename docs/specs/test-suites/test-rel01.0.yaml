@@ -1,0 +1,1349 @@
+id: test-rel01.0
+title: "Core Storage with SQLite Backend"
+release: "01.0"
+description: >
+  Release test suite for core storage with sqlite backend.
+  Covers 5 use cases with 112 test cases total.
+traces:
+  - rel01.0-uc001-cupboard-lifecycle
+  - rel01.0-uc002-table-crud
+  - rel01.0-uc003-crumb-lifecycle
+  - rel01.0-uc004-scaffolding-validation
+  - prd001-cupboard-core R2
+  - prd001-cupboard-core R2.5
+  - rel01.0-uc005-crumbs-table-benchmarks
+tags:
+  - benchmark
+  - cli
+  - compile
+  - crud
+  - crumbs
+  - integration
+  - lifecycle
+  - performance
+  - smoke
+  - sqlite
+  - state-machine
+  - table-interface
+
+preconditions:
+  - Cupboard binary built from cmd/cupboard
+  - Fresh temp directory for config and data
+  - Config file points SQLite backend at the temp data directory
+  - No existing crumbs, trails, or links
+  - No existing entities in any standard table
+  - No existing crumbs
+  - Go toolchain installed (go build works)
+  - Source tree is checked out and module dependencies resolved
+  - Go test infrastructure available (go test command)
+  - tests/integration package contains benchmark test files
+  - Cupboard initialized with SQLite backend in a temp directory
+
+test_cases:
+
+  # --- uc: rel01.0-uc001-cupboard-lifecycle: Cupboard lifecycle and CRUD operations ---
+
+  - name: Initialize cupboard for lifecycle tests
+    description: Validates cupboard init creates required JSONL files.
+    inputs:
+      command: cupboard init
+    expected:
+      exit_code: 0
+      stdout_contains: output message
+      files:
+        trails.jsonl:
+          exists: true
+        links.jsonl:
+          exists: true
+  - name: Create single trail
+    description: Create one trail and verify ID generation and active state.
+    inputs:
+      setup:
+      - cupboard init
+      command: cupboard set trails "" '{"State":"active"}'
+    expected:
+      exit_code: 0
+      stdout_json:
+        TrailID: non-empty
+        State: active
+      state:
+        trail_count: 1
+  - name: Create multiple trails
+    description: Create three trails and verify unique IDs and count.
+    inputs:
+      setup:
+      - cupboard init
+      steps:
+      - cupboard set trails "" '{"State":"active"}'
+      - cupboard set trails "" '{"State":"active"}'
+      - cupboard set trails "" '{"State":"active"}'
+    expected:
+      exit_code: 0
+      state:
+        trail_count: 3
+        all_trail_ids_unique: true
+  - name: Complete trail
+    description: Create an active trail, then transition to completed state.
+    inputs:
+      setup:
+      - cupboard init
+      - cupboard set trails "" '{"State":"active"}'
+      command: cupboard set trails ${trail_id} '{"TrailID":"${trail_id}","State":"completed"}'
+    expected:
+      exit_code: 0
+    verify:
+      command: cupboard get trails ${trail_id}
+      stdout_json:
+        State: completed
+  - name: Abandon trail
+    description: Create an active trail, then transition to abandoned state.
+    inputs:
+      setup:
+      - cupboard init
+      - cupboard set trails "" '{"State":"active"}'
+      command: cupboard set trails ${trail_id} '{"TrailID":"${trail_id}","State":"abandoned"}'
+    expected:
+      exit_code: 0
+    verify:
+      command: cupboard get trails ${trail_id}
+      stdout_json:
+        State: abandoned
+  - name: Link single crumb to trail
+    description: Create one crumb and one trail, link them via belongs_to.
+    inputs:
+      setup:
+      - cupboard init
+      - cupboard set crumbs "" '{"Name":"Crumb 1","State":"draft"}'
+      - cupboard set trails "" '{"State":"active"}'
+      command: cupboard set links "" '{"LinkType":"belongs_to","FromID":"${crumb_id}","ToID":"${trail_id}"}'
+    expected:
+      exit_code: 0
+      stdout_json:
+        LinkID: non-empty
+        LinkType: belongs_to
+      state:
+        link_count: 1
+  - name: Link multiple crumbs to different trails
+    description: Create two crumbs and two trails, link each crumb to a different trail.
+    inputs:
+      setup:
+      - cupboard init
+      - cupboard set crumbs "" '{"Name":"Crumb 1","State":"draft"}'
+      - cupboard set crumbs "" '{"Name":"Crumb 2","State":"draft"}'
+      - cupboard set trails "" '{"State":"active"}'
+      - cupboard set trails "" '{"State":"active"}'
+      steps:
+      - cupboard set links "" '{"LinkType":"belongs_to","FromID":"${crumb1_id}","ToID":"${trail1_id}"}'
+      - cupboard set links "" '{"LinkType":"belongs_to","FromID":"${crumb2_id}","ToID":"${trail2_id}"}'
+    expected:
+      exit_code: 0
+      state:
+        link_count: 2
+  - name: Trails persisted to JSONL
+    description: Create trails, transition states, verify JSONL file contains correct state values.
+    inputs:
+      setup:
+      - cupboard init
+      - cupboard set trails "" '{"State":"active"}'
+      - cupboard set trails "" '{"State":"active"}'
+      steps:
+      - cupboard set trails ${trail1_id} '{"TrailID":"${trail1_id}","State":"completed"}'
+      - cupboard set trails ${trail2_id} '{"TrailID":"${trail2_id}","State":"abandoned"}'
+    expected:
+      exit_code: 0
+      files:
+        trails.jsonl:
+          line_count: 2
+          contains:
+          - '"state":"completed"'
+          - '"state":"abandoned"'
+  - name: Full lifecycle with crumbs and trails
+    description: 'Create 3 crumbs, transition crumb1 to pebble, create 2 trails, link crumb2 to trail1 and crumb3 to trail2,
+      complete trail1, abandon trail2. Per prd006-trails-interface R5.6/R6.6: completing trail1 removes belongs_to links (crumb2
+      becomes permanent), abandoning trail2 deletes crumb3.
+      '
+    inputs:
+      setup:
+      - cupboard init
+      - cupboard set crumbs "" '{"Name":"Implement feature X","State":"draft"}'
+      - cupboard set crumbs "" '{"Name":"Write tests for feature X","State":"draft"}'
+      - cupboard set crumbs "" '{"Name":"Try approach A","State":"draft"}'
+      steps:
+      - cupboard set crumbs ${crumb1_id} '{"CrumbID":"${crumb1_id}","Name":"Implement feature X","State":"pebble"}'
+      - cupboard set trails "" '{"State":"active"}'
+      - cupboard set trails "" '{"State":"active"}'
+      - cupboard set links "" '{"LinkType":"belongs_to","FromID":"${crumb2_id}","ToID":"${trail1_id}"}'
+      - cupboard set links "" '{"LinkType":"belongs_to","FromID":"${crumb3_id}","ToID":"${trail2_id}"}'
+      - cupboard set trails ${trail1_id} '{"TrailID":"${trail1_id}","State":"completed"}'
+      - cupboard set trails ${trail2_id} '{"TrailID":"${trail2_id}","State":"abandoned"}'
+    expected:
+      exit_code: 0
+      state:
+        crumb_count: 2
+        trail_count: 2
+        link_count: 0
+        pebble_count: 1
+        draft_count: 1
+        completed_trail_count: 1
+        abandoned_trail_count: 1
+    notes: 'crumb3 is deleted by the abandon cascade (prd006-trails-interface R6.6). Links are removed by cascade operations
+      (complete removes belongs_to links, abandon deletes crumb and its links).
+      '
+  # --- uc: rel01.0-uc002-table-crud: Table interface CRUD operations ---
+
+  - name: Create crumb with empty ID generates UUID v7
+    description: Calling Set with empty ID generates a UUID v7 identifier.
+    inputs:
+      command: cupboard set crumbs "" '{"Name":"Test crumb","State":"draft"}'
+    expected:
+      exit_code: 0
+      state:
+        crumb_id_present: true
+        crumb_id_format: uuid_v7
+        crumb_name: Test crumb
+        crumb_state: draft
+  - name: Created crumb persists to JSONL file
+    description: After Set, the entity appears in crumbs.jsonl.
+    inputs:
+      command: cupboard set crumbs "" '{"Name":"Persisted crumb","State":"draft"}'
+    expected:
+      exit_code: 0
+      state:
+        crumb_id_format: uuid_v7
+        crumb_name: Persisted crumb
+      files:
+        crumbs.jsonl:
+          contains:
+          - '"name":"Persisted crumb"'
+  - name: Two creates generate unique UUIDs
+    description: Each Set with empty ID generates a unique UUID v7.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"First crumb","State":"draft"}'
+      command: cupboard set crumbs "" '{"Name":"Second crumb","State":"draft"}'
+    expected:
+      exit_code: 0
+      state:
+        crumb_count: 2
+        unique_ids: true
+        both_ids_are_uuid_v7: true
+  - name: Get retrieves entity with matching fields
+    description: Get returns the crumb with all fields matching what was created.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Retrieve me","State":"ready"}'
+      command: cupboard get crumbs ${crumb_id}
+    expected:
+      exit_code: 0
+      state:
+        crumb_id_matches_created: true
+        crumb_name: Retrieve me
+        crumb_state: ready
+        has_created_at: true
+        has_updated_at: true
+  - name: Round-trip fidelity for crumb fields
+    description: Create and retrieve a crumb; all fields must match exactly.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Fidelity test","State":"pending"}'
+      command: cupboard get crumbs ${crumb_id}
+    expected:
+      exit_code: 0
+      state:
+        crumb_id_matches_created: true
+        crumb_name: Fidelity test
+        crumb_state: pending
+        has_created_at: true
+        has_updated_at: true
+  - name: Update entity via Set with existing ID
+    description: Set with existing ID updates the entity in SQLite and JSONL.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Original name","State":"draft"}'
+      command: cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Updated name","State":"draft"}'
+    expected:
+      exit_code: 0
+      state:
+        crumb_name: Updated name
+        crumb_state: draft
+  - name: Updated entity confirmed via Get
+    description: After update, Get returns the modified field values.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Before update","State":"draft"}'
+      - cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"After update","State":"ready"}'
+      command: cupboard get crumbs ${crumb_id}
+    expected:
+      exit_code: 0
+      state:
+        crumb_name: After update
+        crumb_state: ready
+  - name: Update persists to JSONL
+    description: After update, the JSONL file reflects the new values.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"JSONL update test","State":"draft"}'
+      command: cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"JSONL updated","State":"taken"}'
+    expected:
+      exit_code: 0
+      files:
+        crumbs.jsonl:
+          contains:
+          - '"name":"JSONL updated"'
+          - '"state":"taken"'
+  - name: UpdatedAt changes on update
+    description: UpdatedAt timestamp is later than the original after update.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Timestamp test","State":"draft"}'
+      command: cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Timestamp updated","State":"draft"}'
+    expected:
+      exit_code: 0
+      state:
+        updated_at_after_or_equal_original: true
+  - name: Fetch with empty filter returns all crumbs
+    description: Fetch with empty filter returns every crumb in the table.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Crumb A","State":"draft"}'
+      - cupboard set crumbs "" '{"Name":"Crumb B","State":"ready"}'
+      - cupboard set crumbs "" '{"Name":"Crumb C","State":"taken"}'
+      command: cupboard list crumbs
+    expected:
+      exit_code: 0
+      state:
+        crumb_count: 3
+  - name: Fetch empty table returns empty list
+    description: Fetch on a table with no entities returns an empty result.
+    inputs:
+      command: cupboard list crumbs
+    expected:
+      exit_code: 0
+      state:
+        crumb_count: 0
+  - name: Fetch with state filter returns matching crumbs
+    description: Fetch with state=ready returns only crumbs in ready state.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Draft crumb","State":"draft"}'
+      - cupboard set crumbs "" '{"Name":"Ready crumb 1","State":"ready"}'
+      - cupboard set crumbs "" '{"Name":"Ready crumb 2","State":"ready"}'
+      - cupboard set crumbs "" '{"Name":"Taken crumb","State":"taken"}'
+      command: cupboard list crumbs State=ready
+    expected:
+      exit_code: 0
+      state:
+        crumb_count: 2
+        all_crumbs_have_state: ready
+  - name: Fetch with filter returns no matches
+    description: Fetch with filter matching no entities returns empty list.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Draft crumb","State":"draft"}'
+      command: cupboard list crumbs State=pebble
+    expected:
+      exit_code: 0
+      state:
+        crumb_count: 0
+  - name: Delete removes entity from SQLite
+    description: Delete removes the crumb from SQLite; subsequent Get fails.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Delete me","State":"draft"}'
+      command: cupboard delete crumbs ${crumb_id}
+    expected:
+      exit_code: 0
+    verify:
+      command: cupboard get crumbs ${crumb_id}
+      exit_code: 1
+  - name: Delete removes entity from JSONL
+    description: After Delete, the entity is no longer in the JSONL file.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"JSONL delete test","State":"draft"}'
+      command: cupboard delete crumbs ${crumb_id}
+    expected:
+      exit_code: 0
+      files:
+        crumbs.jsonl:
+          not_contains:
+          - '"name":"JSONL delete test"'
+  - name: Fetch after delete excludes deleted entity
+    description: After Delete, Fetch no longer returns the deleted entity.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Keep this","State":"draft"}'
+      - cupboard set crumbs "" '{"Name":"Delete this","State":"draft"}'
+      - cupboard delete crumbs ${crumb2_id}
+      command: cupboard list crumbs
+    expected:
+      exit_code: 0
+      state:
+        crumb_count: 1
+        remaining_crumb_id: ${crumb1_id}
+  - name: Get nonexistent crumb returns error
+    description: Get with a nonexistent ID returns an error.
+    inputs:
+      command: cupboard get crumbs nonexistent-uuid-12345
+    expected:
+      exit_code: 1
+      stderr_contains: not found
+  - name: Delete nonexistent crumb returns error
+    description: Delete with a nonexistent ID returns an error.
+    inputs:
+      command: cupboard delete crumbs nonexistent-uuid-12345
+    expected:
+      exit_code: 1
+      stderr_contains: not found
+  - name: Get nonexistent trail returns error
+    inputs:
+      command: cupboard get trails nonexistent-uuid-12345
+    expected:
+      exit_code: 1
+      stderr_contains: not found
+  - name: Delete nonexistent trail returns error
+    inputs:
+      command: cupboard delete trails nonexistent-uuid-12345
+    expected:
+      exit_code: 1
+      stderr_contains: not found
+  - name: Create trail with empty ID generates UUID v7
+    description: Set on trails table with empty ID generates a UUID v7.
+    inputs:
+      command: cupboard set trails "" '{"State":"active"}'
+    expected:
+      exit_code: 0
+      state:
+        trail_id_present: true
+        trail_id_format: uuid_v7
+        trail_state: active
+        trail_count: 1
+  - name: Get trail returns entity with matching fields
+    inputs:
+      setup:
+      - cupboard set trails "" '{"State":"active"}'
+      command: cupboard get trails ${trail_id}
+    expected:
+      exit_code: 0
+      state:
+        trail_id_matches_created: true
+        trail_state: active
+  - name: Update trail via Set with existing ID
+    inputs:
+      setup:
+      - cupboard set trails "" '{"State":"draft"}'
+      command: cupboard set trails ${trail_id} '{"TrailID":"${trail_id}","State":"active"}'
+    expected:
+      exit_code: 0
+      state:
+        trail_state: active
+  - name: Fetch trails with empty filter returns all trails
+    inputs:
+      setup:
+      - cupboard set trails "" '{"State":"active"}'
+      - cupboard set trails "" '{"State":"completed"}'
+      command: cupboard list trails
+    expected:
+      exit_code: 0
+      state:
+        trail_count: 2
+  - name: Fetch trails with filter returns matching trails
+    inputs:
+      setup:
+      - cupboard set trails "" '{"State":"active"}'
+      - cupboard set trails "" '{"State":"active"}'
+      - cupboard set trails "" '{"State":"completed"}'
+      command: cupboard list trails State=active
+    expected:
+      exit_code: 0
+      state:
+        trail_count: 2
+        all_trails_have_state: active
+  - name: Delete trail removes from storage
+    inputs:
+      setup:
+      - cupboard set trails "" '{"State":"active"}'
+      command: cupboard delete trails ${trail_id}
+    expected:
+      exit_code: 0
+    verify:
+      command: cupboard get trails ${trail_id}
+      exit_code: 1
+  - name: Trail persists to JSONL file
+    inputs:
+      command: cupboard set trails "" '{"State":"pending"}'
+    expected:
+      exit_code: 0
+      files:
+        trails.jsonl:
+          contains:
+          - '"state":"pending"'
+  - name: JSONL reflects create operation
+    inputs:
+      command: cupboard set crumbs "" '{"Name":"Create JSONL test","State":"draft"}'
+    expected:
+      exit_code: 0
+      files:
+        crumbs.jsonl:
+          contains:
+          - '"name":"Create JSONL test"'
+  - name: JSONL reflects update operation
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Before JSONL update","State":"draft"}'
+      command: cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"After JSONL update","State":"ready"}'
+    expected:
+      exit_code: 0
+      files:
+        crumbs.jsonl:
+          contains:
+          - '"name":"After JSONL update"'
+          - '"state":"ready"'
+          not_contains:
+          - '"name":"Before JSONL update"'
+  - name: JSONL reflects delete operation
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"To be deleted","State":"draft"}'
+      - cupboard set crumbs "" '{"Name":"To be kept","State":"draft"}'
+      command: cupboard delete crumbs ${crumb1_id}
+    expected:
+      exit_code: 0
+      files:
+        crumbs.jsonl:
+          contains:
+          - '"name":"To be kept"'
+          not_contains:
+          - '"name":"To be deleted"'
+  - name: Multiple operations reflected in JSONL
+    description: Sequence of create, update, delete operations correctly reflected in JSONL.
+    inputs:
+      steps:
+      - cupboard set crumbs "" '{"Name":"Multi op 1","State":"draft"}'
+      - cupboard set crumbs "" '{"Name":"Multi op 2","State":"draft"}'
+      - cupboard set crumbs ${crumb1_id} '{"CrumbID":"${crumb1_id}","Name":"Multi op 1 updated","State":"ready"}'
+      - cupboard delete crumbs ${crumb2_id}
+    expected:
+      files:
+        crumbs.jsonl:
+          contains:
+          - '"name":"Multi op 1 updated"'
+          - '"state":"ready"'
+          not_contains:
+          - '"name":"Multi op 2"'
+  - name: JSONL lines are valid JSON
+    description: Each line in the JSONL file is valid JSON.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Valid JSON 1","State":"draft"}'
+      - cupboard set crumbs "" '{"Name":"Valid JSON 2","State":"ready"}'
+    expected:
+      state:
+        jsonl_all_lines_valid: true
+  - name: Operations after detach return error
+    description: After Detach, Table operations return ErrCupboardDetached. SKIPPED pending CLI implementation.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Pre-detach crumb","State":"draft"}'
+      - cupboard detach
+      command: cupboard get crumbs ${crumb_id}
+    expected:
+      exit_code: 1
+      stderr_contains: detach
+  - name: Set after detach returns error
+    description: SKIPPED pending CLI implementation.
+    inputs:
+      setup:
+      - cupboard detach
+      command: cupboard set crumbs "" '{"Name":"After detach","State":"draft"}'
+    expected:
+      exit_code: 1
+      stderr_contains: detach
+  - name: Fetch after detach returns error
+    description: SKIPPED pending CLI implementation.
+    inputs:
+      setup:
+      - cupboard detach
+      command: cupboard list crumbs
+    expected:
+      exit_code: 1
+      stderr_contains: detach
+  - name: Delete after detach returns error
+    description: SKIPPED pending CLI implementation.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Detach delete test","State":"draft"}'
+      - cupboard detach
+      command: cupboard delete crumbs ${crumb_id}
+    expected:
+      exit_code: 1
+      stderr_contains: detach
+  - name: GetTable after detach returns error
+    description: SKIPPED pending CLI implementation.
+    inputs:
+      setup:
+      - cupboard detach
+      command: cupboard get crumbs some-id
+    expected:
+      exit_code: 1
+      stderr_contains: detach
+  # --- uc: rel01.0-uc003-crumb-lifecycle: Crumb entity state machine and archival ---
+
+  - name: Create crumb with draft state and initialized timestamps
+    description: 'New crumb with explicit draft state has CreatedAt and UpdatedAt set. Note: CLI requires explicit State in
+      JSON input.
+      '
+    inputs:
+      command: cupboard set crumbs "" '{"Name":"New crumb","State":"draft"}'
+    expected:
+      exit_code: 0
+      state:
+        crumb_id_generated: true
+        crumb_state: draft
+        created_at_set: true
+        updated_at_set: true
+  - name: Create crumb with explicit state
+    description: 'Crumb created with explicit ready state is stored with that state.
+      '
+    inputs:
+      command: cupboard set crumbs "" '{"Name":"Ready crumb","State":"ready"}'
+    expected:
+      exit_code: 0
+      state:
+        crumb_id_generated: true
+        crumb_state: ready
+        created_at_set: true
+        updated_at_set: true
+  - name: Transition draft to pending
+    description: Create a crumb in draft, then update to pending state.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Test crumb","State":"draft"}'
+      command: cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Test crumb","State":"pending"}'
+      verify: cupboard get crumbs ${crumb_id}
+    expected:
+      exit_code: 0
+      state:
+        crumb_state: pending
+  - name: Transition pending to ready
+    description: Create a crumb in pending, then update to ready state.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Test crumb","State":"pending"}'
+      command: cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Test crumb","State":"ready"}'
+      verify: cupboard get crumbs ${crumb_id}
+    expected:
+      exit_code: 0
+      state:
+        crumb_state: ready
+  - name: Transition draft to ready
+    description: Create a crumb in draft, then update directly to ready state.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Test crumb","State":"draft"}'
+      command: cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Test crumb","State":"ready"}'
+      verify: cupboard get crumbs ${crumb_id}
+    expected:
+      exit_code: 0
+      state:
+        crumb_state: ready
+  - name: Transition ready to taken
+    description: Create a crumb in ready, then update to taken state.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Test crumb","State":"ready"}'
+      command: cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Test crumb","State":"taken"}'
+      verify: cupboard get crumbs ${crumb_id}
+    expected:
+      exit_code: 0
+      state:
+        crumb_state: taken
+  - name: Transition taken to pebble
+    description: Create a crumb in taken, then update to pebble (terminal success).
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Test crumb","State":"taken"}'
+      command: cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Test crumb","State":"pebble"}'
+      verify: cupboard get crumbs ${crumb_id}
+    expected:
+      exit_code: 0
+      state:
+        crumb_state: pebble
+  - name: Transition draft to dust
+    description: Move a crumb from draft to terminal dust state.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Dust crumb","State":"draft"}'
+      command: cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Dust crumb","State":"dust"}'
+      verify: cupboard get crumbs ${crumb_id}
+    expected:
+      exit_code: 0
+      state:
+        crumb_state: dust
+  - name: Transition pending to dust
+    description: Verify dust transition works from pending state.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Dust crumb","State":"pending"}'
+      command: cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Dust crumb","State":"dust"}'
+      verify: cupboard get crumbs ${crumb_id}
+    expected:
+      exit_code: 0
+      state:
+        crumb_state: dust
+  - name: Transition ready to dust
+    description: Verify dust transition works from ready state.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Dust crumb","State":"ready"}'
+      command: cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Dust crumb","State":"dust"}'
+      verify: cupboard get crumbs ${crumb_id}
+    expected:
+      exit_code: 0
+      state:
+        crumb_state: dust
+  - name: Transition taken to dust
+    description: Verify dust transition works from taken state.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Dust crumb","State":"taken"}'
+      command: cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Dust crumb","State":"dust"}'
+      verify: cupboard get crumbs ${crumb_id}
+    expected:
+      exit_code: 0
+      state:
+        crumb_state: dust
+  - name: UpdatedAt advances on state transition
+    description: 'Verify UpdatedAt changes when state transitions and is later than previous value. CreatedAt must remain constant.
+      '
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Timestamp crumb","State":"draft"}'
+      steps:
+      - record original_updated_at from crumb
+      - sleep 1100ms to ensure timestamp difference
+      - cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Timestamp crumb","State":"ready"}'
+    expected:
+      exit_code: 0
+      state:
+        crumb_state: ready
+        updated_at_advanced: true
+        updated_at_after_original: true
+  - name: Fetch by single state returns matching crumbs only
+    description: Listing by a specific state returns only crumbs in that state.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Draft crumb","State":"draft"}'
+      - cupboard set crumbs "" '{"Name":"Ready crumb","State":"ready"}'
+      - cupboard set crumbs "" '{"Name":"Taken crumb","State":"taken"}'
+      command: cupboard list crumbs State=ready
+    expected:
+      exit_code: 0
+      state:
+        result_count: 1
+        contains_name: Ready crumb
+        excludes_names:
+        - Draft crumb
+        - Taken crumb
+  - name: Filter excludes pebble crumbs from non-terminal state list
+    description: Listing by state=draft excludes pebble crumbs.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Draft crumb","State":"draft"}'
+      - cupboard set crumbs "" '{"Name":"Pebble crumb","State":"pebble"}'
+      command: cupboard list crumbs State=draft
+    expected:
+      exit_code: 0
+      state:
+        result_count: 1
+        contains_name: Draft crumb
+        excludes_names:
+        - Pebble crumb
+  - name: Filter excludes dust crumbs from non-terminal state list
+    description: Listing by state=draft excludes dust crumbs.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Draft crumb","State":"draft"}'
+      - cupboard set crumbs "" '{"Name":"Dust crumb","State":"dust"}'
+      command: cupboard list crumbs State=draft
+    expected:
+      exit_code: 0
+      state:
+        result_count: 1
+        contains_name: Draft crumb
+        excludes_names:
+        - Dust crumb
+  - name: Filter for pebble state returns only pebble crumbs
+    description: Listing by state=pebble returns only completed crumbs.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Draft crumb","State":"draft"}'
+      - cupboard set crumbs "" '{"Name":"Pebble crumb","State":"pebble"}'
+      - cupboard set crumbs "" '{"Name":"Dust crumb","State":"dust"}'
+      command: cupboard list crumbs State=pebble
+    expected:
+      exit_code: 0
+      state:
+        result_count: 1
+        contains_name: Pebble crumb
+        excludes_names:
+        - Draft crumb
+        - Dust crumb
+  - name: Filter for dust state returns only dust crumbs
+    description: Listing by state=dust returns only archived crumbs.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Draft crumb","State":"draft"}'
+      - cupboard set crumbs "" '{"Name":"Pebble crumb","State":"pebble"}'
+      - cupboard set crumbs "" '{"Name":"Dust crumb","State":"dust"}'
+      command: cupboard list crumbs State=dust
+    expected:
+      exit_code: 0
+      state:
+        result_count: 1
+        contains_name: Dust crumb
+        excludes_names:
+        - Draft crumb
+        - Pebble crumb
+  - name: List without filter returns all crumbs
+    description: Listing crumbs without state filter returns all crumbs regardless of state.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Draft crumb","State":"draft"}'
+      - cupboard set crumbs "" '{"Name":"Ready crumb","State":"ready"}'
+      - cupboard set crumbs "" '{"Name":"Taken crumb","State":"taken"}'
+      command: cupboard list crumbs
+    expected:
+      exit_code: 0
+      state:
+        result_count: 3
+        contains_names:
+        - Draft crumb
+        - Ready crumb
+        - Taken crumb
+  - name: Full success path draft to pebble
+    description: 'Exercise the complete success path: draft → pending → ready → taken → pebble.
+      '
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Success path crumb","State":"draft"}'
+      steps:
+      - verify initial state is draft
+      - cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Success path crumb","State":"pending"}'
+      - cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Success path crumb","State":"ready"}'
+      - cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Success path crumb","State":"taken"}'
+      - cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Success path crumb","State":"pebble"}'
+      verify: cupboard get crumbs ${crumb_id}
+    expected:
+      exit_code: 0
+      state:
+        crumb_state: pebble
+  - name: Full failure path draft to dust
+    description: 'Exercise the failure path: draft → dust.
+      '
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Failure path crumb","State":"draft"}'
+      steps:
+      - verify initial state is draft
+      - cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Failure path crumb","State":"dust"}'
+      verify: cupboard get crumbs ${crumb_id}
+    expected:
+      exit_code: 0
+      state:
+        crumb_state: dust
+  - name: Mixed terminal states in same table
+    description: 'Create multiple crumbs with different terminal states and verify correct filtering.
+      '
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Draft crumb","State":"draft"}'
+      - cupboard set crumbs "" '{"Name":"Pebble crumb","State":"pebble"}'
+      - cupboard set crumbs "" '{"Name":"Dust crumb","State":"dust"}'
+    expected:
+      exit_code: 0
+      state:
+        total_crumb_count: 3
+        draft_count: 1
+        pebble_count: 1
+        dust_count: 1
+  # --- uc: rel01.0-uc004-scaffolding-validation: Scaffolding validation (types, interfaces, CLI compile) ---
+
+  - name: Module path uses mesh-intelligence
+    description: 'go.mod declares module github.com/mesh-intelligence/crumbs.
+      '
+    inputs:
+      file: go.mod
+    expected:
+      file_contains: module github.com/mesh-intelligence/crumbs
+  - name: Replace directive points to local directory
+    description: 'go.mod contains a replace directive pointing to ./ for local development.
+      '
+    inputs:
+      file: go.mod
+    expected:
+      file_contains: replace github.com/mesh-intelligence/crumbs => ./
+  - name: Cupboard CLI compiles without errors
+    description: 'Build must succeed through the mesh-intelligence module path with the local replace directive. Validated by
+      TestMain building the binary before tests run.
+      '
+    inputs:
+      command: go build -o cupboard ./cmd/cupboard
+    expected:
+      exit_code: 0
+  - name: Version command prints version and exits 0
+    inputs:
+      command: cupboard version
+    expected:
+      exit_code: 0
+      stdout_contains: cupboard
+  - name: Version command lists implemented use cases
+    description: 'The version output must include a list of implemented use cases. For this first use case, the output includes
+      at minimum rel01.0-uc004-scaffolding-validation.
+      '
+    inputs:
+      command: cupboard version
+    expected:
+      exit_code: 0
+      stdout_contains: rel01.0-uc004
+  - name: Version command works without backend connection
+    description: 'The version command must not require an initialized backend. Running it without init must succeed.
+      '
+    inputs:
+      command: cupboard version
+    expected:
+      exit_code: 0
+      stdout_contains: cupboard
+  - name: Crumb struct has required fields
+    description: 'Compile-time test. Instantiate a Crumb with all documented fields to verify the struct definition matches
+      prd003-crumbs-interface.
+      '
+    inputs:
+      go_code: "c := &types.Crumb{\n    CrumbID:    \"test\",\n    Name:       \"test\",\n    State:      \"draft\",\n    CreatedAt:\
+        \  time.Now(),\n    UpdatedAt:  time.Now(),\n    Properties: map[string]any{},\n}\n_ = c\n"
+    expected:
+      compiles: true
+  - name: Trail struct has required fields
+    inputs:
+      go_code: "tr := &types.Trail{\n    TrailID:   \"test\",\n    State:     \"active\",\n    CreatedAt: time.Now(),\n}\n_\
+        \ = tr\n"
+    expected:
+      compiles: true
+  - name: Property struct has required fields
+    inputs:
+      go_code: "p := &types.Property{\n    PropertyID:  \"test\",\n    Name:        \"priority\",\n    Description: \"Task priority\"\
+        ,\n    ValueType:   \"categorical\",\n    CreatedAt:   time.Now(),\n}\n_ = p\n"
+    expected:
+      compiles: true
+  - name: Category struct has required fields
+    inputs:
+      go_code: "c := &types.Category{\n    CategoryID: \"test\",\n    PropertyID: \"test\",\n    Name:       \"high\",\n   \
+        \ Ordinal:    1,\n}\n_ = c\n"
+    expected:
+      compiles: true
+  - name: Stash struct has required fields
+    inputs:
+      go_code: "s := &types.Stash{\n    StashID:   \"test\",\n    Name:      \"shared-config\",\n    StashType: \"context\"\
+        ,\n    Value:     nil,\n    Version:   0,\n    CreatedAt: time.Now(),\n}\n_ = s\n"
+    expected:
+      compiles: true
+  - name: Metadata struct has required fields
+    inputs:
+      go_code: "m := &types.Metadata{\n    MetadataID: \"test\",\n    CrumbID:    \"test\",\n    TableName:  \"comments\",\n\
+        \    Content:    \"{}\",\n    CreatedAt:  time.Now(),\n}\n_ = m\n"
+    expected:
+      compiles: true
+  - name: Link struct has required fields
+    inputs:
+      go_code: "l := &types.Link{\n    LinkID:    \"test\",\n    LinkType:  \"belongs_to\",\n    FromID:    \"crumb-1\",\n \
+        \   ToID:      \"trail-1\",\n    CreatedAt: time.Now(),\n}\n_ = l\n"
+    expected:
+      compiles: true
+  - name: SQLite backend satisfies Cupboard interface
+    description: 'Compile-time assertion that sqlite.Backend implements types.Cupboard.
+      '
+    inputs:
+      go_code: 'var _ types.Cupboard = (*sqlite.Backend)(nil)
+        '
+    expected:
+      compiles: true
+  - name: Table interface defines Get, Set, Delete, Fetch
+    description: 'Compile-time assertion that the Table interface has all four methods.
+      '
+    inputs:
+      go_code: 'var tbl types.Table
+        _, _ = tbl.Get("id")
+        _, _ = tbl.Set("id", nil)
+        _ = tbl.Delete("id")
+        _, _ = tbl.Fetch(map[string]any{})
+        '
+    expected:
+      compiles: true
+  - name: Cupboard interface defines GetTable, Attach, Detach
+    description: 'Compile-time assertion that the Cupboard interface has all three methods.
+      '
+    inputs:
+      go_code: 'var cupboard types.Cupboard
+        _, _ = cupboard.GetTable("name")
+        _ = cupboard.Attach(types.Config{})
+        _ = cupboard.Detach()
+        '
+    expected:
+      compiles: true
+  - name: Standard table name constants are defined
+    description: 'All six standard table name constants must be defined with correct values.
+      '
+    inputs:
+      go_code: "names := []string{\n    types.CrumbsTable,\n    types.TrailsTable,\n    types.PropertiesTable,\n    types.MetadataTable,\n\
+        \    types.LinksTable,\n    types.StashesTable,\n}\n_ = names\n"
+    expected:
+      compiles: true
+      state:
+        CrumbsTable: crumbs
+        TrailsTable: trails
+        PropertiesTable: properties
+        MetadataTable: metadata
+        LinksTable: links
+        StashesTable: stashes
+  - name: GetTable succeeds for crumbs table
+    description: 'We probe the crumbs table by requesting a nonexistent ID. Exit code 0 or 1 confirms the table exists. We must
+      NOT get "table not found" or "unknown table" errors.
+      '
+    inputs:
+      setup:
+      - cupboard init
+      command: cupboard get crumbs nonexistent-probe-id
+    expected:
+      exit_code_in:
+      - 0
+      - 1
+      stderr_not_contains:
+      - table not found
+      - unknown table
+  - name: GetTable succeeds for trails table
+    inputs:
+      setup:
+      - cupboard init
+      command: cupboard get trails nonexistent-probe-id
+    expected:
+      exit_code_in:
+      - 0
+      - 1
+      stderr_not_contains:
+      - table not found
+      - unknown table
+  - name: GetTable succeeds for properties table
+    inputs:
+      setup:
+      - cupboard init
+      command: cupboard get properties nonexistent-probe-id
+    expected:
+      exit_code_in:
+      - 0
+      - 1
+      stderr_not_contains:
+      - table not found
+      - unknown table
+  - name: GetTable succeeds for metadata table
+    inputs:
+      setup:
+      - cupboard init
+      command: cupboard get metadata nonexistent-probe-id
+    expected:
+      exit_code_in:
+      - 0
+      - 1
+      stderr_not_contains:
+      - table not found
+      - unknown table
+  - name: GetTable succeeds for links table
+    inputs:
+      setup:
+      - cupboard init
+      command: cupboard get links nonexistent-probe-id
+    expected:
+      exit_code_in:
+      - 0
+      - 1
+      stderr_not_contains:
+      - table not found
+      - unknown table
+  - name: GetTable succeeds for stashes table
+    inputs:
+      setup:
+      - cupboard init
+      command: cupboard get stashes nonexistent-probe-id
+    expected:
+      exit_code_in:
+      - 0
+      - 1
+      stderr_not_contains:
+      - table not found
+      - unknown table
+  - name: GetTable fails for unknown table name
+    description: 'Requesting a table that does not exist via CLI must return a non-zero exit code.
+      '
+    inputs:
+      setup:
+      - cupboard init
+      command: cupboard get nonexistent nonexistent-id
+    expected:
+      exit_code: 1
+  - name: Backend GetTable succeeds for crumbs table
+    description: 'Direct backend API test. GetTable returns a non-nil Table for crumbs.
+      '
+    inputs:
+      go_code: 'backend := sqlite.NewBackend()
+        config := types.Config{Backend: "sqlite", DataDir: tmpDir}
+        backend.Attach(config)
+        defer backend.Detach()
+        tbl, err := backend.GetTable(types.CrumbsTable)
+        '
+    expected:
+      error: nil
+      result_not_nil: true
+  - name: Backend GetTable succeeds for trails table
+    inputs:
+      go_code: 'backend := sqlite.NewBackend()
+        config := types.Config{Backend: "sqlite", DataDir: tmpDir}
+        backend.Attach(config)
+        defer backend.Detach()
+        tbl, err := backend.GetTable(types.TrailsTable)
+        '
+    expected:
+      error: nil
+      result_not_nil: true
+  - name: Backend GetTable succeeds for properties table
+    inputs:
+      go_code: 'backend := sqlite.NewBackend()
+        config := types.Config{Backend: "sqlite", DataDir: tmpDir}
+        backend.Attach(config)
+        defer backend.Detach()
+        tbl, err := backend.GetTable(types.PropertiesTable)
+        '
+    expected:
+      error: nil
+      result_not_nil: true
+  - name: Backend GetTable succeeds for metadata table
+    inputs:
+      go_code: 'backend := sqlite.NewBackend()
+        config := types.Config{Backend: "sqlite", DataDir: tmpDir}
+        backend.Attach(config)
+        defer backend.Detach()
+        tbl, err := backend.GetTable(types.MetadataTable)
+        '
+    expected:
+      error: nil
+      result_not_nil: true
+  - name: Backend GetTable succeeds for links table
+    inputs:
+      go_code: 'backend := sqlite.NewBackend()
+        config := types.Config{Backend: "sqlite", DataDir: tmpDir}
+        backend.Attach(config)
+        defer backend.Detach()
+        tbl, err := backend.GetTable(types.LinksTable)
+        '
+    expected:
+      error: nil
+      result_not_nil: true
+  - name: Backend GetTable succeeds for stashes table
+    inputs:
+      go_code: 'backend := sqlite.NewBackend()
+        config := types.Config{Backend: "sqlite", DataDir: tmpDir}
+        backend.Attach(config)
+        defer backend.Detach()
+        tbl, err := backend.GetTable(types.StashesTable)
+        '
+    expected:
+      error: nil
+      result_not_nil: true
+  - name: Backend GetTable returns ErrTableNotFound for unknown table
+    description: 'Direct backend API test. GetTable for an unknown table name returns ErrTableNotFound.
+      '
+    inputs:
+      go_code: 'backend := sqlite.NewBackend()
+        config := types.Config{Backend: "sqlite", DataDir: tmpDir}
+        backend.Attach(config)
+        defer backend.Detach()
+        _, err := backend.GetTable("nonexistent")
+        '
+    expected:
+      error: ErrTableNotFound
+  # --- uc: rel01.0-uc005-crumbs-table-benchmarks: Crumbs Table performance benchmarks ---
+
+  - name: Get benchmark with 10 crumbs
+    description: 'Measure Table.Get latency with 10 seeded crumbs. Benchmark uses random ID selection to measure average lookup
+      time.
+      '
+    inputs:
+      command: go test -bench=BenchmarkCrumbsGet10_UC005 -benchmem ./tests/integration/...
+      data_size: 10
+    expected:
+      exit_code: 0
+      stdout_contains: BenchmarkCrumbsGet10_UC005
+      benchmark_output:
+        ns_op_reported: true
+        b_op_reported: true
+        allocs_op_reported: true
+  - name: Get benchmark with 100 crumbs
+    inputs:
+      command: go test -bench=BenchmarkCrumbsGet100_UC005 -benchmem ./tests/integration/...
+      data_size: 100
+    expected:
+      exit_code: 0
+      stdout_contains: BenchmarkCrumbsGet100_UC005
+      benchmark_output:
+        ns_op_reported: true
+        b_op_reported: true
+        allocs_op_reported: true
+  - name: Get benchmark with 1000 crumbs
+    inputs:
+      command: go test -bench=BenchmarkCrumbsGet1000_UC005 -benchmem ./tests/integration/...
+      data_size: 1000
+    expected:
+      exit_code: 0
+      stdout_contains: BenchmarkCrumbsGet1000_UC005
+      benchmark_output:
+        ns_op_reported: true
+        b_op_reported: true
+        allocs_op_reported: true
+  - name: Get benchmark with 10000 crumbs
+    inputs:
+      command: go test -bench=BenchmarkCrumbsGet10000_UC005 -benchmem ./tests/integration/...
+      data_size: 10000
+    expected:
+      exit_code: 0
+      stdout_contains: BenchmarkCrumbsGet10000_UC005
+      benchmark_output:
+        ns_op_reported: true
+        b_op_reported: true
+        allocs_op_reported: true
+  - name: Set create benchmark with 10 existing crumbs
+    description: 'Measure Table.Set latency for creating new crumbs (empty ID triggers UUID v7 generation). Seeds 10 existing
+      crumbs before measuring create operations per prd002-sqlite-backend R5.3.
+      '
+    inputs:
+      command: go test -bench=BenchmarkCrumbsSetCreate10_UC005 -benchmem ./tests/integration/...
+      data_size: 10
+    expected:
+      exit_code: 0
+      stdout_contains: BenchmarkCrumbsSetCreate10_UC005
+      benchmark_output:
+        ns_op_reported: true
+        b_op_reported: true
+        allocs_op_reported: true
+  - name: Set create benchmark with 1000 existing crumbs
+    inputs:
+      command: go test -bench=BenchmarkCrumbsSetCreate1000_UC005 -benchmem ./tests/integration/...
+      data_size: 1000
+    expected:
+      exit_code: 0
+      stdout_contains: BenchmarkCrumbsSetCreate1000_UC005
+      benchmark_output:
+        ns_op_reported: true
+        b_op_reported: true
+        allocs_op_reported: true
+  - name: Set update benchmark with 10 crumbs
+    description: 'Measure Table.Set latency for updating existing crumbs. Uses random ID selection and updates the Name field.
+      '
+    inputs:
+      command: go test -bench=BenchmarkCrumbsSetUpdate10_UC005 -benchmem ./tests/integration/...
+      data_size: 10
+    expected:
+      exit_code: 0
+      stdout_contains: BenchmarkCrumbsSetUpdate10_UC005
+      benchmark_output:
+        ns_op_reported: true
+        b_op_reported: true
+        allocs_op_reported: true
+  - name: Set update benchmark with 1000 crumbs
+    inputs:
+      command: go test -bench=BenchmarkCrumbsSetUpdate1000_UC005 -benchmem ./tests/integration/...
+      data_size: 1000
+    expected:
+      exit_code: 0
+      stdout_contains: BenchmarkCrumbsSetUpdate1000_UC005
+      benchmark_output:
+        ns_op_reported: true
+        b_op_reported: true
+        allocs_op_reported: true
+  - name: Delete benchmark with 10 crumbs
+    description: 'Measure Table.Delete latency. Seeds 10 crumbs, then each iteration creates and deletes a crumb. Uses StopTimer/StartTimer
+      to exclude create cost from measurement.
+      '
+    inputs:
+      command: go test -bench=BenchmarkCrumbsDelete10_UC005 -benchmem ./tests/integration/...
+      data_size: 10
+    expected:
+      exit_code: 0
+      stdout_contains: BenchmarkCrumbsDelete10_UC005
+      benchmark_output:
+        ns_op_reported: true
+        b_op_reported: true
+        allocs_op_reported: true
+  - name: Delete benchmark with 1000 crumbs
+    inputs:
+      command: go test -bench=BenchmarkCrumbsDelete1000_UC005 -benchmem ./tests/integration/...
+      data_size: 1000
+    expected:
+      exit_code: 0
+      stdout_contains: BenchmarkCrumbsDelete1000_UC005
+      benchmark_output:
+        ns_op_reported: true
+        b_op_reported: true
+        allocs_op_reported: true
+  - name: Fetch all benchmark with 100 crumbs
+    description: 'Measure Table.Fetch latency with nil filter returning all crumbs. Exercises full table scan with entity hydration.
+      Asserts result count matches data_size.
+      '
+    inputs:
+      command: go test -bench=BenchmarkCrumbsFetchAll100_UC005 -benchmem ./tests/integration/...
+      data_size: 100
+    expected:
+      exit_code: 0
+      stdout_contains: BenchmarkCrumbsFetchAll100_UC005
+      benchmark_output:
+        ns_op_reported: true
+        b_op_reported: true
+        allocs_op_reported: true
+  - name: Fetch all benchmark with 1000 crumbs
+    inputs:
+      command: go test -bench=BenchmarkCrumbsFetchAll1000_UC005 -benchmem ./tests/integration/...
+      data_size: 1000
+    expected:
+      exit_code: 0
+      stdout_contains: BenchmarkCrumbsFetchAll1000_UC005
+      benchmark_output:
+        ns_op_reported: true
+        b_op_reported: true
+        allocs_op_reported: true
+  - name: Fetch with state filter benchmark 100 crumbs
+    description: 'Measure Table.Fetch with state filter (State: draft). Seeds 100 crumbs cycling through draft, pending, ready
+      states. Exercises idx_crumbs_state index per prd002-sqlite-backend R3.3.
+      '
+    inputs:
+      command: go test -bench=BenchmarkCrumbsFetchState100_UC005 -benchmem ./tests/integration/...
+      data_size: 100
+    expected:
+      exit_code: 0
+      stdout_contains: BenchmarkCrumbsFetchState100_UC005
+      benchmark_output:
+        ns_op_reported: true
+        b_op_reported: true
+        allocs_op_reported: true
+  - name: Fetch with state filter benchmark 1000 crumbs
+    inputs:
+      command: go test -bench=BenchmarkCrumbsFetchState1000_UC005 -benchmem ./tests/integration/...
+      data_size: 1000
+    expected:
+      exit_code: 0
+      stdout_contains: BenchmarkCrumbsFetchState1000_UC005
+      benchmark_output:
+        ns_op_reported: true
+        b_op_reported: true
+        allocs_op_reported: true
+
+cleanup:
+  - Remove temp config and data directories
+  - Remove temp directories created during tests
+  - Remove temp data directories created by benchmarks

@@ -57,7 +57,7 @@ out_of_scope:
   - Foreign key validation (R10 ValidateReferences)
   - Link cardinality enforcement (one belongs_to per crumb, etc.)
   - Concurrent link operations
-test_suite: test-rel03.0-uc002-link-management
+test_suite: test-rel03.0
 dependencies:
   - D1: rel01.0-uc001 (Cupboard lifecycle) must pass
   - D2: rel01.0-uc002 (Table CRUD) must pass

@@ -50,7 +50,7 @@ out_of_scope:
   - Concurrent trail operations
   - Trail merging or splitting
   - Stash-trail scoping (see rel03.0-uc003-stash-operations)
-test_suite: test-rel03.0-uc004-trail-crumb-lifecycle
+test_suite: test-rel03.0
 dependencies:
   - D1: rel01.0-uc001-cupboard-lifecycle (Cupboard and Table interfaces work)
   - D2: rel01.0-uc002-table-crud (Table CRUD operations work)

@@ -215,7 +215,7 @@ out_of_scope:
   - Corrupt JSONL recovery (prd002-sqlite-backend R7 describes error handling but this use case assumes valid files)
   - Cross-process access (prd002-sqlite-backend R8.5 explicitly does not support this)
   - Batch interval timer edge cases (rapid attach/detach cycles, timer races)
-test_suite: test-rel01.1-uc002-jsonl-git-roundtrip
+test_suite: test-rel01.1
 dependencies:
   - D1: "SQLite backend with JSONL persistence (prd002-sqlite-backend R1-R5)"
   - D2: "Startup sequence loads JSONL into SQLite (prd002-sqlite-backend R4)"

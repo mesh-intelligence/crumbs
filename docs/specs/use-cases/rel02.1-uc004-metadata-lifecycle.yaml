@@ -54,7 +54,7 @@ out_of_scope:
   - Limit and offset pagination
   - Metadata deletion via Table.Delete (append-only convention)
   - JSONL persistence verification (covered by rel01.0-uc002)
-test_suite: test-rel02.1-uc004-metadata-lifecycle
+test_suite: test-rel02.1
 dependencies:
   - D1: prd001-cupboard-core (Cupboard and Table interface definitions)
   - D2: prd005-metadata-interface (Metadata struct, Schema struct, built-in schemas)

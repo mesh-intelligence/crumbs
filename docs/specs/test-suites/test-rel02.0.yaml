@@ -1,0 +1,825 @@
+id: test-rel02.0
+title: "Properties with Enforcement"
+release: "02.0"
+description: >
+  Release test suite for properties with enforcement.
+  Covers 2 use cases with 83 test cases total.
+traces:
+  - rel02.0-uc001-property-enforcement
+  - rel02.0-uc002-regeneration-compatibility
+tags:
+  - cli
+  - compatibility
+  - integration
+  - properties
+  - regeneration
+
+preconditions:
+  - Cupboard binary built from cmd/cupboard
+  - Fresh temp directory for config and data
+  - Config file points SQLite backend at the temp data directory
+  - No existing crumbs or properties
+  - Generation N built and installed via go install ./cmd/cupboard
+  - Fresh temp directory for test data (separate from repo)
+  - The cupboard binary is accessible from $GOBIN or $PATH
+  - Git repository is clean (no uncommitted changes)
+
+test_cases:
+
+  # --- uc: rel02.0-uc001-property-enforcement: Property enforcement operations ---
+
+  - name: Built-in properties seeded on initialization
+    description: Verify that five built-in properties exist after cupboard initialization.
+    inputs:
+      command: cupboard list properties
+    expected:
+      exit_code: 0
+      stdout_json:
+        length: 5
+  - name: Built-in property priority exists with categorical type
+    inputs:
+      command: cupboard list properties --json
+    expected:
+      exit_code: 0
+      stdout_contains: '"name":"priority"'
+      state:
+        property_name: priority
+        property_value_type: categorical
+  - name: Built-in property type exists with categorical type
+    inputs:
+      command: cupboard list properties --json
+    expected:
+      exit_code: 0
+      stdout_contains: '"name":"type"'
+      state:
+        property_name: type
+        property_value_type: categorical
+  - name: Built-in property description exists with text type
+    inputs:
+      command: cupboard list properties --json
+    expected:
+      exit_code: 0
+      stdout_contains: '"name":"description"'
+      state:
+        property_name: description
+        property_value_type: text
+  - name: Built-in property owner exists with text type
+    inputs:
+      command: cupboard list properties --json
+    expected:
+      exit_code: 0
+      stdout_contains: '"name":"owner"'
+      state:
+        property_name: owner
+        property_value_type: text
+  - name: Built-in property labels exists with list type
+    inputs:
+      command: cupboard list properties --json
+    expected:
+      exit_code: 0
+      stdout_contains: '"name":"labels"'
+      state:
+        property_name: labels
+        property_value_type: list
+  - name: New crumb has all five built-in properties initialized
+    inputs:
+      command: cupboard set crumbs "" '{"Name":"Test crumb"}'
+    expected:
+      exit_code: 0
+      stdout_contains: CrumbID
+    verify:
+      command: cupboard get crumbs ${crumb_id} --json
+      stdout_json:
+        properties_count: 5
+  - name: New crumb properties have default values
+    description: Verify that text properties default to empty string, list to empty array.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Default values crumb"}'
+      command: cupboard get crumbs ${crumb_id} --json
+    expected:
+      exit_code: 0
+      state:
+        property_description: ''
+        property_owner: ''
+        property_labels: []
+  - name: SetProperty updates property value
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Property update crumb"}'
+      command: cupboard set-property crumbs ${crumb_id} owner "alice"
+    expected:
+      exit_code: 0
+    verify:
+      command: cupboard get crumbs ${crumb_id} --json
+      state:
+        property_owner: alice
+  - name: SetProperty updates UpdatedAt timestamp
+    description: Verify that UpdatedAt changes after SetProperty.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Timestamp test crumb"}'
+      - sleep 0.1
+      command: cupboard set-property crumbs ${crumb_id} owner "bob"
+    expected:
+      exit_code: 0
+      state:
+        updated_at_changed: true
+  - name: SetProperty with list value
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Labels crumb"}'
+      command: cupboard set-property crumbs ${crumb_id} labels '["frontend","urgent"]'
+    expected:
+      exit_code: 0
+    verify:
+      command: cupboard get crumbs ${crumb_id} --json
+      state:
+        property_labels:
+        - frontend
+        - urgent
+  - name: GetProperty returns set value
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Get property crumb"}'
+      - cupboard set-property crumbs ${crumb_id} description "A detailed description"
+      command: cupboard get-property crumbs ${crumb_id} description
+    expected:
+      exit_code: 0
+      stdout_contains: A detailed description
+  - name: GetProperty returns default value before set
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Default get crumb"}'
+      command: cupboard get-property crumbs ${crumb_id} owner
+    expected:
+      exit_code: 0
+      stdout_equals: ''
+  - name: Define custom property backfills existing crumbs
+    description: Create a crumb, define a new property, verify crumb has the new property.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Backfill target crumb"}'
+      steps:
+      - cupboard set properties "" '{"Name":"estimate","ValueType":"integer","Description":"Time estimate in hours"}'
+      command: cupboard get crumbs ${crumb_id} --json
+    expected:
+      exit_code: 0
+      state:
+        properties_count: 6
+        property_estimate: 0
+  - name: Multiple existing crumbs are backfilled
+    description: Create multiple crumbs, define property, verify all have the new property.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Crumb one"}'
+      - cupboard set crumbs "" '{"Name":"Crumb two"}'
+      - cupboard set crumbs "" '{"Name":"Crumb three"}'
+      steps:
+      - cupboard set properties "" '{"Name":"complexity","ValueType":"integer","Description":"Task complexity"}'
+      command: cupboard list crumbs --json
+    expected:
+      exit_code: 0
+      state:
+        all_crumbs_have_property: complexity
+        property_default_value: 0
+  - name: GetProperties returns all defined properties
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"All properties crumb"}'
+      command: cupboard get-properties crumbs ${crumb_id}
+    expected:
+      exit_code: 0
+      state:
+        properties_count: 5
+        has_priority: true
+        has_type: true
+        has_description: true
+        has_owner: true
+        has_labels: true
+  - name: GetProperties includes custom properties
+    inputs:
+      setup:
+      - cupboard set properties "" '{"Name":"custom_field","ValueType":"text","Description":"Custom text field"}'
+      - cupboard set crumbs "" '{"Name":"Custom props crumb"}'
+      command: cupboard get-properties crumbs ${crumb_id}
+    expected:
+      exit_code: 0
+      state:
+        properties_count: 6
+        has_custom_field: true
+  - name: ClearProperty resets text to empty string
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Clear text crumb"}'
+      - cupboard set-property crumbs ${crumb_id} owner "charlie"
+      command: cupboard clear-property crumbs ${crumb_id} owner
+    expected:
+      exit_code: 0
+    verify:
+      command: cupboard get-property crumbs ${crumb_id} owner
+      stdout_equals: ''
+  - name: ClearProperty resets list to empty array
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Clear list crumb"}'
+      - cupboard set-property crumbs ${crumb_id} labels '["tag1","tag2"]'
+      command: cupboard clear-property crumbs ${crumb_id} labels
+    expected:
+      exit_code: 0
+    verify:
+      command: cupboard get crumbs ${crumb_id} --json
+      state:
+        property_labels: []
+  - name: ClearProperty resets integer to zero
+    inputs:
+      setup:
+      - cupboard set properties "" '{"Name":"points","ValueType":"integer","Description":"Story points"}'
+      - cupboard set crumbs "" '{"Name":"Clear integer crumb"}'
+      - cupboard set-property crumbs ${crumb_id} points 8
+      command: cupboard clear-property crumbs ${crumb_id} points
+    expected:
+      exit_code: 0
+    verify:
+      command: cupboard get-property crumbs ${crumb_id} points
+      stdout_equals: '0'
+  - name: ClearProperty updates UpdatedAt timestamp
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Clear timestamp crumb"}'
+      - cupboard set-property crumbs ${crumb_id} owner "dave"
+      - sleep 0.1
+      command: cupboard clear-property crumbs ${crumb_id} owner
+    expected:
+      exit_code: 0
+      state:
+        updated_at_changed: true
+  - name: Crumb created after property definition has new property
+    inputs:
+      setup:
+      - cupboard set properties "" '{"Name":"story_points","ValueType":"integer","Description":"Estimated story points"}'
+      command: cupboard set crumbs "" '{"Name":"New crumb after prop def"}'
+    expected:
+      exit_code: 0
+    verify:
+      command: cupboard get crumbs ${crumb_id} --json
+      state:
+        properties_count: 6
+        property_story_points: 0
+  - name: Multiple crumbs after property definition all have property
+    inputs:
+      setup:
+      - cupboard set properties "" '{"Name":"effort","ValueType":"integer","Description":"Effort level"}'
+      steps:
+      - cupboard set crumbs "" '{"Name":"Crumb A"}'
+      - cupboard set crumbs "" '{"Name":"Crumb B"}'
+      command: cupboard list crumbs --json
+    expected:
+      exit_code: 0
+      state:
+        all_crumbs_have_property: effort
+  - name: All crumbs have same property count after multiple definitions
+    description: Define multiple properties, create crumbs at different times, verify all have same count.
+    inputs:
+      steps:
+      - cupboard set crumbs "" '{"Name":"Early crumb"}'
+      - cupboard set properties "" '{"Name":"prop_one","ValueType":"text","Description":"First custom property"}'
+      - cupboard set crumbs "" '{"Name":"Middle crumb"}'
+      - cupboard set properties "" '{"Name":"prop_two","ValueType":"integer","Description":"Second custom property"}'
+      - cupboard set crumbs "" '{"Name":"Late crumb"}'
+      command: cupboard list crumbs --json
+    expected:
+      exit_code: 0
+      state:
+        all_crumbs_same_property_count: true
+        properties_count: 7
+  - name: Invariant holds after mixed operations
+    description: Perform various operations and verify property count invariant.
+    inputs:
+      steps:
+      - cupboard set crumbs "" '{"Name":"Crumb 1"}'
+      - cupboard set crumbs "" '{"Name":"Crumb 2"}'
+      - cupboard set properties "" '{"Name":"field_a","ValueType":"text","Description":"Field A"}'
+      - cupboard set-property crumbs ${crumb1_id} field_a "value_a"
+      - cupboard set crumbs "" '{"Name":"Crumb 3"}'
+      - cupboard clear-property crumbs ${crumb1_id} field_a
+      - cupboard set properties "" '{"Name":"field_b","ValueType":"boolean","Description":"Field B"}'
+      command: cupboard list crumbs --json
+    expected:
+      exit_code: 0
+      state:
+        all_crumbs_same_property_count: true
+        no_crumb_has_fewer_properties: true
+  - name: SetProperty with invalid property fails
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Error test crumb"}'
+      command: cupboard set-property crumbs ${crumb_id} nonexistent_prop "value"
+    expected:
+      exit_code: 1
+      stderr_contains: property not found
+  - name: SetProperty with wrong type fails
+    inputs:
+      setup:
+      - cupboard set properties "" '{"Name":"numeric_field","ValueType":"integer","Description":"Numeric field"}'
+      - cupboard set crumbs "" '{"Name":"Type error crumb"}'
+      command: cupboard set-property crumbs ${crumb_id} numeric_field "not a number"
+    expected:
+      exit_code: 1
+      stderr_contains: type mismatch
+  - name: GetProperty with invalid property fails
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Get error crumb"}'
+      command: cupboard get-property crumbs ${crumb_id} nonexistent_prop
+    expected:
+      exit_code: 1
+      stderr_contains: property not found
+  - name: ClearProperty with invalid property fails
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Clear error crumb"}'
+      command: cupboard clear-property crumbs ${crumb_id} nonexistent_prop
+    expected:
+      exit_code: 1
+      stderr_contains: property not found
+  - name: Duplicate property name fails
+    inputs:
+      command: cupboard set properties "" '{"Name":"priority","ValueType":"text","Description":"Duplicate"}'
+    expected:
+      exit_code: 1
+      stderr_contains: duplicate name
+  - name: Get crumb returns populated Properties map
+    description: Verify that Table.Get returns a crumb with Properties map containing all defined properties.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Properties hydration crumb"}'
+      command: cupboard get crumbs ${crumb_id} --json
+    expected:
+      exit_code: 0
+      state:
+        properties_count: 5
+        has_priority: true
+        has_type: true
+        has_description: true
+        has_owner: true
+        has_labels: true
+  - name: Fetched crumb properties match values set at creation
+    description: Verify that properties retrieved via Get match the values that were set during crumb creation.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Match values crumb"}'
+      command: cupboard get crumbs ${crumb_id} --json
+    expected:
+      exit_code: 0
+      state:
+        property_description: ''
+        property_owner: ''
+        property_labels: []
+  - name: SetProperty on fetched crumb persists through round-trip
+    description: Get a crumb, set a property, save, re-get, and verify the property value persists.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Round-trip crumb"}'
+      - cupboard set-property crumbs ${crumb_id} owner "round-trip-user"
+      command: cupboard get crumbs ${crumb_id} --json
+    expected:
+      exit_code: 0
+      state:
+        property_owner: round-trip-user
+  - name: Multiple property updates persist through round-trip
+    description: Update multiple properties and verify all values persist after re-fetching.
+    inputs:
+      setup:
+      - cupboard set crumbs "" '{"Name":"Multi-update crumb"}'
+      - cupboard set-property crumbs ${crumb_id} owner "alice"
+      - cupboard set-property crumbs ${crumb_id} description "A test description"
+      - cupboard set-property crumbs ${crumb_id} labels '["tag1","tag2"]'
+      command: cupboard get crumbs ${crumb_id} --json
+    expected:
+      exit_code: 0
+      state:
+        property_owner: alice
+        property_description: A test description
+        property_labels:
+        - tag1
+        - tag2
+  - name: Property round-trip with custom property
+    description: Create custom property, create crumb, update property, re-fetch and verify.
+    inputs:
+      setup:
+      - cupboard set properties "" '{"Name":"score","ValueType":"integer","Description":"Score value"}'
+      - cupboard set crumbs "" '{"Name":"Custom round-trip crumb"}'
+      - cupboard set-property crumbs ${crumb_id} score 42
+      command: cupboard get crumbs ${crumb_id} --json
+    expected:
+      exit_code: 0
+      state:
+        property_score: 42
+  - name: DefineCategory creates category for categorical property
+    description: Define a category on the priority property and verify it is persisted.
+    inputs:
+      steps:
+      - cupboard define-category priority "critical" 0
+      command: cupboard get-categories priority
+    expected:
+      exit_code: 0
+      stdout_contains: critical
+  - name: DefineCategory returns category with populated CategoryID
+    inputs:
+      command: cupboard define-category priority "urgent" -1
+    expected:
+      exit_code: 0
+      stdout_json:
+        has_category_id: true
+        name: urgent
+        ordinal: -1
+  - name: Multiple categories can be defined on same property
+    inputs:
+      steps:
+      - cupboard define-category type "feature" 10
+      - cupboard define-category type "enhancement" 11
+      - cupboard define-category type "documentation" 12
+      command: cupboard get-categories type
+    expected:
+      exit_code: 0
+      state:
+        category_count_ge: 3
+  - name: GetCategories returns categories ordered by ordinal ascending
+    inputs:
+      setup:
+      - cupboard set properties "" '{"Name":"severity","ValueType":"categorical","Description":"Issue severity"}'
+      - cupboard define-category severity "low" 3
+      - cupboard define-category severity "high" 1
+      - cupboard define-category severity "medium" 2
+      command: cupboard get-categories severity --json
+    expected:
+      exit_code: 0
+      state:
+        first_category_name: high
+        second_category_name: medium
+        third_category_name: low
+  - name: GetCategories orders by name for same ordinal
+    description: Categories with the same ordinal are ordered by name ascending.
+    inputs:
+      setup:
+      - cupboard set properties "" '{"Name":"status","ValueType":"categorical","Description":"Status"}'
+      - cupboard define-category status "zebra" 1
+      - cupboard define-category status "alpha" 1
+      - cupboard define-category status "beta" 1
+      command: cupboard get-categories status --json
+    expected:
+      exit_code: 0
+      state:
+        first_category_name: alpha
+        second_category_name: beta
+        third_category_name: zebra
+  - name: GetCategories returns empty slice for property with no categories
+    inputs:
+      setup:
+      - cupboard set properties "" '{"Name":"empty_cat","ValueType":"categorical","Description":"Empty"}'
+      command: cupboard get-categories empty_cat --json
+    expected:
+      exit_code: 0
+      stdout_json:
+        length: 0
+  - name: DefineCategory fails for duplicate name
+    inputs:
+      setup:
+      - cupboard set properties "" '{"Name":"dup_test","ValueType":"categorical","Description":"Dup test"}'
+      - cupboard define-category dup_test "same_name" 1
+      command: cupboard define-category dup_test "same_name" 2
+    expected:
+      exit_code: 1
+      stderr_contains: duplicate name
+  - name: DefineCategory allows same name on different properties
+    description: Same category name can exist on different properties.
+    inputs:
+      setup:
+      - cupboard set properties "" '{"Name":"prop_a","ValueType":"categorical","Description":"Prop A"}'
+      - cupboard set properties "" '{"Name":"prop_b","ValueType":"categorical","Description":"Prop B"}'
+      - cupboard define-category prop_a "shared_name" 1
+      command: cupboard define-category prop_b "shared_name" 1
+    expected:
+      exit_code: 0
+  - name: DefineCategory fails for text property
+    inputs:
+      command: cupboard define-category description "some_value" 1
+    expected:
+      exit_code: 1
+      stderr_contains: invalid value type
+  - name: DefineCategory fails for integer property
+    inputs:
+      setup:
+      - cupboard set properties "" '{"Name":"int_prop","ValueType":"integer","Description":"Integer prop"}'
+      command: cupboard define-category int_prop "value" 1
+    expected:
+      exit_code: 1
+      stderr_contains: invalid value type
+  - name: GetCategories fails for text property
+    inputs:
+      command: cupboard get-categories owner
+    expected:
+      exit_code: 1
+      stderr_contains: invalid value type
+  - name: GetCategories fails for list property
+    inputs:
+      command: cupboard get-categories labels
+    expected:
+      exit_code: 1
+      stderr_contains: invalid value type
+  - name: DefineCategory allows negative ordinals
+    inputs:
+      setup:
+      - cupboard set properties "" '{"Name":"neg_ord","ValueType":"categorical","Description":"Neg ordinal test"}'
+      command: cupboard define-category neg_ord "top_priority" -10
+    expected:
+      exit_code: 0
+      stdout_json:
+        ordinal: -10
+  - name: Negative ordinals sort before positive
+    inputs:
+      setup:
+      - cupboard set properties "" '{"Name":"ord_sort","ValueType":"categorical","Description":"Ordinal sort test"}'
+      - cupboard define-category ord_sort "positive" 5
+      - cupboard define-category ord_sort "negative" -5
+      - cupboard define-category ord_sort "zero" 0
+      command: cupboard get-categories ord_sort --json
+    expected:
+      exit_code: 0
+      state:
+        first_category_name: negative
+        second_category_name: zero
+        third_category_name: positive
+  - name: Categories persist to JSONL
+    description: Verify that categories are persisted to categories.jsonl.
+    inputs:
+      setup:
+      - cupboard set properties "" '{"Name":"persist_cat","ValueType":"categorical","Description":"Persist test"}'
+      - cupboard define-category persist_cat "persisted" 1
+      command: cat ${data_dir}/categories.jsonl
+    expected:
+      exit_code: 0
+      stdout_contains: '"name":"persisted"'
+  # --- uc: rel02.0-uc002-regeneration-compatibility: Regeneration compatibility validation ---
+
+  - name: Build generation N succeeds
+    inputs:
+      command: go build -o /tmp/cupboard-gen-n ./cmd/cupboard
+    expected:
+      exit_code: 0
+      files:
+        /tmp/cupboard-gen-n:
+          exists: true
+  - name: Install generation N to GOBIN succeeds
+    inputs:
+      command: go install ./cmd/cupboard
+    expected:
+      exit_code: 0
+  - name: Installed cupboard --help works
+    inputs:
+      command: cupboard --help
+    expected:
+      exit_code: 0
+      stdout_contains: cupboard
+  - name: Installed cupboard version works
+    inputs:
+      command: cupboard version
+    expected:
+      exit_code: 0
+      stdout_contains: cupboard
+  - name: Initialize data directory with generation N
+    inputs:
+      command: cupboard init --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+  - name: Create crumb with generation N
+    inputs:
+      command: cupboard set crumbs "" '{"Name":"Compat test crumb","State":"draft"}' --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+      stdout_contains: CrumbID
+  - name: Create multiple crumbs with generation N
+    inputs:
+      steps:
+      - cupboard set crumbs "" '{"Name":"Crumb one","State":"draft"}' --datadir /tmp/regen-test
+      - cupboard set crumbs "" '{"Name":"Crumb two","State":"ready"}' --datadir /tmp/regen-test
+      - cupboard set crumbs "" '{"Name":"Crumb three","State":"taken"}' --datadir /tmp/regen-test
+      command: cupboard list crumbs --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+      stdout_json:
+        length: 4
+  - name: Crumbs persisted to JSONL file
+    inputs:
+      command: cat /tmp/regen-test/crumbs.jsonl
+    expected:
+      exit_code: 0
+      stdout_contains:
+      - '"name":"Compat test crumb"'
+      - '"name":"Crumb one"'
+      - '"name":"Crumb two"'
+      - '"name":"Crumb three"'
+  - name: Create git tag before regeneration
+    inputs:
+      command: git tag -a regen-test-$(date +%s) -m "Pre-regeneration tag"
+    expected:
+      exit_code: 0
+  - name: Regenerate via mage runs successfully
+    description: Run the openGeneration mage target which deletes Go files and reinitializes.
+    inputs:
+      command: mage openGeneration
+    expected:
+      exit_code: 0
+      stdout_contains: generation
+  - name: Regeneration creates clean commit
+    description: Verify regeneration commits the deletion of Go files.
+    inputs:
+      command: git log -1 --oneline
+    expected:
+      exit_code: 0
+      state:
+        commit_exists: true
+  - name: Build generation N+1 from fresh code
+    inputs:
+      command: go build -o /tmp/cupboard-gen-n1 ./cmd/cupboard
+    expected:
+      exit_code: 0
+      files:
+        /tmp/cupboard-gen-n1:
+          exists: true
+  - name: Generation N+1 binary runs
+    inputs:
+      command: /tmp/cupboard-gen-n1 --help
+    expected:
+      exit_code: 0
+      stdout_contains: cupboard
+  - name: Generation N+1 lists crumbs created by generation N
+    inputs:
+      command: /tmp/cupboard-gen-n1 list crumbs --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+      stdout_contains:
+      - Compat test crumb
+      - Crumb one
+      - Crumb two
+      - Crumb three
+  - name: Generation N+1 gets specific crumb by ID
+    inputs:
+      setup:
+      - CRUMB_ID=$(cupboard list crumbs --datadir /tmp/regen-test --json | jq -r '.[0].crumb_id')
+      command: /tmp/cupboard-gen-n1 get crumbs ${CRUMB_ID} --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+      stdout_contains: CrumbID
+  - name: Generation N+1 reads all crumb fields correctly
+    inputs:
+      command: /tmp/cupboard-gen-n1 list crumbs --datadir /tmp/regen-test --json
+    expected:
+      exit_code: 0
+      stdout_json:
+        length: 4
+      state:
+        all_crumbs_have_name: true
+        all_crumbs_have_state: true
+        all_crumbs_have_created_at: true
+  - name: Generation N+1 updates crumb state
+    inputs:
+      setup:
+      - CRUMB_ID=$(cupboard list crumbs --datadir /tmp/regen-test --json | jq -r '.[] | select(.name=="Crumb two") | .crumb_id')
+      command: /tmp/cupboard-gen-n1 set crumbs ${CRUMB_ID} '{"CrumbID":"${CRUMB_ID}","Name":"Crumb two","State":"pebble"}' --datadir
+        /tmp/regen-test
+    expected:
+      exit_code: 0
+  - name: Modification reflected in JSONL
+    inputs:
+      command: cat /tmp/regen-test/crumbs.jsonl
+    expected:
+      exit_code: 0
+      stdout_contains: '"state":"pebble"'
+  - name: Generation N+1 creates new crumb
+    inputs:
+      command: /tmp/cupboard-gen-n1 set crumbs "" '{"Name":"N+1 created crumb","State":"draft"}' --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+      stdout_contains: CrumbID
+  - name: New crumb appears in JSONL
+    inputs:
+      command: cat /tmp/regen-test/crumbs.jsonl
+    expected:
+      exit_code: 0
+      stdout_contains: '"name":"N+1 created crumb"'
+  - name: Installed generation N lists all crumbs including N+1 additions
+    inputs:
+      command: cupboard list crumbs --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+      stdout_contains:
+      - Compat test crumb
+      - Crumb one
+      - Crumb two
+      - N+1 created crumb
+  - name: Generation N reads state change made by N+1
+    inputs:
+      command: cupboard list crumbs --datadir /tmp/regen-test --json
+    expected:
+      exit_code: 0
+      state:
+        crumb_two_state: pebble
+  - name: Generation N gets crumb created by N+1
+    inputs:
+      setup:
+      - CRUMB_ID=$(cupboard list crumbs --datadir /tmp/regen-test --json | jq -r '.[] | select(.name=="N+1 created crumb") |
+        .crumb_id')
+      command: cupboard get crumbs ${CRUMB_ID} --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+      stdout_contains: N+1 created crumb
+  - name: Generation N modifies crumb after N+1 modification
+    inputs:
+      setup:
+      - CRUMB_ID=$(cupboard list crumbs --datadir /tmp/regen-test --json | jq -r '.[] | select(.name=="Crumb three") | .crumb_id')
+      command: cupboard set crumbs ${CRUMB_ID} '{"CrumbID":"${CRUMB_ID}","Name":"Crumb three","State":"dust"}' --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+    verify:
+      command: /tmp/cupboard-gen-n1 get crumbs ${CRUMB_ID} --datadir /tmp/regen-test --json
+      state:
+        crumb_state: dust
+  - name: Generation N sets property value on crumb
+    inputs:
+      setup:
+      - CRUMB_ID=$(cupboard list crumbs --datadir /tmp/regen-test --json | jq -r '.[0].crumb_id')
+      command: cupboard set-property crumbs ${CRUMB_ID} owner "alice" --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+  - name: Generation N+1 reads property value set by N
+    inputs:
+      setup:
+      - CRUMB_ID=$(cupboard list crumbs --datadir /tmp/regen-test --json | jq -r '.[0].crumb_id')
+      command: /tmp/cupboard-gen-n1 get-property crumbs ${CRUMB_ID} owner --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+      stdout_contains: alice
+  - name: Generation N defines custom property
+    inputs:
+      command: cupboard set properties "" '{"Name":"regen_test_prop","ValueType":"text","Description":"Test property for regeneration"}'
+        --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+  - name: Generation N+1 lists custom property defined by N
+    inputs:
+      command: /tmp/cupboard-gen-n1 list properties --datadir /tmp/regen-test --json
+    expected:
+      exit_code: 0
+      stdout_contains: '"name":"regen_test_prop"'
+  - name: Generation N+1 sets value on property defined by N
+    inputs:
+      setup:
+      - CRUMB_ID=$(cupboard list crumbs --datadir /tmp/regen-test --json | jq -r '.[0].crumb_id')
+      command: /tmp/cupboard-gen-n1 set-property crumbs ${CRUMB_ID} regen_test_prop "n+1 value" --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+  - name: Generation N reads property value set by N+1
+    inputs:
+      setup:
+      - CRUMB_ID=$(cupboard list crumbs --datadir /tmp/regen-test --json | jq -r '.[0].crumb_id')
+      command: cupboard get-property crumbs ${CRUMB_ID} regen_test_prop --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+      stdout_contains: n+1 value
+  - name: JSONL with unknown fields is parsed by older generation
+    description: Generation N+1 adds a field; generation N ignores it.
+    inputs:
+      setup:
+      - echo '{"crumb_id":"test-uuid","name":"Unknown field test","state":"draft","future_field":"unknown"}' >> /tmp/regen-test/crumbs.jsonl
+      command: cupboard list crumbs --datadir /tmp/regen-test
+    expected:
+      exit_code: 0
+      stdout_contains: Unknown field test
+  - name: Generation N+1 handles missing JSONL gracefully
+    inputs:
+      command: /tmp/cupboard-gen-n1 list crumbs --datadir /tmp/empty-dir
+    expected:
+      exit_code: 0
+      stdout_json:
+        length: 0
+  - name: Both generations handle corrupted entry
+    description: A single corrupted line should not prevent reading valid entries.
+    inputs:
+      setup:
+      - echo 'not valid json' >> /tmp/regen-test-corrupt/crumbs.jsonl
+      - echo '{"crumb_id":"valid-uuid","name":"Valid after corrupt","state":"draft"}' >> /tmp/regen-test-corrupt/crumbs.jsonl
+      command: cupboard list crumbs --datadir /tmp/regen-test-corrupt
+    expected:
+      exit_code: 0
+      stdout_contains: Valid after corrupt
+
+cleanup:
+  - Remove temp config and data directories
+  - Remove /tmp/regen-test directory
+  - Remove /tmp/regen-test-corrupt directory
+  - Remove /tmp/empty-dir directory
+  - Remove /tmp/cupboard-gen-n binary
+  - Remove /tmp/cupboard-gen-n1 binary
+  - Restore git state if regeneration was run
