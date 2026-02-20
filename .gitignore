@@ -47,3 +47,4 @@ cupboard.db
 .cobbler/
 
 .secrets/
+.claude/
