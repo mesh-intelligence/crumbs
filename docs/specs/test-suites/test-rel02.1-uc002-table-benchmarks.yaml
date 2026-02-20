@@ -1,5 +1,6 @@
 id: test-rel02.1-uc002-table-benchmarks
 title: Table interface performance benchmarks
+release: "02.1"
 description: >
   Validates Go benchmark functions for Table interface operations at various
   data scales. Each test case runs a Go benchmark command and verifies that

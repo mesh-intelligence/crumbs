@@ -1,5 +1,6 @@
 id: test-rel01.0-uc005-crumbs-table-benchmarks
 title: Crumbs Table performance benchmarks
+release: "01.0"
 description: >
   Validates Go benchmark functions for crumbs Table interface operations at
   various data scales. Each test case runs a Go benchmark command and verifies

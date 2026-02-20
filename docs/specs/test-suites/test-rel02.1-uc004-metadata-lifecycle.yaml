@@ -1,5 +1,6 @@
 id: test-rel02.1-uc004-metadata-lifecycle
 title: Metadata lifecycle operations
+release: "02.1"
 description: >
   Validates metadata CRUD operations through the Table interface. Tests cover
   creating metadata entries with comments and attachments schemas, retrieving

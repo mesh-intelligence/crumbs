@@ -1,5 +1,6 @@
 id: test-rel03.0-uc003-stash-operations
 title: Stash operations for all stash types
+release: "03.0"
 description: >
   Validates stash creation for all five stash types (resource, artifact, context,
   counter, lock), value operations (SetValue/GetValue), counter operations (Increment),

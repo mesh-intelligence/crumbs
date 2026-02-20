@@ -9,9 +9,9 @@ problem: |
 graph_model: |
   We store data as a directed acyclic graph (DAG). Crumbs and trails are nodes; relationships are edges stored in link tables. This separates how we store data from how we access it, enabling efficient queries for both.
 
-  **Nodes**: Crumbs and trails are stored in separate tables. Both are nodes in the graph.
+  Nodes: Crumbs and trails are stored in separate tables. Both are nodes in the graph.
 
-  **Edges (links)**: Relationships between nodes are stored in the links table (see ARCHITECTURE Decision 10):
+  Edges (links): Relationships between nodes are stored in the links table (see ARCHITECTURE Decision 10):
 
   | Link type | From | To | Cardinality |
   |--------------|--------|--------|---------------------------------------------|
@@ -20,7 +20,7 @@ graph_model: |
   | branches_from | trail | crumb | one-to-one (trail branches from a crumb) |
   | scoped_to | stash | trail | one-to-one (stash scoped to a trail) |
 
-  **Query patterns**:
+  Query patterns:
 
   - Find all crumbs in a trail: query belongs_to by to_id (trail_id)
   - Find child crumbs of a crumb: query child_of by to_id (parent crumb_id)
@@ -29,7 +29,7 @@ graph_model: |
   - Find stashes scoped to a trail: query scoped_to by to_id (trail_id)
   - Traverse the DAG: recursive CTE on child_of
 
-  **Integrity**: Audit functions validate the graph (no cycles, valid references, DAG structure).
+  Integrity: Audit functions validate the graph (no cycles, valid references, DAG structure).
 goals:
   - G1: Define the JSONL file format and directory layout within DataDir
   - G2: Define the SQLite schema that mirrors the JSONL structure

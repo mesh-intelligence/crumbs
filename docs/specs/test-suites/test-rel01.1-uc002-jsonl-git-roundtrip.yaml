@@ -1,5 +1,6 @@
 id: test-rel01.1-uc002-jsonl-git-roundtrip
 title: JSONL git roundtrip persistence
+release: "01.1"
 description: >
   Validates that JSONL files are the source of truth for the SQLite backend.
   Tests the complete roundtrip: create crumbs, verify JSONL written, delete

@@ -1,5 +1,6 @@
 id: test-rel01.1-uc001-go-install
 title: Go install and basic operations
+release: "01.1"
 description: >
   Validates that the cupboard CLI can be installed via go install and that basic
   operations work: help, init, set, and list. This confirms the module is

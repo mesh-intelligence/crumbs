@@ -1,5 +1,6 @@
 id: test-rel01.1-uc003-configuration-loading
 title: Configuration and path resolution test suite
+release: "01.1"
 description: >
   Validates the configuration loading pipeline: platform-specific defaults,
   environment variable overrides, config.yaml values, and CLI flag overrides.

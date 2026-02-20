@@ -1,5 +1,6 @@
 id: test-rel01.1-uc004-generic-table-cli
 title: Generic Table CLI Operations test suite
+release: "01.1"
 description: >
   Validates the generic table CLI commands (get, set, list, delete) across
   multiple table types. Tests exercise JSON input/output, error handling,

@@ -1,5 +1,6 @@
 id: test-rel02.1-uc001-issue-tracking-cli
 title: Issue-tracking CLI commands
+release: "02.1"
 description: >
   Validates the seven issue-tracking commands (create, ready, update, close,
   show, list, comments) against a fresh cupboard instance. Each test case
@@ -224,7 +225,7 @@ test_cases:
     inputs:
       setup:
         - cupboard create --type task --title "Commentable" --description "Has comments" --json
-      command: cupboard comments add ${crumb_id} "tokens: 34256"
+      command: 'cupboard comments add ${crumb_id} "tokens: 34256"'
     expected:
       exit_code: 0
       stdout_contains: "Added"

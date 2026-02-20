@@ -29,9 +29,9 @@ flow:
   - F18: "Fetch stashes by stash_type filter: query stashes table with stash_type filter"
   - F19: "Fetch stashes by name filter: query stashes table with name filter"
   - F20: "Delete stash: remove a stash and verify ErrNotFound on subsequent Get"
-  - F22: "Query stash history after multiple mutations: call FetchStashHistory and verify all operations recorded"
-  - F23: "Verify history entries: confirm entries have correct version, operation, and value snapshots"
-  - F21: "Detach the cupboard: call cupboard.Detach()"
+  - F21: "Query stash history after multiple mutations: call FetchStashHistory and verify all operations recorded"
+  - F22: "Verify history entries: confirm entries have correct version, operation, and value snapshots"
+  - F23: "Detach the cupboard: call cupboard.Detach()"
 touchpoints:
   - T1: "Cupboard interface: Attach, Detach, GetTable (prd001-cupboard-core R2)"
   - T2: "Table (stashes): Get, Set, Delete, Fetch (prd001-cupboard-core R3)"

@@ -1,5 +1,6 @@
 id: test-rel02.1-uc003-self-hosting
 title: Self-hosting issue-tracking workflow
+release: "02.1"
 description: >
   Validates the cupboard CLI as an issue tracker for the crumbs repository.
   Each test case exercises CLI commands via exec, using a fresh cupboard

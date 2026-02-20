@@ -1,5 +1,6 @@
 id: test-rel02.0-uc002-regeneration-compatibility
 title: Regeneration compatibility validation
+release: "02.0"
 description: >
   Validates that the --regenerate cycle produces a generation N+1 that can
   read and operate on JSONL data created by generation N. Tests backward

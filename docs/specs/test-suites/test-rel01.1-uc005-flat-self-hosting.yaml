@@ -1,5 +1,6 @@
 id: test-rel01.1-uc005-flat-self-hosting
 title: Flat self-hosting issue-tracking workflow
+release: "01.1"
 description: >
   Validates the cupboard CLI as an issue tracker using only core storage features.
   Each test case exercises generic table commands (get, set, list, delete) via exec,

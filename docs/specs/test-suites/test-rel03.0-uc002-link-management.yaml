@@ -1,5 +1,6 @@
 id: test-rel03.0-uc002-link-management
 title: Link management CRUD and filtering
+release: "03.0"
 description: >
   Validates link creation for all four link types (belongs_to, child_of,
   branches_from, scoped_to), retrieval, filtering, and deletion through

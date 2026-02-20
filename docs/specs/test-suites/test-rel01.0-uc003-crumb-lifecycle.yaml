@@ -1,5 +1,6 @@
 id: test-rel01.0-uc003-crumb-lifecycle
 title: Crumb entity state machine and archival
+release: "01.0"
 description: >
   Validates the crumb state machine (draft→pending→ready→taken→pebble and any→dust),
   timestamp behavior on state transitions, state-based filtering, and crumb archival.

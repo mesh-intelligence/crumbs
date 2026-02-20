@@ -22,10 +22,14 @@ touchpoints:
   - T1: "go.mod: module path github.com/mesh-intelligence/crumbs with local replace directive"
   - T2: "Cupboard interface: Attach, GetTable, Detach (prd001-cupboard-core R2)"
   - T3: "Table interface: compile-time verification of Get, Set, Delete, Fetch signatures (prd001-cupboard-core R2)"
-  - T4: "Entity types (all 7): compile-time verification of struct fields (prd003-crumbs-interface R1, prd006-trails-interface, prd004-properties-interface, prd008-stash-interface, prd005-metadata-interface)"
-  - T5: "SQLite backend: NewBackend, Attach (schema creation), Detach (prd002-sqlite-backend)"
-  - T6: "CLI (cmd/cupboard): version command with implemented use case listing"
-  - T7: "GetTable returns a Table for all six standard table names (prd001-cupboard-core R2.5)"
+  - T4: "Entity types (all 7): compile-time verification of struct fields (prd003-crumbs-interface R1)"
+  - T5: "Trail entity struct fields (prd006-trails-interface)"
+  - T6: "Property entity struct fields (prd004-properties-interface)"
+  - T7: "Stash entity struct fields (prd008-stash-interface)"
+  - T8: "Metadata entity struct fields (prd005-metadata-interface)"
+  - T9: "SQLite backend: NewBackend, Attach (schema creation), Detach (prd002-sqlite-backend)"
+  - T10: "CLI (cmd/cupboard): version command with implemented use case listing"
+  - T11: "GetTable returns a Table for all six standard table names (prd001-cupboard-core R2.5)"
 success_criteria:
   - S1: go.mod declares module github.com/mesh-intelligence/crumbs with replace directive to ./
   - S2: go build ./cmd/cupboard completes without errors through the mesh-intelligence module path

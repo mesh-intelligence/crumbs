@@ -1,5 +1,6 @@
 id: test-rel99.0-uc001-blazes-templates
 title: Agent uses blazes (workflow templates)
+release: "99.0"
 description: >
   Validates template discovery, metadata parsing, semantic matching of tasks
   to templates, template selection, and parameter extraction. Each test case

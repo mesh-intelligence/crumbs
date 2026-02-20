@@ -1,5 +1,6 @@
 id: test-rel01.0-uc001-cupboard-lifecycle
 title: Cupboard lifecycle and CRUD operations
+release: "01.0"
 description: >
   Validates trail creation, trail state transitions, crumb-trail linking,
   JSONL persistence, and full lifecycle workflow with cascade operations.

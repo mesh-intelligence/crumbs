@@ -1,5 +1,6 @@
 id: test-rel03.1-uc001-self-hosting-with-epics
 title: Self-Hosting with Epics via Trails
+release: "03.1"
 description: |
   Validates trail-based epic management for self-hosting workflows. Tests the
   complete lifecycle of using trails as epic containers: creating trails,

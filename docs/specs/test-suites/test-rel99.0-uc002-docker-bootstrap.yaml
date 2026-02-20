@@ -1,5 +1,6 @@
 id: test-rel99.0-uc002-docker-bootstrap
 title: Docker bootstrap (docs to working system)
+release: "99.0"
 description: >
   Validates that an agent can build crumbs from documentation alone inside a
   fresh Docker container, then use crumbs to track its own work. Each test case

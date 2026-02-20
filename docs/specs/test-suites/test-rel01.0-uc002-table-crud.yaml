@@ -1,5 +1,6 @@
 id: test-rel01.0-uc002-table-crud
 title: Table interface CRUD operations
+release: "01.0"
 description: >
   Validates the Table interface CRUD operations (Get, Set, Delete, Fetch) through the
   SQLite backend. Tests cover creating entities with UUID v7 generation, retrieving

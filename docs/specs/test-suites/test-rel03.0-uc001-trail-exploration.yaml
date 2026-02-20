@@ -1,5 +1,6 @@
 id: test-rel03.0-uc001-trail-exploration
 title: Trail-based exploration and lifecycle
+release: "03.0"
 description: >
   Validates trail creation, crumb-trail membership via belongs_to links, trail
   completion (making crumbs permanent), and trail abandonment (atomic deletion
@@ -121,8 +122,8 @@ test_cases:
         - Create crumb1 in draft state
         - Create crumb2 in draft state
       steps:
-        - linksTable.Set("", &Link{LinkType: "belongs_to", FromID: crumb1.CrumbID, ToID: trail.TrailID})
-        - linksTable.Set("", &Link{LinkType: "belongs_to", FromID: crumb2.CrumbID, ToID: trail.TrailID})
+        - 'linksTable.Set("", &Link{LinkType: "belongs_to", FromID: crumb1.CrumbID, ToID: trail.TrailID})'
+        - 'linksTable.Set("", &Link{LinkType: "belongs_to", FromID: crumb2.CrumbID, ToID: trail.TrailID})'
     expected:
       exit_code: 0
       state:
@@ -188,7 +189,7 @@ test_cases:
       steps:
         - trail.Abandon()
         - trailsTable.Set(trail.TrailID, trail)
-        - linksTable.Fetch(map[string]any{"link_type": "belongs_to", "to_id": trail.TrailID})
+        - 'linksTable.Fetch(map[string]any{"link_type": "belongs_to", "to_id": trail.TrailID})'
     expected:
       state:
         trail_state: abandoned
@@ -222,7 +223,7 @@ test_cases:
       steps:
         - trail.Complete()
         - trailsTable.Set(trail.TrailID, trail)
-        - linksTable.Fetch(map[string]any{"link_type": "belongs_to", "to_id": trail.TrailID})
+        - 'linksTable.Fetch(map[string]any{"link_type": "belongs_to", "to_id": trail.TrailID})'
     expected:
       state:
         trail_state: completed
@@ -255,7 +256,7 @@ test_cases:
         - trail.Complete()
         - trailsTable.Set(trail.TrailID, trail)
         - crumbsTable.Get(crumb.CrumbID)
-        - linksTable.Fetch(map[string]any{"link_type": "belongs_to", "from_id": crumb.CrumbID})
+        - 'linksTable.Fetch(map[string]any{"link_type": "belongs_to", "from_id": crumb.CrumbID})'
     expected:
       state:
         crumb_exists: true
@@ -316,8 +317,8 @@ test_cases:
       steps:
         - trail.Abandon()
         - trailsTable.Set(trail.TrailID, trail)
-        - linksTable.Fetch(map[string]any{"from_id": crumb.CrumbID})
-        - linksTable.Fetch(map[string]any{"to_id": crumb.CrumbID})
+        - 'linksTable.Fetch(map[string]any{"from_id": crumb.CrumbID})'
+        - 'linksTable.Fetch(map[string]any{"to_id": crumb.CrumbID})'
     expected:
       state:
         links_from_crumb: 0
