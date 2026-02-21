@@ -440,11 +440,32 @@ Attach is idempotent (returns ErrAlreadyAttached if called twice). Detach blocks
 
 ## System Components
 
-**Cupboard API (pkg/types)**: Public types and interfaces. Applications import this package to use the Cupboard interface, Table interface, and entity types (Crumb, Trail, Property, Category, Stash, Metadata, Link). The Cupboard interface provides `GetTable(name)` which returns a uniform Table interface for any entity type (prd001-cupboard-core R2, R3).
+The package structure separates intent (interfaces), domain logic (entity structs), and infrastructure (persistence) into distinct packages. Each package has a single reason to change.
 
-**Entity Types (pkg/types)**: Structs representing domain objects. Each entity has an ID field (UUID v7) and domain-specific fields. Entity methods (e.g., `Crumb.SetState`, `Crumb.Pebble`, `Trail.Complete`) modify the struct in memory; callers persist via `Table.Set`. Entity types are defined in their respective PRDs.
+```text
+crumbs/
+├── cmd/cupboard/               # CLI entrypoint
+├── pkg/
+│   ├── api/                    # Intent: Cupboard, Table interfaces and Config
+│   ├── schema/                 # Domain: entity structs and state-transition methods
+│   └── constants/              # Rules: states, link types, property defaults (no magic strings)
+├── internal/
+│   ├── persistence/
+│   │   ├── engine/             # Infrastructure: SQLite lifecycle, JSONL flush, file I/O
+│   │   └── mapping/            # Translation: entity struct ↔ SQL row (hydration/dehydration)
+│   └── telemetry/              # Observability: OpenTelemetry implementation
+└── go.mod
+```
 
-**SQLite Backend (internal/sqlite)**: Primary backend for local development. JSONL files are the source of truth; SQLite (modernc.org/sqlite, pure Go) serves as a query cache. On startup, JSONL is loaded into SQLite. Writes persist to JSONL first, then update SQLite. Implements the Cupboard and Table interfaces (prd002-sqlite-backend). Hydrates table rows into entity objects on Get/Fetch, and dehydrates entity objects to rows on Set.
+**Interfaces (pkg/api)**: Contract package. Contains the `Cupboard` interface, `Table` interface, `Config`, and `SQLiteConfig`. Nothing else. Callers import only this package to use the library. Changes here require changes in every implementation; changes to implementations never touch this package (prd001-cupboard-core R2, R3).
+
+**Entity Types (pkg/schema)**: In-memory domain logic. Structs (Crumb, Trail, Property, Category, Stash, Metadata, Link) and their methods (SetState, Pebble, Dust, Complete, Abandon, etc.). Methods update struct fields only—no I/O, no database knowledge. This package has no dependency on `pkg/api` or `internal/`. Entity types are defined in their respective PRDs.
+
+**Constants (pkg/constants)**: Single source of truth for all domain strings. State values (`draft`, `pending`, `pebble`…), link types (`belongs_to`, `child_of`…), property defaults, sync strategies, and table names are defined here as named constants. No package in the codebase uses raw string literals for these values.
+
+**SQLite Engine (internal/persistence/engine)**: SQLite lifecycle and JSONL file I/O. Opens and closes the database, creates the schema, manages the `sync.RWMutex`, and implements the atomic JSONL write pattern (temp file → fsync → rename). Knows nothing about entity types.
+
+**SQL Mapping (internal/persistence/mapping)**: Entity ↔ SQL row translation. One mapper per entity type converts between Go structs and SQL column values (hydration and dehydration). This package is the only place that knows both entity field names and SQL column names. Adding a column means changing a mapper, not the engine or the interface.
 
 **CLI (cmd/cupboard)**: Command-line tool for development and personal use. Commands map to Cupboard operations. Config file selects backend.
 
@@ -470,6 +491,10 @@ Attach is idempotent (returns ErrAlreadyAttached if called twice). Detach blocks
 
 **Decision 10: Links table for all relationships**. All entity relationships use the links table with typed edges. Link types: `belongs_to` (crumb→trail membership), `child_of` (crumb→crumb dependencies), `branches_from` (trail→crumb branch point), `scoped_to` (stash→trail scope). Benefits: one consistent pattern for all relationships, enables graph queries and traversal, no special cases. Alternative: direct fields (e.g., `Trail.ParentCrumbID`, `Stash.TrailID`) are simpler for 1:optional relationships but create inconsistency and require different query patterns.
 
+**Decision 12: Package separation of interfaces, domain types, and constants**. We split the public API surface into three packages rather than one `pkg/types` monolith. `pkg/api` holds only interfaces and config—its surface changes only when the contract changes. `pkg/schema` holds entity structs and state-transition methods—it changes when domain rules change and has no dependency on persistence. `pkg/constants` holds all domain strings as named constants—it changes when a new state or link type is added. This separation means an AI coding agent working on the persistence layer never needs to read entity methods, and an agent working on domain rules never needs to read SQL. Each package has a single reason to change (Decision 9 identifies the pattern; this decision names the package boundaries). Alternative: a single `pkg/types` package is simpler to navigate in small codebases but conflates three different rates of change and forces larger context windows for AI agents.
+
+**Decision 13: Centralizing domain strings as named constants**. All state values, link types, table names, sync strategies, and property defaults are defined in `pkg/constants` as named Go constants. No package in the codebase uses raw string literals for these values. This prevents the "magic string" problem where the same value is spelled differently in different files. A rename (e.g., `"pebble"` → `"done"`) requires a change in one place. AI coding agents are particularly susceptible to magic-string errors because they generate string literals by pattern-matching; constants make the correct value discoverable. Alternative: define constants in the package that owns the concept (states in schema, table names in api)—this avoids a shared package but scatters the lookup across multiple files.
+
 **Decision 11: OpenTelemetry for observability, not plain logs**. We use OpenTelemetry (traces, metrics, logs) as the observability layer. We do not use plain structured logging (e.g., `log/slog`) for application telemetry. OpenTelemetry provides correlated traces and spans across operations, making it possible to follow a request through Cupboard attach, table access, and backend I/O. Metrics (operation counts, latencies) and structured log records flow through the same pipeline. In development, an exporter writes to the console; in production, exporters send to any OTel-compatible backend. Alternative: plain `slog` logging is simpler to start but loses trace correlation, cannot produce metrics, and requires a separate system for distributed tracing.
 
 ## Technology Choices
@@ -485,7 +510,7 @@ Attach is idempotent (returns ErrAlreadyAttached if called twice). Detach blocks
 
 ## Implementation Status
 
-Release 01.0 (core storage with SQLite backend) is complete. Releases 01.1, 02.1, and 03.0 are in progress with several use cases done. See road-map.yaml for the full release schedule, use case status, and prioritization rules.
+Release 01.0 (core storage with SQLite backend) is in progress. See road-map.yaml for the full release schedule, use case status, and prioritization rules.
 
 Success criteria (from VISION): operations complete with low latency, agents integrate the library quickly, trail workflows feel natural for coding agents exploring implementation approaches.
 
@@ -504,6 +529,7 @@ Success criteria (from VISION): operations complete with low latency, agents int
 | prd008-stash-interface.yaml | Stash entity, shared state, versioning |
 | engineering/eng01-git-integration.md | Git conventions: JSONL in git, task branches, trails vs git branches, merge behavior |
 | engineering/eng02-generation-workflow.md | Generation lifecycle: open, generate, close; task branch naming; scripts |
+| engineering/eng05-testing-strategy.md | Layered testing: unit (pkg/schema), integration (internal/persistence), e2e (cmd/cupboard) |
 
 ## References
 
