@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/mesh-intelligence/crumbs/pkg/crumbs"
+	"github.com/petar-djukic/crumbs/pkg/crumbs"
 )
 
 func main() {
