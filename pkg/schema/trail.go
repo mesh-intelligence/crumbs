@@ -1,23 +1,18 @@
-package types
+package schema
 
-import "time"
+import (
+	"time"
 
-// Trail states (prd006-trails-interface).
-const (
-	TrailDraft     = "draft"
-	TrailPending   = "pending"
-	TrailActive    = "active"
-	TrailCompleted = "completed"
-	TrailAbandoned = "abandoned"
+	"github.com/petar-djukic/crumbs/pkg/constants"
 )
 
 // validTrailStates is the set of recognized trail state values.
 var validTrailStates = map[string]bool{
-	TrailDraft:     true,
-	TrailPending:   true,
-	TrailActive:    true,
-	TrailCompleted: true,
-	TrailAbandoned: true,
+	constants.TrailDraft:     true,
+	constants.TrailPending:   true,
+	constants.TrailActive:    true,
+	constants.TrailCompleted: true,
+	constants.TrailAbandoned: true,
 }
 
 // Trail represents an exploration session that groups crumbs
@@ -44,10 +39,10 @@ func (t *Trail) SetState(state string) error {
 // is not "active".
 // (prd006-trails-interface)
 func (t *Trail) Complete() error {
-	if t.State != TrailActive {
+	if t.State != constants.TrailActive {
 		return ErrInvalidTransition
 	}
-	t.State = TrailCompleted
+	t.State = constants.TrailCompleted
 	now := time.Now()
 	t.CompletedAt = &now
 	return nil
@@ -58,10 +53,10 @@ func (t *Trail) Complete() error {
 // already in a terminal state (completed or abandoned).
 // (prd006-trails-interface)
 func (t *Trail) Abandon() error {
-	if t.State == TrailCompleted || t.State == TrailAbandoned {
+	if t.State == constants.TrailCompleted || t.State == constants.TrailAbandoned {
 		return ErrInvalidTransition
 	}
-	t.State = TrailAbandoned
+	t.State = constants.TrailAbandoned
 	now := time.Now()
 	t.CompletedAt = &now
 	return nil

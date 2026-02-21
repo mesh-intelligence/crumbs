@@ -1,25 +1,23 @@
-package types
+// Package schema defines entity structs and in-memory domain logic.
+// Methods on these structs modify fields only — they never touch persistence.
+//
+// Implements: prd003-crumbs-interface
+package schema
 
-import "time"
+import (
+	"time"
 
-// Crumb states (prd003-crumbs-interface R2.1).
-const (
-	CrumbDraft   = "draft"
-	CrumbPending = "pending"
-	CrumbReady   = "ready"
-	CrumbTaken   = "taken"
-	CrumbPebble  = "pebble"
-	CrumbDust    = "dust"
+	"github.com/petar-djukic/crumbs/pkg/constants"
 )
 
 // validCrumbStates is the set of recognized crumb state values.
 var validCrumbStates = map[string]bool{
-	CrumbDraft:   true,
-	CrumbPending: true,
-	CrumbReady:   true,
-	CrumbTaken:   true,
-	CrumbPebble:  true,
-	CrumbDust:    true,
+	constants.CrumbDraft:   true,
+	constants.CrumbPending: true,
+	constants.CrumbReady:   true,
+	constants.CrumbTaken:   true,
+	constants.CrumbPebble:  true,
+	constants.CrumbDust:    true,
 }
 
 // Crumb represents a work item (prd003-crumbs-interface R1).
@@ -49,10 +47,10 @@ func (c *Crumb) SetState(state string) error {
 // Returns ErrInvalidTransition if the current state is not "taken".
 // (prd003-crumbs-interface R4.3)
 func (c *Crumb) Pebble() error {
-	if c.State != CrumbTaken {
+	if c.State != constants.CrumbTaken {
 		return ErrInvalidTransition
 	}
-	c.State = CrumbPebble
+	c.State = constants.CrumbPebble
 	c.UpdatedAt = time.Now()
 	return nil
 }
@@ -61,7 +59,7 @@ func (c *Crumb) Pebble() error {
 // Can be called from any state. Idempotent.
 // (prd003-crumbs-interface R4.4)
 func (c *Crumb) Dust() error {
-	c.State = CrumbDust
+	c.State = constants.CrumbDust
 	c.UpdatedAt = time.Now()
 	return nil
 }

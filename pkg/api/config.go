@@ -1,43 +1,6 @@
-package types
+package api
 
-// Standard table names (prd001-cupboard-core R2.5).
-const (
-	TableCrumbs     = "crumbs"
-	TableTrails     = "trails"
-	TableProperties = "properties"
-	TableMetadata   = "metadata"
-	TableLinks      = "links"
-	TableStashes    = "stashes"
-)
-
-// Supported backend values.
-const (
-	BackendSQLite = "sqlite"
-)
-
-// Supported sync strategies for SQLiteConfig.
-const (
-	SyncImmediate = "immediate"
-	SyncOnClose   = "on_close"
-	SyncBatch     = "batch"
-)
-
-// Cupboard is the core interface for storage access and lifecycle management
-// (prd001-cupboard-core R2).
-type Cupboard interface {
-	GetTable(name string) (Table, error)
-	Attach(config Config) error
-	Detach() error
-}
-
-// Table provides uniform CRUD operations for all entity types
-// (prd001-cupboard-core R3).
-type Table interface {
-	Get(id string) (any, error)
-	Set(id string, data any) (string, error)
-	Delete(id string) error
-	Fetch(filter map[string]any) ([]any, error)
-}
+import "github.com/petar-djukic/crumbs/pkg/constants"
 
 // Config holds the configuration for a Cupboard backend
 // (prd001-cupboard-core R1).
@@ -52,7 +15,7 @@ func (c Config) Validate() error {
 	if c.Backend == "" {
 		return ErrBackendEmpty
 	}
-	if c.Backend != BackendSQLite {
+	if c.Backend != constants.BackendSQLite {
 		return ErrBackendUnknown
 	}
 	if c.DataDir == "" {
@@ -74,12 +37,12 @@ type SQLiteConfig struct {
 // Validate checks that the SQLiteConfig fields are valid.
 func (sc SQLiteConfig) Validate() error {
 	switch sc.SyncStrategy {
-	case "", SyncImmediate, SyncOnClose, SyncBatch:
+	case "", constants.SyncImmediate, constants.SyncOnClose, constants.SyncBatch:
 		// valid
 	default:
 		return ErrSyncStrategyUnknown
 	}
-	if sc.SyncStrategy == SyncBatch {
+	if sc.SyncStrategy == constants.SyncBatch {
 		if sc.BatchSize <= 0 {
 			return ErrBatchSizeInvalid
 		}
@@ -93,7 +56,7 @@ func (sc SQLiteConfig) Validate() error {
 // GetSyncStrategy returns the sync strategy, defaulting to "immediate".
 func (sc SQLiteConfig) GetSyncStrategy() string {
 	if sc.SyncStrategy == "" {
-		return SyncImmediate
+		return constants.SyncImmediate
 	}
 	return sc.SyncStrategy
 }
