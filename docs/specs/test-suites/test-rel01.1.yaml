@@ -1,1194 +1,786 @@
 id: test-rel01.1
-title: "Post-Core Validation"
-release: "01.1"
-description: >
-  Release test suite for post-core validation.
-  Covers 5 use cases with 102 test cases total.
+title: Post-Core Validation
+release: '01.1'
 traces:
-  - rel01.1-uc001-go-install
-  - rel01.1-uc002-jsonl-git-roundtrip
-  - rel01.1-uc003-configuration-loading
-  - rel01.1-uc004-generic-table-cli
-  - rel01.1-uc005-flat-self-hosting
-tags:
-  - cli
-  - configuration
-  - generic-table
-  - git-integration
-  - install
-  - integration
-  - jsonl
-  - persistence
-  - self-hosting
-  - smoke
-  - sqlite
-
-preconditions:
-  - Go toolchain installed (version 1.25 or later)
-  - $GOBIN is in $PATH (typically ~/go/bin)
-  - Network access to Go module proxy (for go install)
-  - No existing cupboard installation in $GOBIN
-  - Cupboard binary built from cmd/cupboard
-  - Fresh temp directory initialized as git repository
-  - Config file points SQLite backend at data subdirectory
-  - data/cupboard.db added to .gitignore
-  - No existing crumbs or JSONL files
-  - Fresh temp directories for config and data
-  - Clean environment (no pre-existing CRUMBS_* env vars)
-  - Fresh temp data directory per test case
-  - Cupboard initialized with cupboard init
-  - Fresh temp directory for config and data
-  - No existing crumbs
-
+- rel01.1-uc001-go-install
+- rel01.1-uc002-jsonl-git-roundtrip
+- rel01.1-uc003-configuration-loading
+- rel01.1-uc004-generic-table-cli
+- rel01.1-uc005-flat-self-hosting
+preconditions: |-
+  Go toolchain installed (version 1.25 or later)
+  $GOBIN is in $PATH (typically ~/go/bin)
+  Network access to Go module proxy (for go install)
+  No existing cupboard installation in $GOBIN
+  Cupboard binary built from cmd/cupboard
+  Fresh temp directory initialized as git repository
+  Config file points SQLite backend at data subdirectory
+  data/cupboard.db added to .gitignore
+  No existing crumbs or JSONL files
+  Fresh temp directories for config and data
+  Clean environment (no pre-existing CRUMBS_* env vars)
+  Fresh temp data directory per test case
+  Cupboard initialized with cupboard init
+  Fresh temp directory for config and data
+  No existing crumbs
 test_cases:
-
-  # --- uc: rel01.1-uc001-go-install: Go install and basic operations ---
-
-  - name: Go install completes successfully
-    description: 'The go install command downloads the module from the Go proxy, compiles cmd/cupboard, and places the binary
-      in $GOBIN. This validates that the module is properly published and installable.
-      '
-    inputs:
-      command: go install github.com/mesh-intelligence/crumbs/cmd/cupboard@latest
-    expected:
-      exit_code: 0
-  - name: Binary exists in GOBIN after install
-    description: 'After go install, the cupboard binary must exist in $GOBIN.
-      '
-    inputs:
-      command: test -x "${GOBIN:-$(go env GOBIN)}/cupboard" || test -x "$(go env GOPATH)/bin/cupboard"
-    expected:
-      exit_code: 0
-  - name: Help flag prints usage
-    description: 'The --help flag must print usage information showing available commands.
-      '
-    inputs:
-      command: cupboard --help
-    expected:
-      exit_code: 0
-      stdout_contains: 'Usage:'
-  - name: Help shows init command
-    inputs:
-      command: cupboard --help
-    expected:
-      exit_code: 0
-      stdout_contains: init
-  - name: Help shows set command
-    inputs:
-      command: cupboard --help
-    expected:
-      exit_code: 0
-      stdout_contains: set
-  - name: Help shows list command
-    inputs:
-      command: cupboard --help
-    expected:
-      exit_code: 0
-      stdout_contains: list
-  - name: Help shows get command
-    inputs:
-      command: cupboard --help
-    expected:
-      exit_code: 0
-      stdout_contains: get
-  - name: Init creates data directory
-    description: 'Running cupboard init in a project directory creates the data directory. The directory layout follows prd010-configuration-directories
-      R2.
-      '
-    inputs:
-      command: cupboard init --data-dir ${tmpdir}/cupboard-data && test -d ${tmpdir}/cupboard-data
-    expected:
-      exit_code: 0
-  - name: Init creates crumbs.jsonl file
-    description: 'The init command creates the JSONL files for entity storage. The crumbs table is stored in crumbs.jsonl.
-      '
-    inputs:
-      setup:
-      - cupboard init --data-dir ${tmpdir}/cupboard-data
-      command: test -f ${tmpdir}/cupboard-data/crumbs.jsonl
-    expected:
-      exit_code: 0
-  - name: Init creates trails.jsonl file
-    inputs:
-      setup:
-      - cupboard init --data-dir ${tmpdir}/cupboard-data
-      command: test -f ${tmpdir}/cupboard-data/trails.jsonl
-    expected:
-      exit_code: 0
-  - name: Init creates properties.jsonl file
-    inputs:
-      setup:
-      - cupboard init --data-dir ${tmpdir}/cupboard-data
-      command: test -f ${tmpdir}/cupboard-data/properties.jsonl
-    expected:
-      exit_code: 0
-  - name: Init creates links.jsonl file
-    inputs:
-      setup:
-      - cupboard init --data-dir ${tmpdir}/cupboard-data
-      command: test -f ${tmpdir}/cupboard-data/links.jsonl
-    expected:
-      exit_code: 0
-  - name: Init creates stashes.jsonl file
-    inputs:
-      setup:
-      - cupboard init --data-dir ${tmpdir}/cupboard-data
-      command: test -f ${tmpdir}/cupboard-data/stashes.jsonl
-    expected:
-      exit_code: 0
-  - name: Init creates metadata.jsonl file
-    inputs:
-      setup:
-      - cupboard init --data-dir ${tmpdir}/cupboard-data
-      command: test -f ${tmpdir}/cupboard-data/metadata.jsonl
-    expected:
-      exit_code: 0
-  - name: Init is idempotent
-    description: 'Running init twice on the same data directory must succeed without error.
-      '
-    inputs:
-      setup:
-      - cupboard init --data-dir ${tmpdir}/cupboard-data
-      command: cupboard init --data-dir ${tmpdir}/cupboard-data
-    expected:
-      exit_code: 0
-  - name: Set creates a crumb and returns JSON
-    description: 'The set command creates a crumb with the provided payload. The output includes the generated UUID v7 identifier.
-      '
-    inputs:
-      setup:
-      - cupboard init --data-dir ${tmpdir}/cupboard-data
-      command: cupboard set crumbs "" '{"Name":"Test crumb","State":"draft"}' --data-dir ${tmpdir}/cupboard-data
-    expected:
-      exit_code: 0
-      stdout_contains: CrumbID
-  - name: List returns the created crumb
-    description: 'After creating a crumb with set, listing crumbs must return it. This validates the round-trip through set
-      and list operations.
-      '
-    inputs:
-      setup:
-      - cupboard init --data-dir ${tmpdir}/cupboard-data
-      - cupboard set crumbs "" '{"Name":"Roundtrip test","State":"draft"}' --data-dir ${tmpdir}/cupboard-data
-      command: cupboard list crumbs --data-dir ${tmpdir}/cupboard-data
-    expected:
-      exit_code: 0
-      stdout_contains: Roundtrip test
-  - name: List with empty table returns empty
-    description: 'Listing crumbs on a freshly initialized cupboard returns an empty list without error.
-      '
-    inputs:
-      setup:
-      - cupboard init --data-dir ${tmpdir}/cupboard-data
-      command: cupboard list crumbs --data-dir ${tmpdir}/cupboard-data
-    expected:
-      exit_code: 0
-  - name: Get retrieves created crumb by ID
-    description: 'After creating a crumb, get retrieves it by the returned ID.
-      '
-    inputs:
-      setup:
-      - cupboard init --data-dir ${tmpdir}/cupboard-data
-      command: 'id=$(cupboard set crumbs "" ''{"Name":"Get test","State":"draft"}'' --data-dir ${tmpdir}/cupboard-data | grep
-        -o ''"CrumbID":"[^"]*"'' | cut -d''"'' -f4)
-        cupboard get crumbs "$id" --data-dir ${tmpdir}/cupboard-data
-        '
-    expected:
-      exit_code: 0
-      stdout_contains: Get test
-  - name: Crumb persists across cupboard restarts
-    description: 'A crumb created in one session must persist and be retrievable in a subsequent session. This validates JSONL
-      persistence.
-      '
-    inputs:
-      setup:
-      - cupboard init --data-dir ${tmpdir}/cupboard-data
-      - cupboard set crumbs "" '{"Name":"Persistence test","State":"draft"}' --data-dir ${tmpdir}/cupboard-data
-      command: cupboard list crumbs --data-dir ${tmpdir}/cupboard-data
-    expected:
-      exit_code: 0
-      stdout_contains: Persistence test
-  - name: Version command works without source checkout
-    description: 'The installed binary must work standalone without requiring the source repository to be checked out. Running
-      version in any directory succeeds.
-      '
-    inputs:
-      command: cd /tmp && cupboard version
-    expected:
-      exit_code: 0
-      stdout_contains: cupboard
-  - name: Init works without source checkout
-    description: 'The init command works in any directory without requiring source code.
-      '
-    inputs:
-      command: cd /tmp && cupboard init --data-dir ${tmpdir}/standalone-test
-    expected:
-      exit_code: 0
-      state:
-        directory_exists: ${tmpdir}/standalone-test
-  # --- uc: rel01.1-uc002-jsonl-git-roundtrip: JSONL git roundtrip persistence ---
-
-  - name: JSONL files created on first crumb
-    description: 'Creating the first crumb should generate crumbs.jsonl and cupboard.db in the data directory.
-      '
-    inputs:
-      command: cupboard init && cupboard set crumbs "" '{"Name":"First crumb","State":"draft"}'
-    expected:
-      exit_code: 0
-      files:
-      - path: data/crumbs.jsonl
-        exists: true
-      - path: data/cupboard.db
-        exists: true
-      state:
-        crumb_count: 1
-  - name: Crumb appears in crumbs.jsonl
-    inputs:
-      command: cupboard init && cupboard set crumbs "" '{"Name":"Tracked crumb","State":"draft"}'
-    expected:
-      exit_code: 0
-      state:
-        crumb_count: 1
-  - name: Multiple crumbs written to JSONL
-    inputs:
-      setup:
-      - cupboard init
-      - cupboard set crumbs "" '{"Name":"Task one","State":"draft"}'
-      - cupboard set crumbs "" '{"Name":"Epic one","State":"draft"}'
-      - cupboard set crumbs "" '{"Name":"Task two","State":"draft"}'
-      command: cupboard list crumbs
-    expected:
-      exit_code: 0
-      state:
-        crumb_count: 3
-  - name: JSONL contains correct crumb data
-    description: 'JSONL file should contain crumb name, crumb_id, and state fields.
-      '
-    inputs:
-      setup:
-      - cupboard init
-      - cupboard set crumbs "" '{"Name":"Verify content","State":"draft"}'
-      command: cat data/crumbs.jsonl
-    expected:
-      exit_code: 0
-      stdout_contains:
-      - Verify content
-      - crumb_id
-      - state
-  - name: JSONL uses RFC 3339 timestamps
-    description: 'Timestamps should include T separator and timezone indicator (Z or offset).
-      '
-    inputs:
-      setup:
-      - cupboard init
-      - cupboard set crumbs "" '{"Name":"Timestamp test","State":"draft"}'
-      command: cat data/crumbs.jsonl
-    expected:
-      exit_code: 0
-      stdout_contains:
-      - created_at
-      - T
-      stdout_pattern: (Z|[+-]\d{2}:\d{2})
-  - name: JSONL uses lowercase hyphenated UUIDs
-    description: 'UUID v7 identifiers should be lowercase with hyphens per prd002-sqlite-backend R2.12.
-      '
-    inputs:
-      setup:
-      - cupboard init
-      - cupboard set crumbs "" '{"Name":"UUID test","State":"draft"}'
-      command: cat data/crumbs.jsonl
-    expected:
-      exit_code: 0
-      stdout_pattern: '"crumb_id"\s*:\s*"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"'
-  - name: Delete cupboard.db removes database
-    inputs:
-      setup:
-      - cupboard init
-      - cupboard set crumbs "" '{"Name":"Pre-delete","State":"draft"}'
-      command: rm data/cupboard.db && ls data/cupboard.db 2>&1
-    expected:
-      exit_code: 1
-  - name: Cupboard command regenerates database from JSONL
-    description: 'After deleting cupboard.db, running any cupboard command should trigger the startup sequence (prd002-sqlite-backend
-      R4) which recreates the database.
-      '
-    inputs:
-      setup:
-      - cupboard init
-      - cupboard set crumbs "" '{"Name":"Rebuilder","State":"draft"}'
-      - rm data/cupboard.db
-      command: cupboard list crumbs
-    expected:
-      exit_code: 0
-      state:
-        crumb_count: 1
-        file_exists: data/cupboard.db
-  - name: Single crumb survives database deletion
-    inputs:
-      setup:
-      - cupboard init
-      - cupboard set crumbs "" '{"Name":"Survivor","State":"draft"}'
-      - rm data/cupboard.db
-      command: cupboard list crumbs
-    expected:
-      exit_code: 0
-      state:
-        crumb_count: 1
-      stdout_contains: Survivor
-  - name: Multiple crumbs survive database deletion
-    inputs:
-      setup:
-      - cupboard init
-      - cupboard set crumbs "" '{"Name":"First survivor","State":"draft"}'
-      - cupboard set crumbs "" '{"Name":"Second survivor","State":"draft"}'
-      - cupboard set crumbs "" '{"Name":"Third survivor","State":"draft"}'
-      - rm data/cupboard.db
-      command: cupboard list crumbs
-    expected:
-      exit_code: 0
-      state:
-        crumb_count: 3
-  - name: Crumb details intact after rebuild
-    description: 'Verify that crumb title is preserved after deleting cupboard.db and rebuilding from JSONL.
-      '
-    inputs:
-      setup:
-      - cupboard init
-      - cupboard set crumbs "" '{"Name":"Detailed epic","State":"draft"}'
-      - rm data/cupboard.db
-      command: cupboard get crumbs ${crumb_id}
-    expected:
-      exit_code: 0
-      stdout_contains: Detailed epic
-  - name: State update persists to JSONL
-    inputs:
-      setup:
-      - cupboard init
-      - cupboard set crumbs "" '{"Name":"State test crumb","State":"draft"}'
-      command: cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"State test crumb","State":"taken"}' && cat
-        data/crumbs.jsonl
-    expected:
-      exit_code: 0
-      stdout_contains: taken
-  - name: State change survives database deletion
-    inputs:
-      setup:
-      - cupboard init
-      - cupboard set crumbs "" '{"Name":"State test crumb","State":"draft"}'
-      - cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"State test crumb","State":"taken"}'
-      - rm data/cupboard.db
-      command: cupboard get crumbs ${crumb_id}
-    expected:
-      exit_code: 0
-      stdout_contains: taken
-  - name: Closed state survives database deletion
-    inputs:
-      setup:
-      - cupboard init
-      - cupboard set crumbs "" '{"Name":"State test crumb","State":"draft"}'
-      - cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"State test crumb","State":"pebble"}'
-      - rm data/cupboard.db
-      command: cupboard get crumbs ${crumb_id}
-    expected:
-      exit_code: 0
-      stdout_contains: pebble
-  - name: Ready filter works after rebuild
-    description: 'State filter should work correctly after database rebuild from JSONL.
-      '
-    inputs:
-      setup:
-      - cupboard init
-      - cupboard set crumbs "" '{"Name":"Open task","State":"draft"}'
-      - cupboard set crumbs "" '{"Name":"Closed task","State":"draft"}'
-      - cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Closed task","State":"pebble"}'
-      - rm data/cupboard.db
-      command: cupboard list crumbs State=draft
-    expected:
-      exit_code: 0
-      state:
-        crumb_count: 1
-  - name: Type filter works after rebuild
-    description: 'State filter distinguishes crumbs by state after database rebuild.
-      '
-    inputs:
-      setup:
-      - cupboard init
-      - cupboard set crumbs "" '{"Name":"A task","State":"draft"}'
-      - cupboard set crumbs "" '{"Name":"An epic","State":"ready"}'
-      - rm data/cupboard.db
-      command: cupboard list crumbs State=ready
-    expected:
-      exit_code: 0
-      state:
-        crumb_count: 1
-  - name: Empty JSONL files create empty cupboard
-    description: 'Starting with empty JSONL files (fresh repository clone scenario) should result in an empty but functional
-      cupboard.
-      '
-    inputs:
-      setup:
-      - cupboard init
-      - rm -f data/*.jsonl data/cupboard.db
-      command: cupboard init && cupboard list crumbs
-    expected:
-      exit_code: 0
-      state:
-        crumb_count: 0
-  - name: Fresh start with no files
-    description: 'When no data directory exists, cupboard should create it and initialize empty JSONL files per prd002-sqlite-backend
-      R1.3, R1.4.
-      '
-    inputs:
-      setup:
-      - cupboard init
-      - rm -rf data
-      command: cupboard init && cupboard list crumbs
-    expected:
-      exit_code: 0
-      state:
-        crumb_count: 0
-      files:
-      - path: data/crumbs.jsonl
-        exists: true
-  - name: Create works after fresh start
-    description: 'After a fresh start with no existing data, creating crumbs should work normally and persist to JSONL.
-      '
-    inputs:
-      setup:
-      - cupboard init
-      - rm -rf data
-      - cupboard init
-      command: cupboard set crumbs "" '{"Name":"Fresh crumb","State":"draft"}'
-    expected:
-      exit_code: 0
-      stdout_contains: Fresh crumb
-  - name: JSONL files can be committed to git
-    description: 'JSONL files should be committable to git while cupboard.db is gitignored. This simulates the git workflow
-      from eng01-git-integration.
-      '
-    inputs:
-      setup:
-      - git init
-      - echo "data/cupboard.db" >> .gitignore
-      - cupboard init
-      - cupboard set crumbs "" '{"Name":"Git tracked","State":"draft"}'
-      command: git add data/*.jsonl && git status --porcelain data/
-    expected:
-      exit_code: 0
-      stdout_contains: crumbs.jsonl
-  - name: Cupboard.db not tracked by git
-    description: 'The SQLite database should be gitignored per eng01-git-integration.
-      '
-    inputs:
-      setup:
-      - git init
-      - echo "data/cupboard.db" >> .gitignore
-      - cupboard init
-      - cupboard set crumbs "" '{"Name":"Db test","State":"draft"}'
-      command: git status --porcelain data/cupboard.db
-    expected:
-      exit_code: 0
-      stdout_equals: ''
-  - name: Complete roundtrip workflow
-    description: 'Simulates the full workflow from rel01.1-uc002: create crumbs, commit JSONL, delete database, rebuild, verify
-      data, modify data, repeat roundtrip.
-      '
-    inputs:
-      setup:
-      - git init
-      - git config user.email "test@example.com"
-      - git config user.name "Test User"
-      - echo "data/cupboard.db" >> .gitignore
-      - cupboard init
-      steps:
-      - command: cupboard set crumbs "" '{"Name":"Roundtrip task","State":"draft"}'
-        capture: task_id
-      - command: cupboard set crumbs "" '{"Name":"Roundtrip epic","State":"draft"}'
-        capture: epic_id
-      - command: git add data/*.jsonl && git commit -m "Add initial crumbs"
-      - command: cupboard list crumbs
-        expected:
-          state:
-            crumb_count: 2
-      - command: rm data/cupboard.db
-      - command: cupboard list crumbs
-        expected:
-          state:
-            crumb_count: 2
-      - command: cupboard get crumbs ${task_id}
-        expected:
-          stdout_contains: Roundtrip task
-      - command: cupboard set crumbs ${task_id} '{"CrumbID":"${task_id}","Name":"Roundtrip task","State":"taken"}'
-      - command: rm data/cupboard.db && cupboard get crumbs ${task_id}
-        expected:
-          stdout_contains: taken
-      - command: cupboard set crumbs ${task_id} '{"CrumbID":"${task_id}","Name":"Roundtrip task","State":"pebble"}'
-      - command: rm data/cupboard.db && cupboard get crumbs ${task_id}
-        expected:
-          stdout_contains: pebble
-      - command: cupboard list crumbs State=draft
-        expected:
-          state:
-            crumb_count: 1
-    expected:
-      exit_code: 0
-  - name: Roundtrip with multiple deletes
-    description: 'Repeatedly deleting and rebuilding the database should always produce consistent results from JSONL.
-      '
-    inputs:
-      setup:
-      - git init
-      - git config user.email "test@example.com"
-      - git config user.name "Test User"
-      - echo "data/cupboard.db" >> .gitignore
-      - cupboard init
-      - cupboard set crumbs "" '{"Name":"Persistent","State":"draft"}'
-      steps:
-      - command: rm data/cupboard.db && cupboard list crumbs
-        expected:
-          state:
-            crumb_count: 1
-      - command: rm data/cupboard.db && cupboard list crumbs
-        expected:
-          state:
-            crumb_count: 1
-      - command: rm data/cupboard.db && cupboard list crumbs
-        expected:
-          state:
-            crumb_count: 1
-    expected:
-      exit_code: 0
-  # --- uc: rel01.1-uc003-configuration-loading: Configuration and path resolution test suite ---
-
-  - name: Platform defaults with explicit flags
-    description: 'Tests that --config-dir and --data-dir flags work and creates data directory with crumbs.jsonl. Validates
-      the CLI accepts explicit paths.
-      '
-    inputs:
-      setup:
-      - Create temp config directory
-      - Do not create config.yaml (test defaults)
-      command: cupboard --config-dir=<tempdir>/config --data-dir=<tempdir>/data init
-    expected:
-      exit_code: 0
-      files:
-        <tempdir>/data:
-          exists: true
-          is_dir: true
-        <tempdir>/data/crumbs.jsonl:
-          exists: true
-  - name: CRUMBS_CONFIG_DIR is resolved with explicit data-dir
-    description: 'Environment variable CRUMBS_CONFIG_DIR sets the config directory. Uses --data-dir flag for data location.
-      '
-    inputs:
-      setup:
-      - Create temp env-config directory
-      env:
-        CRUMBS_CONFIG_DIR: <tempdir>/env-config
-      command: cupboard --config-dir=<tempdir>/env-config --data-dir=<tempdir>/env-data init
-    expected:
-      exit_code: 0
-      files:
-        <tempdir>/env-data/crumbs.jsonl:
-          exists: true
-  - name: data_dir via --data-dir flag is respected
-    description: The --data-dir flag specifies where data is stored.
-    inputs:
-      setup:
-      - Create temp yaml-config directory
-      env:
-        CRUMBS_CONFIG_DIR: <tempdir>/yaml-config
-      command: cupboard --config-dir=<tempdir>/yaml-config --data-dir=<tempdir>/yaml-data init
-    expected:
-      exit_code: 0
-      files:
-        <tempdir>/yaml-data/crumbs.jsonl:
-          exists: true
-  - name: --config-dir overrides CRUMBS_CONFIG_DIR
-    description: 'The --config-dir flag takes precedence over CRUMBS_CONFIG_DIR environment variable. Data is created in the
-      flag-specified data directory.
-      '
-    inputs:
-      setup:
-      - Create temp env-cfg and flag-cfg directories
-      env:
-        CRUMBS_CONFIG_DIR: <tempdir>/env-cfg
-      command: cupboard --config-dir=<tempdir>/flag-cfg --data-dir=<tempdir>/data init
-    expected:
-      exit_code: 0
-      files:
-        <tempdir>/data/crumbs.jsonl:
-          exists: true
-  - name: --data-dir overrides config.yaml data_dir
-    description: 'The --data-dir flag takes precedence over data_dir set in config.yaml. Data is created in flag location, not
-      config location.
-      '
-    inputs:
-      setup:
-      - Create temp cfg directory
-      - Write config.yaml with data_dir pointing to config-data
-      files:
-        <tempdir>/cfg/config.yaml: 'backend: sqlite
-          data_dir: <tempdir>/config-data
-          '
-      command: cupboard --config-dir=<tempdir>/cfg --data-dir=<tempdir>/flag-data init
-    expected:
-      exit_code: 0
-      files:
-        <tempdir>/flag-data/crumbs.jsonl:
-          exists: true
-        <tempdir>/config-data/crumbs.jsonl:
-          exists: false
-  - name: --data-dir overrides platform default
-    description: 'The --data-dir flag overrides the platform default data directory. No config.yaml is used.
-      '
-    inputs:
-      setup:
-      - Create temp cfg directory with no config.yaml
-      command: cupboard --config-dir=<tempdir>/cfg --data-dir=<tempdir>/explicit-data init
-    expected:
-      exit_code: 0
-      files:
-        <tempdir>/explicit-data/crumbs.jsonl:
-          exists: true
-  - name: Missing config directory works with --data-dir flag
-    description: 'CLI works when config directory does not exist, using --data-dir flag to specify data location.
-      '
-    inputs:
-      setup:
-      - Do not create config directory
-      command: cupboard --config-dir=<tempdir>/config --data-dir=<tempdir>/data init
-    expected:
-      exit_code: 0
-      files:
-        <tempdir>/data/crumbs.jsonl:
-          exists: true
-  - name: Empty config directory works with --data-dir flag
-    description: 'CLI works with an empty config directory (no config.yaml), using --data-dir flag to specify data location.
-      '
-    inputs:
-      setup:
-      - Create empty config directory
-      command: cupboard --config-dir=<tempdir>/config --data-dir=<tempdir>/data init
-    expected:
-      exit_code: 0
-      files:
-        <tempdir>/data/crumbs.jsonl:
-          exists: true
-  - name: Full precedence chain flag overrides env and config
-    description: 'Validates precedence order: flag > env > config > default. Sets CRUMBS_CONFIG_DIR env var with config.yaml
-      containing data_dir, but --data-dir flag takes precedence.
-      '
-    inputs:
-      setup:
-      - Create temp env-config directory
-      - Write config.yaml with data_dir pointing to env-data
-      env:
-        CRUMBS_CONFIG_DIR: <tempdir>/env-config
-      files:
-        <tempdir>/env-config/config.yaml: 'backend: sqlite
-          data_dir: <tempdir>/env-data
-          '
-      command: cupboard --data-dir=<tempdir>/flag-data init
-    expected:
-      exit_code: 0
-      files:
-        <tempdir>/flag-data/crumbs.jsonl:
-          exists: true
-        <tempdir>/env-data/crumbs.jsonl:
-          exists: false
-  - name: Invalid YAML syntax in .crumbs.yaml
-    description: 'Invalid YAML syntax in .crumbs.yaml (the file the CLI reads from current directory) causes exit code 1 with
-      error message containing "read config".
-      '
-    inputs:
-      setup:
-      - Create work directory
-      - Write invalid YAML as .crumbs.yaml in work directory
-      files:
-        <workdir>/.crumbs.yaml: 'invalid: yaml: syntax: : :'
-      command: cupboard --data-dir=<tempdir>/data init
-      working_directory: <workdir>
-    expected:
-      exit_code: 1
-      stderr_contains: read config
-  - name: XDG paths on Linux
-    description: 'On Linux, XDG_CONFIG_HOME and XDG_DATA_HOME environment variables control config and data directories. Skip
-      on non-Linux platforms.
-      '
-    inputs:
-      skip_unless: runtime.GOOS == "linux"
-      setup:
-      - Create XDG config and data directories
-      - Create crumbs subdirectory in XDG config
-      - Write config.yaml with data_dir pointing to XDG data crumbs
-      env:
-        XDG_CONFIG_HOME: <tempdir>/xdg-config
-        XDG_DATA_HOME: <tempdir>/xdg-data
-        HOME: <tempdir>
-      files:
-        <tempdir>/xdg-config/crumbs/config.yaml: 'backend: sqlite
-          data_dir: <tempdir>/xdg-data/crumbs
-          '
-      command: cupboard init
-    expected:
-      exit_code: 0
-      files:
-        <tempdir>/xdg-data/crumbs/crumbs.jsonl:
-          exists: true
-  - name: Config directory created on first run
-    description: 'CLI creates the config directory specified by CRUMBS_CONFIG_DIR if it does not exist.
-      '
-    inputs:
-      setup:
-      - Do not create config directory (it should not exist)
-      env:
-        CRUMBS_CONFIG_DIR: <tempdir>/new-config-dir
-      command: cupboard --data-dir=<tempdir>/data init
-    expected:
-      exit_code: 0
-      files:
-        <tempdir>/new-config-dir:
-          exists: true
-          is_dir: true
-  - name: Commands work with resolved paths
-    description: 'Validates that init, set, and list commands work with resolved paths. Creates a crumb and verifies it appears
-      in list output.
-      '
-    inputs:
-      setup:
-      - Create config directory
-      command_sequence:
-      - cupboard --config-dir=<tempdir>/config init
-      - cupboard --config-dir=<tempdir>/config --data-dir=<tempdir>/data set crumbs "" '{"Name":"Test crumb","State":"draft"}'
-      - cupboard --config-dir=<tempdir>/config --data-dir=<tempdir>/data list crumbs
-    expected:
-      exit_code: 0
-      stdout_contains: Test crumb
-  # --- uc: rel01.1-uc004-generic-table-cli: Generic Table CLI Operations test suite ---
-
-  - name: Get crumb by ID returns JSON object
-    inputs:
-      setup:
-      - cupboard set crumbs "" '{"Name":"Test crumb","State":"draft"}'
-      command: cupboard get crumbs <created-id>
-    expected:
-      exit_code: 0
-      stdout_contains: Test crumb
-  - name: Get nonexistent crumb returns exit 1
-    inputs:
-      command: cupboard get crumbs nonexistent-id-12345
-    expected:
-      exit_code: 1
-      stderr_contains: entity "nonexistent-id-12345" not found in table "crumbs"
-  - name: Get with unknown table returns exit 1
-    inputs:
-      command: cupboard get invalid-table abc123
-    expected:
-      exit_code: 1
-      stderr_contains: unknown table "invalid-table"
-  - name: Set crumb with empty ID creates new entity
-    inputs:
-      command: cupboard set crumbs "" '{"Name":"New task","State":"draft"}'
-    expected:
-      exit_code: 0
-      stdout_contains: CrumbID
-      state:
-        crumb_count: 1
-        crumb_name: New task
-  - name: Set crumb with existing ID updates entity
-    inputs:
-      setup:
-      - cupboard set crumbs "" '{"Name":"Original","State":"draft"}'
-      command: cupboard set crumbs <created-id> '{"CrumbID":"<created-id>","Name":"Updated","State":"ready"}'
-    expected:
-      exit_code: 0
-      state:
-        crumb_name: Updated
-        crumb_state: ready
-  - name: Set trail creates new trail
-    inputs:
-      command: cupboard set trails "" '{"State":"active"}'
-    expected:
-      exit_code: 0
-      stdout_contains: TrailID
-  - name: Set with invalid JSON returns exit 1
-    inputs:
-      command: cupboard set crumbs "" '{not valid json}'
-    expected:
-      exit_code: 1
-      stderr_contains: parse JSON
-  - name: Set with unknown table returns exit 1
-    inputs:
-      command: cupboard set unknown-table "" '{"field":"value"}'
-    expected:
-      exit_code: 1
-      stderr_contains: unknown table "unknown-table"
-  - name: List crumbs returns JSON array
-    inputs:
-      setup:
-      - cupboard set crumbs "" '{"Name":"Task A","State":"draft"}'
-      - cupboard set crumbs "" '{"Name":"Task B","State":"ready"}'
-      command: cupboard list crumbs
-    expected:
-      exit_code: 0
-      state:
-        list_count: 2
-  - name: List empty table returns empty JSON array
-    inputs:
-      command: cupboard list crumbs
-    expected:
-      exit_code: 0
-      state:
-        list_count: 0
-  - name: List with filter returns matching entities
-    inputs:
-      setup:
-      - cupboard set crumbs "" '{"Name":"Draft task","State":"draft"}'
-      - cupboard set crumbs "" '{"Name":"Ready task","State":"ready"}'
-      command: cupboard list crumbs State=draft
-    expected:
-      exit_code: 0
-      state:
-        list_count: 1
-        first_name: Draft task
-  - name: List with invalid filter returns exit 1
-    inputs:
-      command: cupboard list crumbs malformed-filter
-    expected:
-      exit_code: 1
-      stderr_contains: invalid filter "malformed-filter" (expected key=value)
-  - name: List with unknown table returns exit 1
-    inputs:
-      command: cupboard list fake-table
-    expected:
-      exit_code: 1
-      stderr_contains: unknown table "fake-table"
-  - name: Delete crumb by ID succeeds
-    inputs:
-      setup:
-      - cupboard set crumbs "" '{"Name":"To delete","State":"draft"}'
-      command: cupboard delete crumbs <created-id>
-    expected:
-      exit_code: 0
-      stdout_contains: Deleted crumbs/
-      state:
-        crumb_count: 0
-  - name: Delete nonexistent crumb returns exit 1
-    inputs:
-      command: cupboard delete crumbs nonexistent-id-xyz
-    expected:
-      exit_code: 1
-      stderr_contains: entity "nonexistent-id-xyz" not found in table "crumbs"
-  - name: Delete with unknown table returns exit 1
-    inputs:
-      command: cupboard delete bad-table some-id
-    expected:
-      exit_code: 1
-      stderr_contains: unknown table "bad-table"
-  - name: Create and list trails
-    description: 'Tests the full lifecycle of trails table operations: create, get, list, delete.
-      '
-    inputs:
-      setup:
-      - cupboard set trails "" '{"State":"active"}'
-      command: cupboard get trails <created-trail-id>
-    expected:
-      exit_code: 0
-      stdout_contains: active
-      state:
-        trail_count: 1
-        trail_deleted_after_test: true
-  - name: Create and list links
-    description: 'Tests creating a link between a crumb and trail, then retrieving and listing it.
-      '
-    inputs:
-      setup:
-      - cupboard set crumbs "" '{"Name":"Test crumb","State":"draft"}'
-      - cupboard set trails "" '{"State":"active"}'
-      - cupboard set links "" '{"LinkType":"belongs_to","FromID":"<crumb-id>","ToID":"<trail-id>"}'
-      command: cupboard get links <created-link-id>
-    expected:
-      exit_code: 0
-      stdout_contains: belongs_to
-      state:
-        link_count: 1
-  - name: Filter across multiple crumbs
-    description: 'Tests filtering crumbs by state when multiple crumbs exist with different states.
-      '
-    inputs:
-      setup:
-      - cupboard set crumbs "" '{"Name":"Draft 1","State":"draft"}'
-      - cupboard set crumbs "" '{"Name":"Draft 2","State":"draft"}'
-      - cupboard set crumbs "" '{"Name":"Ready 1","State":"ready"}'
-      - cupboard set crumbs "" '{"Name":"Taken 1","State":"taken"}'
-      command: cupboard list crumbs State=draft
-    expected:
-      exit_code: 0
-      state:
-        list_count: 2
-        total_crumb_count: 4
-        ready_count: 1
-  # --- uc: rel01.1-uc005-flat-self-hosting: Flat self-hosting issue-tracking workflow ---
-
-  - name: Initialize cupboard
-    inputs:
-      command: cupboard init
-    expected:
-      exit_code: 0
-      stdout_contains: output message
-      state:
-        data_directory_exists: true
-        crumbs_jsonl_exists: true
-  - name: Create crumb with name and state
-    inputs:
-      command: cupboard set crumbs "" '{"Name":"Implement feature","State":"draft"}'
-    expected:
-      exit_code: 0
-      stdout_contains: CrumbID
-      stdout_json:
-        Name: Implement feature
-        State: draft
-  - name: Create crumb returns generated UUID
-    inputs:
-      command: cupboard set crumbs "" '{"Name":"Write tests","State":"draft"}'
-    expected:
-      exit_code: 0
-      stdout_json:
-        Name: Write tests
-        State: draft
-    verify:
-      command: cupboard list crumbs
-      stdout_contains: Write tests
-  - name: Create multiple crumbs
-    inputs:
-      setup:
-      - cupboard set crumbs "" '{"Name":"Task 1","State":"draft"}'
-      - cupboard set crumbs "" '{"Name":"Task 2","State":"draft"}'
-      command: cupboard set crumbs "" '{"Name":"Task 3","State":"draft"}'
-    expected:
-      exit_code: 0
-    verify:
-      command: cupboard list crumbs
-      stdout_json:
-        length: 3
-  - name: Create crumb with empty name succeeds
-    description: 'Current CLI does not enforce Name field. Set without Name succeeds but creates a crumb with empty Name.
-      '
-    inputs:
-      command: cupboard set crumbs "" '{"State":"draft"}'
-    expected:
-      exit_code: 0
-  - name: Create crumb defaults state to empty
-    inputs:
-      command: cupboard set crumbs "" '{"Name":"No state provided"}'
-    expected:
-      exit_code: 0
-  - name: List returns all crumbs as JSON array
-    inputs:
-      setup:
-      - cupboard set crumbs "" '{"Name":"Task A","State":"draft"}'
-      - cupboard set crumbs "" '{"Name":"Task B","State":"draft"}'
-      command: cupboard list crumbs
-    expected:
-      exit_code: 0
-      stdout_json:
-        length: 2
-  - name: List empty cupboard returns empty array
-    inputs:
-      command: cupboard list crumbs
-    expected:
-      exit_code: 0
-      stdout_json:
-        length: 0
-  - name: List with state filter
-    inputs:
-      setup:
-      - cupboard set crumbs "" '{"Name":"Draft task","State":"draft"}'
-      - cupboard set crumbs "" '{"Name":"Taken task","State":"taken"}'
-      command: cupboard list crumbs State=draft
-    expected:
-      exit_code: 0
-      stdout_json:
-        length: 1
-      stdout_contains: Draft task
-  - name: List with name filter
-    inputs:
-      setup:
-      - cupboard set crumbs "" '{"Name":"Alpha","State":"draft"}'
-      - cupboard set crumbs "" '{"Name":"Beta","State":"draft"}'
-      command: cupboard list crumbs Name=Alpha
-    expected:
-      exit_code: 0
-      stdout_json:
-        length: 1
-      stdout_contains: Alpha
-  - name: Get crumb by ID
-    inputs:
-      setup:
-      - cupboard set crumbs "" '{"Name":"Visible task","State":"draft"}'
-      command: cupboard get crumbs ${crumb_id}
-    expected:
-      exit_code: 0
-      stdout_contains: Visible task
-  - name: Get nonexistent ID fails
-    inputs:
-      command: cupboard get crumbs nonexistent-id
-    expected:
-      exit_code: 1
-  - name: Get with invalid table fails
-    inputs:
-      command: cupboard get invalid-table abc
-    expected:
-      exit_code: 1
-      stderr_contains: unknown table
-  - name: Update crumb name
-    inputs:
-      setup:
-      - cupboard set crumbs "" '{"Name":"Original name","State":"draft"}'
-      command: cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Updated name","State":"draft"}'
-    expected:
-      exit_code: 0
-    verify:
-      command: cupboard get crumbs ${crumb_id}
-      stdout_contains: Updated name
-  - name: Update state to taken
-    inputs:
-      setup:
-      - cupboard set crumbs "" '{"Name":"Claimable","State":"draft"}'
-      command: cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Claimable","State":"taken"}'
-    expected:
-      exit_code: 0
-    verify:
-      command: cupboard get crumbs ${crumb_id}
-      stdout_contains: taken
-  - name: Update state to pebble
-    inputs:
-      setup:
-      - cupboard set crumbs "" '{"Name":"Closeable","State":"draft"}'
-      command: cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Closeable","State":"pebble"}'
-    expected:
-      exit_code: 0
-    verify:
-      command: cupboard get crumbs ${crumb_id}
-      stdout_contains: pebble
-  - name: Update state to dust
-    inputs:
-      setup:
-      - cupboard set crumbs "" '{"Name":"Abandonable","State":"draft"}'
-      command: cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Abandonable","State":"dust"}'
-    expected:
-      exit_code: 0
-    verify:
-      command: cupboard get crumbs ${crumb_id}
-      stdout_contains: dust
-  - name: Delete crumb by ID
-    inputs:
-      setup:
-      - cupboard set crumbs "" '{"Name":"To delete","State":"draft"}'
-      command: cupboard delete crumbs ${crumb_id}
-    expected:
-      exit_code: 0
-      stdout_contains: Deleted
-    verify:
-      command: cupboard get crumbs ${crumb_id}
-      exit_code: 1
-  - name: Delete nonexistent ID fails
-    inputs:
-      command: cupboard delete crumbs nonexistent-id
-    expected:
-      exit_code: 1
-  - name: Do-work cycle with flat crumbs
-    description: 'Simulates the do-work workflow using only generic table commands: create task, list draft tasks, claim task
-      (set state to taken), close task (set state to pebble). No properties or comments.
-      '
-    inputs:
-      setup:
-      - cupboard set crumbs "" '{"Name":"Build widget","State":"draft"}'
-      steps:
-      - command: cupboard list crumbs State=draft
-        verify: length equals 1
-      - command: cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Build widget","State":"taken"}'
-      - command: cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Build widget","State":"pebble"}'
-    expected:
-      exit_code: 0
-    verify:
-      command: cupboard get crumbs ${crumb_id}
-      stdout_contains: pebble
-  - name: Make-work cycle with flat crumbs
-    description: 'Simulates the make-work workflow using only generic table commands: list existing issues, create new crumbs.
-      No epics, no parent links.
-      '
-    inputs:
-      setup:
-      - cupboard set crumbs "" '{"Name":"Existing task","State":"draft"}'
-      steps:
-      - command: cupboard list crumbs
-        verify: length equals 1
-      - command: cupboard set crumbs "" '{"Name":"New task 1","State":"draft"}'
-      - command: cupboard set crumbs "" '{"Name":"New task 2","State":"draft"}'
-      - command: cupboard set crumbs "" '{"Name":"New task 3","State":"draft"}'
-    expected:
-      exit_code: 0
-    verify:
-      command: cupboard list crumbs
-      stdout_json:
-        length: 4
-  - name: Full workflow draft to pebble
-    description: 'Complete workflow: create, list, claim, close. Verifies state transitions at each step.
-      '
-    inputs:
-      steps:
-      - command: cupboard set crumbs "" '{"Name":"Full workflow task","State":"draft"}'
-      - command: cupboard list crumbs State=draft
-        verify: stdout_contains "Full workflow task"
-      - command: cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Full workflow task","State":"taken"}'
-      - command: cupboard list crumbs State=taken
-        verify: stdout_contains "Full workflow task"
-      - command: cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Full workflow task","State":"pebble"}'
-      - command: cupboard list crumbs State=pebble
-        verify: stdout_contains "Full workflow task"
-    expected:
-      exit_code: 0
-  - name: JSONL persistence
-    description: 'Validates that crumb data is persisted to crumbs.jsonl file.
-      '
-    inputs:
-      setup:
-      - cupboard set crumbs "" '{"Name":"Crumb 1","State":"draft"}'
-      - cupboard set crumbs "" '{"Name":"Crumb 2","State":"draft"}'
-      - cupboard set crumbs "" '{"Name":"Crumb 3","State":"draft"}'
-    expected:
-      exit_code: 0
-      state:
-        crumbs_jsonl_count: 3
-  - name: JSONL survives database deletion
-    description: 'Delete the SQLite database file and verify crumbs are still accessible after cupboard reinitializes from JSONL.
-      '
-    inputs:
-      setup:
-      - cupboard set crumbs "" '{"Name":"Persistent crumb","State":"draft"}'
-      - rm cupboard.db
-      command: cupboard list crumbs
-    expected:
-      exit_code: 0
-      stdout_contains: Persistent crumb
-  - name: Multiple sessions maintain data
-    description: 'Create crumbs, simulate session end (no explicit action needed with immediate sync), start new session and
-      verify data.
-      '
-    inputs:
-      setup:
-      - cupboard set crumbs "" '{"Name":"Session 1 task","State":"draft"}'
-      command: cupboard list crumbs
-    expected:
-      exit_code: 0
-      stdout_contains: Session 1 task
-
-cleanup:
-  - Remove temp directories created during tests
-  - Optionally remove cupboard from $GOBIN after tests
-  - Remove temp directory and git repository
-  - Remove all temp directories created during tests
-  - Remove temp data directory after each test case
-  - Remove temp config and data directories
+- name: Go install completes successfully
+  description: 'The go install command downloads the module from the Go proxy, compiles
+    cmd/cupboard, and places the binary in $GOBIN. This validates that the module
+    is properly published and installable. '
+  inputs:
+    args:
+    - go install github.com/mesh-intelligence/crumbs/cmd/cupboard@latest
+  expected:
+    exit_code: 0
+- name: Binary exists in GOBIN after install
+  description: 'After go install, the cupboard binary must exist in $GOBIN. '
+  inputs:
+    args:
+    - test -x "${GOBIN:-$(go env GOBIN)}/cupboard" || test -x "$(go env GOPATH)/bin/cupboard"
+  expected:
+    exit_code: 0
+- name: Help flag prints usage
+  description: 'The --help flag must print usage information showing available commands. '
+  inputs:
+    args:
+    - cupboard --help
+  expected:
+    exit_code: 0
+    stdout: 'Usage:'
+- name: Help shows init command
+  inputs:
+    args:
+    - cupboard --help
+  expected:
+    exit_code: 0
+    stdout: init
+- name: Help shows set command
+  inputs:
+    args:
+    - cupboard --help
+  expected:
+    exit_code: 0
+    stdout: set
+- name: Help shows list command
+  inputs:
+    args:
+    - cupboard --help
+  expected:
+    exit_code: 0
+    stdout: list
+- name: Help shows get command
+  inputs:
+    args:
+    - cupboard --help
+  expected:
+    exit_code: 0
+    stdout: get
+- name: Init creates data directory
+  description: 'Running cupboard init in a project directory creates the data directory.
+    The directory layout follows prd010-configuration-directories R2. '
+  inputs:
+    args:
+    - cupboard init --data-dir ${tmpdir}/cupboard-data && test -d ${tmpdir}/cupboard-data
+  expected:
+    exit_code: 0
+- name: Init creates crumbs.jsonl file
+  description: 'The init command creates the JSONL files for entity storage. The crumbs
+    table is stored in crumbs.jsonl. '
+  inputs:
+    args:
+    - test -f ${tmpdir}/cupboard-data/crumbs.jsonl
+  expected:
+    exit_code: 0
+- name: Init creates trails.jsonl file
+  inputs:
+    args:
+    - test -f ${tmpdir}/cupboard-data/trails.jsonl
+  expected:
+    exit_code: 0
+- name: Init creates properties.jsonl file
+  inputs:
+    args:
+    - test -f ${tmpdir}/cupboard-data/properties.jsonl
+  expected:
+    exit_code: 0
+- name: Init creates links.jsonl file
+  inputs:
+    args:
+    - test -f ${tmpdir}/cupboard-data/links.jsonl
+  expected:
+    exit_code: 0
+- name: Init creates stashes.jsonl file
+  inputs:
+    args:
+    - test -f ${tmpdir}/cupboard-data/stashes.jsonl
+  expected:
+    exit_code: 0
+- name: Init creates metadata.jsonl file
+  inputs:
+    args:
+    - test -f ${tmpdir}/cupboard-data/metadata.jsonl
+  expected:
+    exit_code: 0
+- name: Init is idempotent
+  description: 'Running init twice on the same data directory must succeed without
+    error. '
+  inputs:
+    args:
+    - cupboard init --data-dir ${tmpdir}/cupboard-data
+  expected:
+    exit_code: 0
+- name: Set creates a crumb and returns JSON
+  description: 'The set command creates a crumb with the provided payload. The output
+    includes the generated UUID v7 identifier. '
+  inputs:
+    args:
+    - cupboard set crumbs "" '{"Name":"Test crumb","State":"draft"}' --data-dir ${tmpdir}/cupboard-data
+  expected:
+    exit_code: 0
+    stdout: CrumbID
+- name: List returns the created crumb
+  description: 'After creating a crumb with set, listing crumbs must return it. This
+    validates the round-trip through set and list operations. '
+  inputs:
+    args:
+    - cupboard list crumbs --data-dir ${tmpdir}/cupboard-data
+  expected:
+    exit_code: 0
+    stdout: Roundtrip test
+- name: List with empty table returns empty
+  description: 'Listing crumbs on a freshly initialized cupboard returns an empty
+    list without error. '
+  inputs:
+    args:
+    - cupboard list crumbs --data-dir ${tmpdir}/cupboard-data
+  expected:
+    exit_code: 0
+- name: Get retrieves created crumb by ID
+  description: 'After creating a crumb, get retrieves it by the returned ID. '
+  inputs:
+    args:
+    - 'id=$(cupboard set crumbs "" ''{"Name":"Get test","State":"draft"}'' --data-dir
+      ${tmpdir}/cupboard-data | grep -o ''"CrumbID":"[^"]*"'' | cut -d''"'' -f4) cupboard
+      get crumbs "$id" --data-dir ${tmpdir}/cupboard-data '
+  expected:
+    exit_code: 0
+    stdout: Get test
+- name: Crumb persists across cupboard restarts
+  description: 'A crumb created in one session must persist and be retrievable in
+    a subsequent session. This validates JSONL persistence. '
+  inputs:
+    args:
+    - cupboard list crumbs --data-dir ${tmpdir}/cupboard-data
+  expected:
+    exit_code: 0
+    stdout: Persistence test
+- name: Version command works without source checkout
+  description: 'The installed binary must work standalone without requiring the source
+    repository to be checked out. Running version in any directory succeeds. '
+  inputs:
+    args:
+    - cd /tmp && cupboard version
+  expected:
+    exit_code: 0
+    stdout: cupboard
+- name: Init works without source checkout
+  description: 'The init command works in any directory without requiring source code. '
+  inputs:
+    args:
+    - cd /tmp && cupboard init --data-dir ${tmpdir}/standalone-test
+  expected:
+    exit_code: 0
+- name: JSONL files created on first crumb
+  description: 'Creating the first crumb should generate crumbs.jsonl and cupboard.db
+    in the data directory. '
+  inputs:
+    args:
+    - cupboard init && cupboard set crumbs "" '{"Name":"First crumb","State":"draft"}'
+  expected:
+    exit_code: 0
+- name: Crumb appears in crumbs.jsonl
+  inputs:
+    args:
+    - cupboard init && cupboard set crumbs "" '{"Name":"Tracked crumb","State":"draft"}'
+  expected:
+    exit_code: 0
+- name: Multiple crumbs written to JSONL
+  inputs:
+    args:
+    - cupboard list crumbs
+  expected:
+    exit_code: 0
+- name: JSONL contains correct crumb data
+  description: 'JSONL file should contain crumb name, crumb_id, and state fields. '
+  inputs:
+    args:
+    - cat data/crumbs.jsonl
+  expected:
+    exit_code: 0
+    stdout: '[''Verify content'', ''crumb_id'', ''state'']'
+- name: JSONL uses RFC 3339 timestamps
+  description: 'Timestamps should include T separator and timezone indicator (Z or
+    offset). '
+  inputs:
+    args:
+    - cat data/crumbs.jsonl
+  expected:
+    exit_code: 0
+    stdout: '[''created_at'', ''T'']'
+- name: JSONL uses lowercase hyphenated UUIDs
+  description: 'UUID v7 identifiers should be lowercase with hyphens per prd002-sqlite-backend
+    R2.12. '
+  inputs:
+    args:
+    - cat data/crumbs.jsonl
+  expected:
+    exit_code: 0
+- name: Delete cupboard.db removes database
+  inputs:
+    args:
+    - rm data/cupboard.db && ls data/cupboard.db 2>&1
+  expected:
+    exit_code: 1
+- name: Cupboard command regenerates database from JSONL
+  description: 'After deleting cupboard.db, running any cupboard command should trigger
+    the startup sequence (prd002-sqlite-backend R4) which recreates the database. '
+  inputs:
+    args:
+    - cupboard list crumbs
+  expected:
+    exit_code: 0
+- name: Single crumb survives database deletion
+  inputs:
+    args:
+    - cupboard list crumbs
+  expected:
+    exit_code: 0
+    stdout: Survivor
+- name: Multiple crumbs survive database deletion
+  inputs:
+    args:
+    - cupboard list crumbs
+  expected:
+    exit_code: 0
+- name: Crumb details intact after rebuild
+  description: 'Verify that crumb title is preserved after deleting cupboard.db and
+    rebuilding from JSONL. '
+  inputs:
+    args:
+    - cupboard get crumbs ${crumb_id}
+  expected:
+    exit_code: 0
+    stdout: Detailed epic
+- name: State update persists to JSONL
+  inputs:
+    args:
+    - cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"State test
+      crumb","State":"taken"}' && cat data/crumbs.jsonl
+  expected:
+    exit_code: 0
+    stdout: taken
+- name: State change survives database deletion
+  inputs:
+    args:
+    - cupboard get crumbs ${crumb_id}
+  expected:
+    exit_code: 0
+    stdout: taken
+- name: Closed state survives database deletion
+  inputs:
+    args:
+    - cupboard get crumbs ${crumb_id}
+  expected:
+    exit_code: 0
+    stdout: pebble
+- name: Ready filter works after rebuild
+  description: 'State filter should work correctly after database rebuild from JSONL. '
+  inputs:
+    args:
+    - cupboard list crumbs State=draft
+  expected:
+    exit_code: 0
+- name: Type filter works after rebuild
+  description: 'State filter distinguishes crumbs by state after database rebuild. '
+  inputs:
+    args:
+    - cupboard list crumbs State=ready
+  expected:
+    exit_code: 0
+- name: Empty JSONL files create empty cupboard
+  description: 'Starting with empty JSONL files (fresh repository clone scenario)
+    should result in an empty but functional cupboard. '
+  inputs:
+    args:
+    - cupboard init && cupboard list crumbs
+  expected:
+    exit_code: 0
+- name: Fresh start with no files
+  description: 'When no data directory exists, cupboard should create it and initialize
+    empty JSONL files per prd002-sqlite-backend R1.3, R1.4. '
+  inputs:
+    args:
+    - cupboard init && cupboard list crumbs
+  expected:
+    exit_code: 0
+- name: Create works after fresh start
+  description: 'After a fresh start with no existing data, creating crumbs should
+    work normally and persist to JSONL. '
+  inputs:
+    args:
+    - cupboard set crumbs "" '{"Name":"Fresh crumb","State":"draft"}'
+  expected:
+    exit_code: 0
+    stdout: Fresh crumb
+- name: JSONL files can be committed to git
+  description: 'JSONL files should be committable to git while cupboard.db is gitignored.
+    This simulates the git workflow from eng01-git-integration. '
+  inputs:
+    args:
+    - git add data/*.jsonl && git status --porcelain data/
+  expected:
+    exit_code: 0
+    stdout: crumbs.jsonl
+- name: Cupboard.db not tracked by git
+  description: 'The SQLite database should be gitignored per eng01-git-integration. '
+  inputs:
+    args:
+    - git status --porcelain data/cupboard.db
+  expected:
+    exit_code: 0
+    stdout: ''
+- name: Complete roundtrip workflow
+  description: 'Simulates the full workflow from rel01.1-uc002: create crumbs, commit
+    JSONL, delete database, rebuild, verify data, modify data, repeat roundtrip. '
+  inputs: {}
+  expected:
+    exit_code: 0
+- name: Roundtrip with multiple deletes
+  description: 'Repeatedly deleting and rebuilding the database should always produce
+    consistent results from JSONL. '
+  inputs: {}
+  expected:
+    exit_code: 0
+- name: Platform defaults with explicit flags
+  description: 'Tests that --config-dir and --data-dir flags work and creates data
+    directory with crumbs.jsonl. Validates the CLI accepts explicit paths. '
+  inputs:
+    args:
+    - cupboard --config-dir=<tempdir>/config --data-dir=<tempdir>/data init
+  expected:
+    exit_code: 0
+- name: CRUMBS_CONFIG_DIR is resolved with explicit data-dir
+  description: 'Environment variable CRUMBS_CONFIG_DIR sets the config directory.
+    Uses --data-dir flag for data location. '
+  inputs:
+    args:
+    - cupboard --config-dir=<tempdir>/env-config --data-dir=<tempdir>/env-data init
+    env:
+    - CRUMBS_CONFIG_DIR=<tempdir>/env-config
+  expected:
+    exit_code: 0
+- name: data_dir via --data-dir flag is respected
+  description: The --data-dir flag specifies where data is stored.
+  inputs:
+    args:
+    - cupboard --config-dir=<tempdir>/yaml-config --data-dir=<tempdir>/yaml-data init
+    env:
+    - CRUMBS_CONFIG_DIR=<tempdir>/yaml-config
+  expected:
+    exit_code: 0
+- name: --config-dir overrides CRUMBS_CONFIG_DIR
+  description: 'The --config-dir flag takes precedence over CRUMBS_CONFIG_DIR environment
+    variable. Data is created in the flag-specified data directory. '
+  inputs:
+    args:
+    - cupboard --config-dir=<tempdir>/flag-cfg --data-dir=<tempdir>/data init
+    env:
+    - CRUMBS_CONFIG_DIR=<tempdir>/env-cfg
+  expected:
+    exit_code: 0
+- name: --data-dir overrides config.yaml data_dir
+  description: 'The --data-dir flag takes precedence over data_dir set in config.yaml.
+    Data is created in flag location, not config location. '
+  inputs:
+    args:
+    - cupboard --config-dir=<tempdir>/cfg --data-dir=<tempdir>/flag-data init
+  expected:
+    exit_code: 0
+- name: --data-dir overrides platform default
+  description: 'The --data-dir flag overrides the platform default data directory.
+    No config.yaml is used. '
+  inputs:
+    args:
+    - cupboard --config-dir=<tempdir>/cfg --data-dir=<tempdir>/explicit-data init
+  expected:
+    exit_code: 0
+- name: Missing config directory works with --data-dir flag
+  description: 'CLI works when config directory does not exist, using --data-dir flag
+    to specify data location. '
+  inputs:
+    args:
+    - cupboard --config-dir=<tempdir>/config --data-dir=<tempdir>/data init
+  expected:
+    exit_code: 0
+- name: Empty config directory works with --data-dir flag
+  description: 'CLI works with an empty config directory (no config.yaml), using --data-dir
+    flag to specify data location. '
+  inputs:
+    args:
+    - cupboard --config-dir=<tempdir>/config --data-dir=<tempdir>/data init
+  expected:
+    exit_code: 0
+- name: Full precedence chain flag overrides env and config
+  description: 'Validates precedence order: flag > env > config > default. Sets CRUMBS_CONFIG_DIR
+    env var with config.yaml containing data_dir, but --data-dir flag takes precedence. '
+  inputs:
+    args:
+    - cupboard --data-dir=<tempdir>/flag-data init
+    env:
+    - CRUMBS_CONFIG_DIR=<tempdir>/env-config
+  expected:
+    exit_code: 0
+- name: Invalid YAML syntax in .crumbs.yaml
+  description: 'Invalid YAML syntax in .crumbs.yaml (the file the CLI reads from current
+    directory) causes exit code 1 with error message containing "read config". '
+  inputs:
+    args:
+    - cupboard --data-dir=<tempdir>/data init
+  expected:
+    exit_code: 1
+    stderr_contains: read config
+- name: XDG paths on Linux
+  description: 'On Linux, XDG_CONFIG_HOME and XDG_DATA_HOME environment variables
+    control config and data directories. Skip on non-Linux platforms. '
+  inputs:
+    args:
+    - cupboard init
+    env:
+    - XDG_CONFIG_HOME=<tempdir>/xdg-config
+    - XDG_DATA_HOME=<tempdir>/xdg-data
+    - HOME=<tempdir>
+  expected:
+    exit_code: 0
+- name: Config directory created on first run
+  description: 'CLI creates the config directory specified by CRUMBS_CONFIG_DIR if
+    it does not exist. '
+  inputs:
+    args:
+    - cupboard --data-dir=<tempdir>/data init
+    env:
+    - CRUMBS_CONFIG_DIR=<tempdir>/new-config-dir
+  expected:
+    exit_code: 0
+- name: Commands work with resolved paths
+  description: 'Validates that init, set, and list commands work with resolved paths.
+    Creates a crumb and verifies it appears in list output. '
+  inputs: {}
+  expected:
+    exit_code: 0
+    stdout: Test crumb
+- name: Get crumb by ID returns JSON object
+  inputs:
+    args:
+    - cupboard get crumbs <created-id>
+  expected:
+    exit_code: 0
+    stdout: Test crumb
+- name: Get nonexistent crumb returns exit 1
+  inputs:
+    args:
+    - cupboard get crumbs nonexistent-id-12345
+  expected:
+    exit_code: 1
+    stderr_contains: entity "nonexistent-id-12345" not found in table "crumbs"
+- name: Get with unknown table returns exit 1
+  inputs:
+    args:
+    - cupboard get invalid-table abc123
+  expected:
+    exit_code: 1
+    stderr_contains: unknown table "invalid-table"
+- name: Set crumb with empty ID creates new entity
+  inputs:
+    args:
+    - cupboard set crumbs "" '{"Name":"New task","State":"draft"}'
+  expected:
+    exit_code: 0
+    stdout: CrumbID
+- name: Set crumb with existing ID updates entity
+  inputs:
+    args:
+    - cupboard set crumbs <created-id> '{"CrumbID":"<created-id>","Name":"Updated","State":"ready"}'
+  expected:
+    exit_code: 0
+- name: Set trail creates new trail
+  inputs:
+    args:
+    - cupboard set trails "" '{"State":"active"}'
+  expected:
+    exit_code: 0
+    stdout: TrailID
+- name: Set with invalid JSON returns exit 1
+  inputs:
+    args:
+    - cupboard set crumbs "" '{not valid json}'
+  expected:
+    exit_code: 1
+    stderr_contains: parse JSON
+- name: Set with unknown table returns exit 1
+  inputs:
+    args:
+    - cupboard set unknown-table "" '{"field":"value"}'
+  expected:
+    exit_code: 1
+    stderr_contains: unknown table "unknown-table"
+- name: List crumbs returns JSON array
+  inputs:
+    args:
+    - cupboard list crumbs
+  expected:
+    exit_code: 0
+- name: List empty table returns empty JSON array
+  inputs:
+    args:
+    - cupboard list crumbs
+  expected:
+    exit_code: 0
+- name: List with filter returns matching entities
+  inputs:
+    args:
+    - cupboard list crumbs State=draft
+  expected:
+    exit_code: 0
+- name: List with invalid filter returns exit 1
+  inputs:
+    args:
+    - cupboard list crumbs malformed-filter
+  expected:
+    exit_code: 1
+    stderr_contains: invalid filter "malformed-filter" (expected key=value)
+- name: List with unknown table returns exit 1
+  inputs:
+    args:
+    - cupboard list fake-table
+  expected:
+    exit_code: 1
+    stderr_contains: unknown table "fake-table"
+- name: Delete crumb by ID succeeds
+  inputs:
+    args:
+    - cupboard delete crumbs <created-id>
+  expected:
+    exit_code: 0
+    stdout: Deleted crumbs/
+- name: Delete nonexistent crumb returns exit 1
+  inputs:
+    args:
+    - cupboard delete crumbs nonexistent-id-xyz
+  expected:
+    exit_code: 1
+    stderr_contains: entity "nonexistent-id-xyz" not found in table "crumbs"
+- name: Delete with unknown table returns exit 1
+  inputs:
+    args:
+    - cupboard delete bad-table some-id
+  expected:
+    exit_code: 1
+    stderr_contains: unknown table "bad-table"
+- name: Create and list trails
+  description: 'Tests the full lifecycle of trails table operations: create, get,
+    list, delete. '
+  inputs:
+    args:
+    - cupboard get trails <created-trail-id>
+  expected:
+    exit_code: 0
+    stdout: active
+- name: Create and list links
+  description: 'Tests creating a link between a crumb and trail, then retrieving and
+    listing it. '
+  inputs:
+    args:
+    - cupboard get links <created-link-id>
+  expected:
+    exit_code: 0
+    stdout: belongs_to
+- name: Filter across multiple crumbs
+  description: 'Tests filtering crumbs by state when multiple crumbs exist with different
+    states. '
+  inputs:
+    args:
+    - cupboard list crumbs State=draft
+  expected:
+    exit_code: 0
+- name: Initialize cupboard
+  inputs:
+    args:
+    - cupboard init
+  expected:
+    exit_code: 0
+    stdout: output message
+- name: Create crumb with name and state
+  inputs:
+    args:
+    - cupboard set crumbs "" '{"Name":"Implement feature","State":"draft"}'
+  expected:
+    exit_code: 0
+    stdout: CrumbID
+    stdout_structure: '{"Name": "Implement feature", "State": "draft"}'
+- name: Create crumb returns generated UUID
+  inputs:
+    args:
+    - cupboard set crumbs "" '{"Name":"Write tests","State":"draft"}'
+  expected:
+    exit_code: 0
+    stdout_structure: '{"Name": "Write tests", "State": "draft"}'
+- name: Create multiple crumbs
+  inputs:
+    args:
+    - cupboard set crumbs "" '{"Name":"Task 3","State":"draft"}'
+  expected:
+    exit_code: 0
+- name: Create crumb with empty name succeeds
+  description: 'Current CLI does not enforce Name field. Set without Name succeeds
+    but creates a crumb with empty Name. '
+  inputs:
+    args:
+    - cupboard set crumbs "" '{"State":"draft"}'
+  expected:
+    exit_code: 0
+- name: Create crumb defaults state to empty
+  inputs:
+    args:
+    - cupboard set crumbs "" '{"Name":"No state provided"}'
+  expected:
+    exit_code: 0
+- name: List returns all crumbs as JSON array
+  inputs:
+    args:
+    - cupboard list crumbs
+  expected:
+    exit_code: 0
+    stdout_structure: '{"length": 2}'
+- name: List empty cupboard returns empty array
+  inputs:
+    args:
+    - cupboard list crumbs
+  expected:
+    exit_code: 0
+    stdout_structure: '{"length": 0}'
+- name: List with state filter
+  inputs:
+    args:
+    - cupboard list crumbs State=draft
+  expected:
+    exit_code: 0
+    stdout: Draft task
+    stdout_structure: '{"length": 1}'
+- name: List with name filter
+  inputs:
+    args:
+    - cupboard list crumbs Name=Alpha
+  expected:
+    exit_code: 0
+    stdout: Alpha
+    stdout_structure: '{"length": 1}'
+- name: Get crumb by ID
+  inputs:
+    args:
+    - cupboard get crumbs ${crumb_id}
+  expected:
+    exit_code: 0
+    stdout: Visible task
+- name: Get nonexistent ID fails
+  inputs:
+    args:
+    - cupboard get crumbs nonexistent-id
+  expected:
+    exit_code: 1
+- name: Get with invalid table fails
+  inputs:
+    args:
+    - cupboard get invalid-table abc
+  expected:
+    exit_code: 1
+    stderr_contains: unknown table
+- name: Update crumb name
+  inputs:
+    args:
+    - cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Updated name","State":"draft"}'
+  expected:
+    exit_code: 0
+- name: Update state to taken
+  inputs:
+    args:
+    - cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Claimable","State":"taken"}'
+  expected:
+    exit_code: 0
+- name: Update state to pebble
+  inputs:
+    args:
+    - cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Closeable","State":"pebble"}'
+  expected:
+    exit_code: 0
+- name: Update state to dust
+  inputs:
+    args:
+    - cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Abandonable","State":"dust"}'
+  expected:
+    exit_code: 0
+- name: Delete crumb by ID
+  inputs:
+    args:
+    - cupboard delete crumbs ${crumb_id}
+  expected:
+    exit_code: 0
+    stdout: Deleted
+- name: Delete nonexistent ID fails
+  inputs:
+    args:
+    - cupboard delete crumbs nonexistent-id
+  expected:
+    exit_code: 1
+- name: Do-work cycle with flat crumbs
+  description: 'Simulates the do-work workflow using only generic table commands:
+    create task, list draft tasks, claim task (set state to taken), close task (set
+    state to pebble). No properties or comments. '
+  inputs: {}
+  expected:
+    exit_code: 0
+- name: Make-work cycle with flat crumbs
+  description: 'Simulates the make-work workflow using only generic table commands:
+    list existing issues, create new crumbs. No epics, no parent links. '
+  inputs: {}
+  expected:
+    exit_code: 0
+- name: Full workflow draft to pebble
+  description: 'Complete workflow: create, list, claim, close. Verifies state transitions
+    at each step. '
+  inputs: {}
+  expected:
+    exit_code: 0
+- name: JSONL persistence
+  description: 'Validates that crumb data is persisted to crumbs.jsonl file. '
+  inputs: {}
+  expected:
+    exit_code: 0
+- name: JSONL survives database deletion
+  description: 'Delete the SQLite database file and verify crumbs are still accessible
+    after cupboard reinitializes from JSONL. '
+  inputs:
+    args:
+    - cupboard list crumbs
+  expected:
+    exit_code: 0
+    stdout: Persistent crumb
+- name: Multiple sessions maintain data
+  description: 'Create crumbs, simulate session end (no explicit action needed with
+    immediate sync), start new session and verify data. '
+  inputs:
+    args:
+    - cupboard list crumbs
+  expected:
+    exit_code: 0
+    stdout: Session 1 task

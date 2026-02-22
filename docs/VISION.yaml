@@ -1,0 +1,147 @@
+id: crumbs
+title: Crumbs Vision
+
+executive_summary: |
+  Crumbs is a general-purpose storage system for work items with built-in support for exploratory
+  work sessions. We use the breadcrumb metaphor (Hansel and Gretel): the cupboard holds all work
+  items (crumbs), and trails are exploration paths you can complete (merge crumbs into the permanent
+  record) or abandon (backtrack and clean up the entire trail). We provide a command-line tool and
+  Go library. We are not a workflow engine, coordination framework, or message queue.
+
+problem: |
+  Agents that explore solutions need storage that supports how they actually work: exploring, hitting
+  dead ends, and backtracking. A coding agent exploring implementation approaches, a chess engine
+  evaluating move sequences, a planning system testing strategies — all create tasks and subtasks as
+  they explore. Sometimes the approach works and those tasks become permanent work. Sometimes the
+  agent realizes the approach will not work and needs to abandon the entire exploration without
+  polluting the main task list.
+
+  Current task storage systems lack support for this exploratory workflow. They couple directly to a
+  specific database or workflow engine, making it difficult to switch backends. More importantly,
+  they have no concept of tentative work sessions. Agents must either commit failed exploration tasks
+  to the permanent record or manually track and clean up abandoned items. Neither is acceptable: the
+  first pollutes the task history with dead ends, the second is error-prone and complex.
+
+what_this_does: |
+  Crumbs solves this by providing storage with first-class support for trails.
+
+  Crumbs are individual work items. You drop crumbs as you explore an implementation. Each crumb can
+  depend on other crumbs, forming a directed acyclic graph (DAG) of the workflow. Crumbs have
+  terminal states: pebble (completed successfully) or dust (failed or abandoned).
+
+  Trails are exploration sessions — DAG subgraphs of the workflow — that agents create while
+  exploring an approach. You can drop new crumbs on a trail at any time and specify their
+  dependencies. Trails can branch, dead-end, or merge back.
+
+  Stashes enable crumbs on a trail to share state: resources, artifacts, context, counters, or
+  locks. Stashes are scoped to a trail or global, versioned, and maintain a full history.
+
+  Properties extend entities with custom attributes. Every entity has a value for every defined
+  property in its scope — there is no "not set" state. Built-in crumb properties (priority, type,
+  description, owner, labels) are available out of the box. Applications define additional
+  properties at runtime without schema migrations.
+
+  The Cupboard interface provides table access and lifecycle management. Uniform CRUD operations
+  (Get, Set, Delete, Fetch) work across all entity types (Crumb, Trail, Property, Link, Stash,
+  Metadata). The storage system provides a SQLite backend with JSONL files as the source of truth.
+
+why_we_build_this: |
+  Exploratory workflows are universal. Coding agents, game-playing engines, planning systems, and
+  personal task tracking all require the ability to tentatively explore paths and then either commit
+  or discard the work. No existing task storage system provides this capability in a backend-agnostic
+  way. We build Crumbs to close this gap: a storage layer purpose-built for the explore-commit-or-
+  backtrack pattern, usable by any agent or developer who needs it.
+
+success_criteria:
+  - id: SC1
+    criterion: Operations complete with low latency as crumb counts and concurrent trails grow. We establish performance baselines and refine targets based on real usage patterns.
+  - id: SC2
+    criterion: Developers integrate the Go library quickly. The API is synchronous and type-safe, using a uniform Table interface for all entity types. Adding a new backend takes hours, not days.
+  - id: SC3
+    criterion: Agents create trails for exploration, drop crumbs as they work, and mark trails as abandoned or completed. Trail-based exploration feels natural for any agent that needs to try approaches, backtrack from dead ends, and commit successful paths.
+
+implementation_phases:
+  - phase: 1
+    name: Core Storage with SQLite Backend
+    focus: Implement the Cupboard and Table interfaces with SQLite backend. Validates core concepts and provides a working system for local use.
+    deliverables:
+      - Cupboard interface with Attach, Detach, GetTable
+      - Table interface with Get, Set, Delete, Fetch
+      - Crumb entity with state transitions
+      - SQLite backend with JSONL persistence
+      - Basic CLI commands
+
+  - phase: 2
+    name: Post-Core Validation
+    focus: Validate with installation, persistence, and round-trip scenarios. Requires only phase 1 features.
+    deliverables:
+      - cupboard installs via go install
+      - JSONL files survive database deletion
+      - Config loading and generic table CLI validated
+
+  - phase: 3
+    name: Properties with Enforcement
+    focus: Implement the property system with automatic initialization and backfill.
+    deliverables:
+      - Property and Category entities
+      - Property access via Table interface
+      - Built-in property seeding (priority, type, description, owner, labels)
+      - Property enforcement (auto-initialization on crumb creation, backfill on definition)
+
+  - phase: 4
+    name: Issue-Tracking and Self-Hosting
+    focus: Validate cupboard as an issue tracker with CLI commands, benchmarks, and self-hosting.
+    deliverables:
+      - Issue-tracking CLI commands (ready, create, show, update, close, comments add)
+      - Table benchmark suite
+      - Self-hosting (crumbs tracks its own development)
+      - Metadata lifecycle (comments, attachments, cascade delete)
+
+  - phase: 5
+    name: Trails and Stashes
+    focus: Implement trail lifecycle for exploratory workflows and stash for shared state coordination.
+    deliverables:
+      - Trail entity with Complete and Abandon lifecycle methods
+      - Stash entity with SetValue, Increment, Acquire, Release, GetHistory
+      - Link management (belongs_to, child_of, branches_from, scoped_to)
+      - Atomic cleanup on trail abandonment
+
+  - phase: 6
+    name: Post-Trails Validation
+    focus: Validate trails functionality with self-hosting scenarios using trails as epic equivalents.
+    deliverables:
+      - Self-hosting with trail-based epics works end-to-end
+
+  - phase: 7
+    name: Unscheduled
+    focus: Use cases not yet assigned to a release. Includes workflow templates (blazes) and Docker bootstrap.
+    deliverables: []
+
+risks:
+  - id: R1
+    risk: Backend proliferation without clear interface boundary
+    impact: High
+    likelihood: Low
+    mitigation: The Cupboard interface is the single contract all backends implement. prd001-cupboard-core defines this contract precisely. Non-standard extensions must not appear in the interface.
+  - id: R2
+    risk: Property schema complexity outpacing the enforcement mechanism
+    impact: Medium
+    likelihood: Medium
+    mitigation: Properties are first-class entities with typed values and automatic backfill. The design explicitly rejects the "not set" concept; every crumb always has a value for every property.
+  - id: R3
+    risk: Trail abandonment leaving orphaned crumbs
+    impact: High
+    likelihood: Low
+    mitigation: The belongs_to link is never deleted. The backend cascade on Abandon transitions crumbs to dust. Crumbs without a belongs_to link are detected as orphans.
+  - id: R4
+    risk: JSONL files diverging from SQLite state on crash
+    impact: High
+    likelihood: Low
+    mitigation: JSONL is the source of truth. SQLite is rebuilt from JSONL on every Attach. Writes use atomic rename (temp file, fsync, rename) to prevent partial writes.
+
+not:
+  - We are not a workflow engine. Coordination semantics (claiming work, timeouts, announcements) belong in layers above this storage.
+  - We are not a message queue. Crumbs stores work items; it does not route messages or provide pub/sub.
+  - We are not an HTTP/RPC API. Applications define their own APIs; distributed coordination is out of scope.
+  - We are not building replication or multi-region support.
+  - We are not a general-purpose database. Crumbs is purpose-built for work item storage with trails, properties, and metadata.

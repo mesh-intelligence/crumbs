@@ -47,4 +47,6 @@ cupboard.db
 .cobbler/
 
 .secrets/
-.claude/
+.claude/# pixi environments
+.pixi/*
+!.pixi/config.toml

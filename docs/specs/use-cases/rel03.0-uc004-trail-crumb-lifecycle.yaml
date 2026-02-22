@@ -1,79 +1,109 @@
 id: rel03.0-uc004-trail-crumb-lifecycle
 title: Trail-Crumb Lifecycle Control
-summary: |
-  A developer uses trails as containers to group crumbs and control their lifecycle.
-  Crumbs belong to trails via belongs_to links. When a trail completes, its crumbs
-  become permanent (links removed, crumbs persist). When a trail is abandoned, its
-  crumbs are deleted atomically. This tracer bullet validates the lifecycle coupling
-  between trails and their member crumbs, distinct from exploration branching.
-actor: Coding agent managing work items with lifecycle control
-trigger: Need to group crumbs under a container that controls their permanence or deletion
-flow:
-  - F1: "Initialize cupboard: construct via sqlite.NewBackend(), call Attach(config), get trails, crumbs, and links tables"
-  - F2: "Create a trail container: call trailsTable.Set with a new Trail in draft state"
-  - F3: "Transition trail to active: call trail.SetState('active') then Table.Set to enable adding crumbs"
-  - F4: "Create crumbs for the trail: create multiple crumbs via crumbsTable.Set"
-  - F5: "Associate crumbs with trail: create belongs_to links from each crumb to the trail"
-  - F6: "Query crumbs by trail membership: Fetch links with belongs_to filter to find all crumbs in the trail"
-  - F7: "Verify crumb accessibility: crumbs are retrievable and modifiable while trail is active"
-  - F8: "Move crumb between trails: delete old belongs_to link, create new belongs_to link to different trail"
-  - F9: "Complete the trail: call trail.Complete() then trailsTable.Set; backend removes belongs_to links"
-  - F10: "Verify crumbs are permanent: crumbs exist without belongs_to links, indistinguishable from never-trailed crumbs"
-  - F11: "Create another trail for abandonment test: create trail, add crumbs, link them"
-  - F12: "Abandon the trail: call trail.Abandon() then trailsTable.Set; backend deletes associated crumbs atomically"
-  - F13: "Verify cascade deletion: crumbs return ErrNotFound, all related links deleted, properties cleaned up"
-  - F14: "Detach the cupboard: call cupboard.Detach()"
-touchpoints:
-  - T1: "Cupboard interface: Attach, Detach, GetTable (prd001-cupboard-core R2)"
-  - T2: "Table interface: Get, Set, Delete, Fetch (prd001-cupboard-core R3)"
-  - T3: "Trail entity: SetState method for state transitions (prd006-trails-interface R2)"
-  - T4: "Trail entity: Complete method marks crumbs permanent (prd006-trails-interface R5)"
-  - T5: "Trail entity: Abandon method triggers cascade deletion (prd006-trails-interface R6)"
-  - T6: "belongs_to links: crumb → trail membership (prd007-links-interface R2.1)"
-  - T7: "Cardinality constraint: crumb belongs to at most one trail (prd007-links-interface R6.1)"
-  - T8: "Backend cascade on complete: removes belongs_to links (prd006-trails-interface R5.6)"
-  - T9: "Backend cascade on abandon: deletes crumbs, properties, links atomically (prd006-trails-interface R6.6, R6.7)"
-success_criteria:
-  - S1: Crumbs associate with trails via belongs_to links in the links table
-  - S2: A crumb can belong to at most one trail at a time (cardinality enforced)
-  - S3: Fetch with belongs_to filter returns all crumbs belonging to a trail
-  - S4: Crumbs can be moved between trails by deleting and recreating belongs_to links
-  - S5: trail.Complete() followed by Table.Set removes all belongs_to links for that trail
-  - S6: After completion, crumbs persist and have no belongs_to links (they are permanent)
-  - S7: trail.Abandon() followed by Table.Set deletes all crumbs that belong to the trail
-  - S8: Cascade deletion removes crumb properties, metadata, and all links involving the crumb
-  - S9: Trail remains in database after abandonment (for audit) but has no associated crumbs
-  - S10: Complete and Abandon require trail to be in active state (ErrInvalidState otherwise)
-out_of_scope:
-  - Trail branching via branches_from links (see rel03.0-uc001-trail-exploration)
-  - Nested trails or trail hierarchies
-  - Concurrent trail operations
-  - Trail merging or splitting
-  - Stash-trail scoping (see rel03.0-uc003-stash-operations)
-test_suite: test-rel03.0
-dependencies:
-  - D1: rel01.0-uc001-cupboard-lifecycle (Cupboard and Table interfaces work)
-  - D2: rel01.0-uc002-table-crud (Table CRUD operations work)
-  - D3: rel03.0-uc002-link-management (Links table and belongs_to semantics work)
-  - D4: prd006-trails-interface must be implemented
-  - D5: prd007-links-interface must be implemented
-risks:
-  - K1: "Orphan crumbs if abandon fails mid-transaction | Backend uses transaction; rollback on failure"
-  - K2: "Orphan links if crumb deletion misses related links | Cascade deletion in single transaction"
-  - K3: "belongs_to cardinality violation | Uniqueness constraint on (link_type, from_id, to_id)"
-  - K4: "State transition errors | Validate state in entity method before Table.Set"
-demo: |
-  # Run the integration test
-  go test -v ./tests/integration -run TestTrailCrumbLifecycle
+summary: 'A developer uses trails as containers to group crumbs and control their
+  lifecycle.
 
-  # Or via CLI
-  crumbs trail create --state active
-  crumbs crumb create --name "Task 1"
-  crumbs link create --type belongs_to --from <crumb_id> --to <trail_id>
-  crumbs trail complete <trail_id>
-  crumbs crumb get <crumb_id>  # Still exists, now permanent
-references:
-  - prd006-trails-interface
-  - prd007-links-interface
-  - prd001-cupboard-core
-  - docs/ARCHITECTURE.md
+  Crumbs belong to trails via belongs_to links. When a trail completes, its crumbs
+
+  become permanent (links removed, crumbs persist). When a trail is abandoned, its
+
+  crumbs are deleted atomically. This tracer bullet validates the lifecycle coupling
+
+  between trails and their member crumbs, distinct from exploration branching.
+
+  '
+actor: Coding agent managing work items with lifecycle control
+trigger: Need to group crumbs under a container that controls their permanence or
+  deletion
+flow:
+- id: F1
+  step: 'Initialize cupboard: construct via sqlite.NewBackend(), call Attach(config),
+    get trails, crumbs, and links tables'
+- id: F2
+  step: 'Create a trail container: call trailsTable.Set with a new Trail in draft
+    state'
+- id: F3
+  step: 'Transition trail to active: call trail.SetState(''active'') then Table.Set
+    to enable adding crumbs'
+- id: F4
+  step: 'Create crumbs for the trail: create multiple crumbs via crumbsTable.Set'
+- id: F5
+  step: 'Associate crumbs with trail: create belongs_to links from each crumb to the
+    trail'
+- id: F6
+  step: 'Query crumbs by trail membership: Fetch links with belongs_to filter to find
+    all crumbs in the trail'
+- id: F7
+  step: 'Verify crumb accessibility: crumbs are retrievable and modifiable while trail
+    is active'
+- id: F8
+  step: 'Move crumb between trails: delete old belongs_to link, create new belongs_to
+    link to different trail'
+- id: F9
+  step: 'Complete the trail: call trail.Complete() then trailsTable.Set; backend removes
+    belongs_to links'
+- id: F10
+  step: 'Verify crumbs are permanent: crumbs exist without belongs_to links, indistinguishable
+    from never-trailed crumbs'
+- id: F11
+  step: 'Create another trail for abandonment test: create trail, add crumbs, link
+    them'
+- id: F12
+  step: 'Abandon the trail: call trail.Abandon() then trailsTable.Set; backend deletes
+    associated crumbs atomically'
+- id: F13
+  step: 'Verify cascade deletion: crumbs return ErrNotFound, all related links deleted,
+    properties cleaned up'
+- id: F14
+  step: 'Detach the cupboard: call cupboard.Detach()'
+touchpoints:
+- T1: 'Cupboard interface: Attach, Detach, GetTable (prd001-cupboard-core R2)'
+- T2: 'Table interface: Get, Set, Delete, Fetch (prd001-cupboard-core R3)'
+- T3: 'Trail entity: SetState method for state transitions (prd006-trails-interface
+    R2)'
+- T4: 'Trail entity: Complete method marks crumbs permanent (prd006-trails-interface
+    R5)'
+- T5: 'Trail entity: Abandon method triggers cascade deletion (prd006-trails-interface
+    R6)'
+- T6: 'belongs_to links: crumb → trail membership (prd007-links-interface R2.1)'
+- T7: 'Cardinality constraint: crumb belongs to at most one trail (prd007-links-interface
+    R6.1)'
+- T8: 'Backend cascade on complete: removes belongs_to links (prd006-trails-interface
+    R5.6)'
+- T9: 'Backend cascade on abandon: deletes crumbs, properties, links atomically (prd006-trails-interface
+    R6.6, R6.7)'
+success_criteria:
+- id: S1
+  criterion: Crumbs associate with trails via belongs_to links in the links table
+- id: S2
+  criterion: A crumb can belong to at most one trail at a time (cardinality enforced)
+- id: S3
+  criterion: Fetch with belongs_to filter returns all crumbs belonging to a trail
+- id: S4
+  criterion: Crumbs can be moved between trails by deleting and recreating belongs_to
+    links
+- id: S5
+  criterion: trail.Complete() followed by Table.Set removes all belongs_to links for
+    that trail
+- id: S6
+  criterion: After completion, crumbs persist and have no belongs_to links (they are
+    permanent)
+- id: S7
+  criterion: trail.Abandon() followed by Table.Set deletes all crumbs that belong
+    to the trail
+- id: S8
+  criterion: Cascade deletion removes crumb properties, metadata, and all links involving
+    the crumb
+- id: S9
+  criterion: Trail remains in database after abandonment (for audit) but has no associated
+    crumbs
+- id: S10
+  criterion: Complete and Abandon require trail to be in active state (ErrInvalidState
+    otherwise)
+out_of_scope:
+- Trail branching via branches_from links (see rel03.0-uc001-trail-exploration)
+- Nested trails or trail hierarchies
+- Concurrent trail operations
+- Trail merging or splitting
+- Stash-trail scoping (see rel03.0-uc003-stash-operations)
+test_suite: test-rel03.0

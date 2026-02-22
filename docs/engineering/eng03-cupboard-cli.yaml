@@ -1,0 +1,280 @@
+id: eng03-cupboard-cli
+title: Cupboard CLI Usage
+introduction: |
+  This guideline describes how to install, configure, and use the cupboard command-line tool. We
+  cover installation, initialization, configuration, and the full command set for managing crumbs
+  and issue tracking. For the formal specification, see prd009-cupboard-cli.yaml.
+sections:
+- title: Installation
+  content: |
+    Via go install — when the module is published, install the binary directly from the Go module
+    proxy:
+
+      go install github.com/mesh-intelligence/crumbs/cmd/cupboard@latest
+
+    The Go toolchain downloads the module, builds cmd/cupboard, and places the binary in $GOBIN
+    (typically ~/go/bin). Ensure $GOBIN is in your PATH:
+
+      export PATH="$PATH:$(go env GOPATH)/bin"
+      cupboard --help
+
+    For local development, clone the repository and build locally:
+
+      git clone https://github.com/mesh-intelligence/crumbs.git
+      cd crumbs
+      go build -o cupboard ./cmd/cupboard
+      ./cupboard --help
+- title: Initialization
+  content: |
+    The cupboard init command initializes storage and creates the data directory structure:
+
+      cupboard init
+
+    Expected output: Cupboard initialized successfully
+
+    Table 1 Data directory files
+
+    | File | Purpose |
+    |------|---------|
+    | crumbs.jsonl | All crumbs (source of truth) |
+    | trails.jsonl | All trails |
+    | links.jsonl | Graph edges (belongs_to, child_of relationships) |
+    | properties.jsonl | Property definitions |
+    | categories.jsonl | Category values for categorical properties |
+    | crumb_properties.jsonl | Property values for crumbs |
+    | metadata.jsonl | Metadata entries (comments, etc.) |
+    | stashes.jsonl | Stash definitions and current values |
+    | stash_history.jsonl | Append-only history of stash changes |
+    | cupboard.db | SQLite cache (ephemeral, rebuilt on startup) |
+
+    Init is idempotent. Running it multiple times does not duplicate data or return an error.
+- title: Configuration
+  content: |
+    The CLI reads configuration from config.yaml in the configuration directory:
+
+      backend: sqlite
+      data_dir: ~/.local/share/crumbs
+
+    Table 2 Default directory locations
+
+    | Platform | Configuration directory | Data directory |
+    |----------|------------------------|----------------|
+    | Linux | $XDG_CONFIG_HOME/crumbs (or ~/.config/crumbs) | $XDG_DATA_HOME/crumbs (or ~/.local/share/crumbs) |
+    | macOS | ~/Library/Application Support/crumbs | ~/Library/Application Support/crumbs/data |
+    | Windows | %APPDATA%\crumbs | %LOCALAPPDATA%\crumbs |
+
+    Table 3 Environment variable overrides
+
+    | Variable | Purpose |
+    |----------|---------|
+    | CRUMBS_CONFIG_DIR | Override configuration directory |
+    | CRUMBS_DATA_DIR | Override data directory |
+
+    Table 4 Global flags
+
+    | Flag | Purpose |
+    |------|---------|
+    | --config-dir | Override configuration directory |
+    | --data-dir | Override data directory |
+    | --help, -h | Print usage information |
+    | --version | Print version (on root command) |
+
+    Precedence (highest to lowest) for configuration directory: CLI flag, CRUMBS_CONFIG_DIR
+    environment variable, platform default. For data directory: CLI flag, config.yaml data_dir,
+    platform default.
+- title: Generic Table Operations
+  content: |
+    Generic table commands expose the Table interface (Get, Set, Delete, Fetch) for any table.
+    Valid table names are crumbs, trails, properties, metadata, links, and stashes.
+
+    cupboard get — retrieve an entity by ID:
+
+      cupboard get crumbs 01945a3b-1234-7000-8000-000000000001
+
+    cupboard set — create or update an entity (empty string ID triggers creation):
+
+      cupboard set crumbs "" '{"Name":"New task","State":"draft"}'
+      cupboard set crumbs 01945a3b-1234-7000-8000-000000000001 '{"Name":"Updated task","State":"ready"}'
+
+    cupboard delete — remove an entity by ID:
+
+      cupboard delete crumbs 01945a3b-1234-7000-8000-000000000001
+
+    cupboard list — query entities with optional key=value filters (ANDed together):
+
+      cupboard list crumbs
+      cupboard list crumbs State=ready
+      cupboard list crumbs State=ready Name=MyTask
+
+    Table 5 Exit codes
+
+    | Code | Meaning | Examples |
+    |------|---------|----------|
+    | 0 | Success | Command completed, including empty results |
+    | 1 | User error | Invalid arguments, entity not found, validation failure |
+    | 2 | System error | Backend connection failure, file I/O error |
+- title: Crumb Commands
+  content: |
+    Crumb commands provide entity-specific flags and validation. They are grouped under
+    cupboard crumb.
+
+    cupboard crumb add — create a new crumb with friendly flags:
+
+      cupboard crumb add --name "Implement feature X"
+      cupboard crumb add --name "Fix bug Y" --state pending --json
+
+    Table 6 crumb add flags
+
+    | Flag | Required | Default | Description |
+    |------|----------|---------|-------------|
+    | --name | yes | - | Human-readable name for the crumb |
+    | --state | no | draft | Initial state |
+    | --json | no | false | Output as JSON |
+
+    cupboard crumb get — retrieve a crumb by ID:
+
+      cupboard crumb get 01945a3b-1234-7000-8000-000000000001
+      cupboard crumb get 01945a3b-1234-7000-8000-000000000001 --json
+
+    cupboard crumb list — list crumbs with optional filtering:
+
+      cupboard crumb list
+      cupboard crumb list --state ready
+      cupboard crumb list --json
+
+    cupboard crumb delete — delete a crumb by ID:
+
+      cupboard crumb delete 01945a3b-1234-7000-8000-000000000001
+- title: Issue-Tracking Commands
+  content: |
+    Issue-tracking commands support the workflow previously provided by the beads (bd) CLI.
+
+    cupboard ready — list crumbs ready for work:
+
+      cupboard ready
+      cupboard ready -n 1 --type task --json
+
+    cupboard create — create a new crumb with issue-tracking fields:
+
+      cupboard create --type task --title "Implement feature" --description "Add the widget"
+      cupboard create --type epic --title "Storage layer" --description "Core storage" --labels "code,infra" --json
+
+    Table 7 create flags
+
+    | Flag | Required | Description |
+    |------|----------|-------------|
+    | --type | yes | Crumb type property (task, epic, bug, etc.) |
+    | --title | yes | Crumb name |
+    | --description | no | Description property |
+    | --labels | no | Comma-separated list of labels |
+    | --json | no | Output as JSON |
+
+    cupboard show — display a crumb with full details (accepts full UUIDs or short prefixes):
+
+      cupboard show 01945a3b
+
+    cupboard update — modify crumb fields:
+
+      cupboard update 01945a3b --status in_progress
+
+    Table 8 update flags
+
+    | Flag | Description |
+    |------|-------------|
+    | --status | Set crumb state (draft, pending, ready, taken, pebble, dust) |
+    | --title | Set crumb name |
+    | --json | Output as JSON |
+
+    cupboard close — transition a crumb to pebble (completed) state. The crumb must be in
+    taken state:
+
+      cupboard close 01945a3b
+
+    cupboard comments add — add a comment stored as a metadata entry linked to the crumb:
+
+      cupboard comments add 01945a3b "tokens: 34256"
+- title: JSON Output for Scripting
+  content: |
+    All commands that produce output support the --json flag for machine-readable output.
+    JSON output is pretty-printed with 2-space indentation.
+
+    Extract specific fields using jq:
+
+      cupboard ready --type task --json | jq -r '.[0].CrumbID'
+      cupboard crumb list --json | jq -r '.[].Name'
+      CRUMB_ID=$(cupboard create --type task --title "New task" --json | jq -r '.CrumbID')
+
+    Count ready tasks:
+
+      COUNT=$(cupboard ready --type task --json | jq 'length')
+- title: Workflow Modes
+  content: |
+    We support two workflow modes: flat crumb tracking (without trails) and epic-style grouping
+    (with trails).
+
+    Table 9 Workflow mode selection
+
+    | Scenario | Recommended Mode | Reason |
+    |----------|------------------|--------|
+    | Simple task list | Without trails | No grouping overhead |
+    | Independent tasks | Without trails | Each crumb stands alone |
+    | Related tasks that ship together | With trails | Trail completion finalizes all tasks |
+    | Exploratory work that may be discarded | With trails | Trail abandonment cleans up atomically |
+    | Sprint or milestone grouping | With trails | Trail acts as container |
+
+    Without trails — flat crumb tracking for independent tasks:
+
+      cupboard set crumbs "" '{"Name":"Implement feature X","State":"draft"}'
+      cupboard update 01945a3b --status in_progress
+      cupboard close 01945a3b
+
+    With trails — use a trail as a container for related tasks. Create the trail, activate it,
+    link crumbs via belongs_to links, then complete or abandon:
+
+      TRAIL=$(cupboard set trails "" '{"State":"draft"}' | jq -r '.TrailID')
+      cupboard set trails $TRAIL '{"TrailID":"'$TRAIL'","State":"active"}'
+      TASK1=$(cupboard set crumbs "" '{"Name":"Subtask 1","State":"draft"}' | jq -r '.CrumbID')
+      cupboard set links "" '{"LinkType":"belongs_to","FromID":"'$TASK1'","ToID":"'$TRAIL'"}'
+      cupboard set trails $TRAIL '{"TrailID":"'$TRAIL'","State":"completed"}'
+
+    Table 10 Workflow mode comparison
+
+    | Aspect | Without Trails | With Trails |
+    |--------|----------------|-------------|
+    | Setup | None | Create trail, activate it |
+    | Task creation | Direct crumb creation | Create crumb, then link to trail |
+    | Completion | Close each crumb individually | Complete trail to finalize all |
+    | Discard | Set crumb state to dust | Abandon trail to delete all atomically |
+    | Complexity | Low | Medium |
+- title: Beads to Cupboard Migration
+  content: |
+    For teams migrating from the beads (bd) CLI, the following table maps commands.
+
+    Table 11 bd to cupboard command mapping
+
+    | bd command | cupboard equivalent |
+    |------------|-------------------|
+    | bd ready -n 1 --json --type task | cupboard ready -n 1 --json --type task |
+    | bd update <id> --status in_progress | cupboard update <id> --status in_progress |
+    | bd close <id> | cupboard close <id> |
+    | bd list --json | cupboard list crumbs --json |
+    | bd create --type <type> --title <title> | cupboard create --type <type> --title <title> |
+    | bd show <id> | cupboard show <id> |
+    | bd comments add <id> "text" | cupboard comments add <id> "text" |
+    | bd sync | Not needed (cupboard syncs on every write) |
+
+    Data migration involves moving from .beads/issues.jsonl to the cupboard data directory.
+    Commit JSONL files from the data directory instead of .beads/ files.
+references:
+- id: prd009-cupboard-cli
+  path: specs/product-requirements/prd009-cupboard-cli.yaml
+  note: formal CLI specification
+- id: prd010-configuration-directories
+  path: specs/product-requirements/prd010-configuration-directories.yaml
+  note: directory structure and config loading
+- id: prd001-cupboard-core
+  path: specs/product-requirements/prd001-cupboard-core.yaml
+  note: Cupboard and Table interfaces
+- id: eng01-git-integration
+  path: engineering/eng01-git-integration.yaml
+  note: JSONL in git, trails as worktrees

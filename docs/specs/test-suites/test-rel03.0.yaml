@@ -1,1609 +1,721 @@
 id: test-rel03.0
-title: "Trails and Stashes"
-release: "03.0"
-description: >
-  Release test suite for trails and stashes.
-  Covers 4 use cases with 124 test cases total.
+title: Trails and Stashes
+release: '03.0'
 traces:
-  - rel03.0-uc001-trail-exploration
-  - rel03.0-uc002-link-management
-  - rel03.0-uc003-stash-operations
-  - rel03.0-uc004-trail-crumb-lifecycle
-tags:
-  - cascade
-  - coordination
-  - graph
-  - integration
-  - lifecycle
-  - links
-  - stashes
-  - trails
-
-preconditions:
-  - Cupboard initialized with SQLite backend
-  - trails, crumbs, and links tables accessible via GetTable
-  - No existing trails, crumbs, or links in the database
-  - links, crumbs, trails, and stashes tables accessible via GetTable
-  - No existing links in the database
-  - stashes table accessible via GetTable
-  - No existing stashes in the database
-
+- rel03.0-uc001-trail-exploration
+- rel03.0-uc002-link-management
+- rel03.0-uc003-stash-operations
+- rel03.0-uc004-trail-crumb-lifecycle
+preconditions: |-
+  Cupboard initialized with SQLite backend
+  trails, crumbs, and links tables accessible via GetTable
+  No existing trails, crumbs, or links in the database
+  links, crumbs, trails, and stashes tables accessible via GetTable
+  No existing links in the database
+  stashes table accessible via GetTable
+  No existing stashes in the database
 test_cases:
-
-  # --- uc: rel03.0-uc001-trail-exploration: Trail-based exploration and lifecycle ---
-
-  - name: Create trail defaults to draft state
-    description: When no state is provided, new trails default to draft state per prd006-trails-interface R2.2
-    inputs:
-      command: 'trail := &Trail{CreatedAt: time.Now()}
-        trailsTable.Set("", trail)
-        '
-    expected:
-      exit_code: 0
-      state:
-        trail_state: draft
-        trail_id_generated: true
-        created_at_set: true
-  - name: Create trail with explicit active state
-    inputs:
-      command: 'trail := &Trail{State: "active", CreatedAt: time.Now()}
-        trailsTable.Set("", trail)
-        '
-    expected:
-      exit_code: 0
-      state:
-        trail_state: active
-        trail_id_generated: true
-        created_at_set: true
-  - name: Create trail in draft state explicitly
-    inputs:
-      command: 'trail := &Trail{State: "draft", CreatedAt: time.Now()}
-        trailsTable.Set("", trail)
-        '
-    expected:
-      exit_code: 0
-      state:
-        trail_state: draft
-  - name: Transition trail from draft to active via SetState
-    inputs:
-      setup:
-      - Create trail in draft state
-      steps:
-      - trail.SetState("active")
-      - trailsTable.Set(trail.TrailID, trail)
-    expected:
-      exit_code: 0
-      state:
-        trail_state: active
-  - name: Transition trail from draft to pending via SetState
-    inputs:
-      setup:
-      - Create trail in draft state
-      steps:
-      - trail.SetState("pending")
-      - trailsTable.Set(trail.TrailID, trail)
-    expected:
-      exit_code: 0
-      state:
-        trail_state: pending
-  - name: SetState rejects invalid transitions from draft
-    inputs:
-      setup:
-      - Create trail in draft state
-      command: trail.SetState("completed")
-    expected:
-      error: ErrInvalidState
-  - name: SetState rejects transitions from terminal states
-    inputs:
-      setup:
-      - Create trail in active state
-      - Complete the trail
-      command: trail.SetState("active")
-    expected:
-      error: ErrInvalidState
-  - name: Create belongs_to link associates crumb with trail
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create crumb in draft state
-      command: 'link := &Link{LinkType: "belongs_to", FromID: crumb.CrumbID, ToID: trail.TrailID}
-        linksTable.Set("", link)
-        '
-    expected:
-      exit_code: 0
-      state:
-        link_type: belongs_to
-        link_from_id: crumb_id
-        link_to_id: trail_id
-  - name: Multiple crumbs can belong to same trail
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create crumb1 in draft state
-      - Create crumb2 in draft state
-      steps:
-      - 'linksTable.Set("", &Link{LinkType: "belongs_to", FromID: crumb1.CrumbID, ToID: trail.TrailID})'
-      - 'linksTable.Set("", &Link{LinkType: "belongs_to", FromID: crumb2.CrumbID, ToID: trail.TrailID})'
-    expected:
-      exit_code: 0
-      state:
-        links_for_trail: 2
-  - name: Fetch crumbs on trail via belongs_to filter
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create crumb1 and crumb2, link both to trail via belongs_to
-      - Create crumb3 not linked to any trail
-      command: 'filter := map[string]any{"link_type": "belongs_to", "to_id": trail.TrailID}
-        linksTable.Fetch(filter)
-        '
-    expected:
-      exit_code: 0
-      state:
-        result_count: 2
-        result_contains:
-        - crumb1_id
-        - crumb2_id
-        result_excludes:
-        - crumb3_id
-  - name: Delete belongs_to link keeps crumb intact
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create crumb and link to trail via belongs_to
-      steps:
-      - linksTable.Delete(link.LinkID)
-      - crumbsTable.Get(crumb.CrumbID)
-    expected:
-      exit_code: 0
-      state:
-        crumb_exists: true
-        link_exists: false
-  - name: Abandon trail deletes associated crumbs
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create crumb1 and crumb2, link both to trail via belongs_to
-      steps:
-      - trail.Abandon()
-      - trailsTable.Set(trail.TrailID, trail)
-      - crumbsTable.Get(crumb1.CrumbID)
-      - crumbsTable.Get(crumb2.CrumbID)
-    expected:
-      state:
-        trail_state: abandoned
-        crumb1_error: ErrNotFound
-        crumb2_error: ErrNotFound
-  - name: Abandon trail removes belongs_to links
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create crumb and link to trail via belongs_to
-      steps:
-      - trail.Abandon()
-      - trailsTable.Set(trail.TrailID, trail)
-      - 'linksTable.Fetch(map[string]any{"link_type": "belongs_to", "to_id": trail.TrailID})'
-    expected:
-      state:
-        trail_state: abandoned
-        links_for_trail: 0
-  - name: Crumb removed before abandon survives
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create crumb1 and crumb2, link both to trail via belongs_to
-      steps:
-      - linksTable.Delete(link_for_crumb1.LinkID)
-      - trail.Abandon()
-      - trailsTable.Set(trail.TrailID, trail)
-      - crumbsTable.Get(crumb1.CrumbID)
-      - crumbsTable.Get(crumb2.CrumbID)
-    expected:
-      state:
-        crumb1_exists: true
-        crumb2_error: ErrNotFound
-  - name: Complete trail removes belongs_to links
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create crumb1 and crumb2, link both to trail via belongs_to
-      steps:
-      - trail.Complete()
-      - trailsTable.Set(trail.TrailID, trail)
-      - 'linksTable.Fetch(map[string]any{"link_type": "belongs_to", "to_id": trail.TrailID})'
-    expected:
-      state:
-        trail_state: completed
-        links_for_trail: 0
-  - name: Completed trail crumbs remain accessible
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create crumb1 and crumb2, link both to trail via belongs_to
-      steps:
-      - trail.Complete()
-      - trailsTable.Set(trail.TrailID, trail)
-      - crumbsTable.Get(crumb1.CrumbID)
-      - crumbsTable.Get(crumb2.CrumbID)
-    expected:
-      state:
-        crumb1_exists: true
-        crumb2_exists: true
-  - name: Completed trail crumbs are indistinguishable from permanent crumbs
-    description: After completion, crumbs have no belongs_to link and exist as permanent entities.
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create crumb and link to trail via belongs_to
-      steps:
-      - trail.Complete()
-      - trailsTable.Set(trail.TrailID, trail)
-      - crumbsTable.Get(crumb.CrumbID)
-      - 'linksTable.Fetch(map[string]any{"link_type": "belongs_to", "from_id": crumb.CrumbID})'
-    expected:
-      state:
-        crumb_exists: true
-        crumb_has_belongs_to_link: false
-  - name: Trail state is completed after Complete
-    inputs:
-      setup:
-      - Create trail in active state
-      steps:
-      - trail.Complete()
-      - trailsTable.Set(trail.TrailID, trail)
-      - trailsTable.Get(trail.TrailID)
-    expected:
-      state:
-        trail_state: completed
-        completed_at_set: true
-  - name: Trail state is abandoned after Abandon
-    inputs:
-      setup:
-      - Create trail in active state
-      steps:
-      - trail.Abandon()
-      - trailsTable.Set(trail.TrailID, trail)
-      - trailsTable.Get(trail.TrailID)
-    expected:
-      state:
-        trail_state: abandoned
-        completed_at_set: true
-  - name: Complete on non-active trail returns ErrInvalidState
-    inputs:
-      setup:
-      - Create trail in draft state
-      command: trail.Complete()
-    expected:
-      error: ErrInvalidState
-  - name: Abandon on non-active trail returns ErrInvalidState
-    inputs:
-      setup:
-      - Create trail in completed state
-      command: trail.Abandon()
-    expected:
-      error: ErrInvalidState
-  - name: No orphan links after abandonment
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create crumb and link to trail via belongs_to
-      - Create child_of link between crumbs on the trail
-      steps:
-      - trail.Abandon()
-      - trailsTable.Set(trail.TrailID, trail)
-      - 'linksTable.Fetch(map[string]any{"from_id": crumb.CrumbID})'
-      - 'linksTable.Fetch(map[string]any{"to_id": crumb.CrumbID})'
-    expected:
-      state:
-        links_from_crumb: 0
-        links_to_crumb: 0
-  - name: Crumb properties deleted on trail abandonment
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create crumb with properties, link to trail via belongs_to
-      steps:
-      - trail.Abandon()
-      - trailsTable.Set(trail.TrailID, trail)
-    expected:
-      state:
-        crumb_properties_deleted: true
-  - name: Create branches_from link indicates branch point
-    inputs:
-      setup:
-      - Create parent crumb (e.g., task we are exploring approaches for)
-      - Create trail in active state
-      command: 'link := &Link{LinkType: "branches_from", FromID: trail.TrailID, ToID: parentCrumb.CrumbID}
-        linksTable.Set("", link)
-        '
-    expected:
-      exit_code: 0
-      state:
-        link_type: branches_from
-        link_from_id: trail_id
-        link_to_id: parent_crumb_id
-  - name: Query branches_from link to find branch point
-    inputs:
-      setup:
-      - Create parent crumb
-      - Create trail and link via branches_from
-      command: 'filter := map[string]any{"link_type": "branches_from", "from_id": trail.TrailID}
-        linksTable.Fetch(filter)
-        '
-    expected:
-      state:
-        result_count: 1
-        branch_point_is: parent_crumb_id
-  - name: Full trail exploration workflow
-    description: 'Create a trail branching from a parent crumb, add exploration crumbs, remove one crumb, abandon the trail,
-      verify cleanup, then create another trail and complete it successfully.
-      '
-    inputs:
-      steps:
-      - Create parent crumb in ready state
-      - Create trail1 in active state
-      - Create branches_from link from trail1 to parent crumb
-      - Create explore_crumb1 and explore_crumb2, link both to trail1
-      - Remove explore_crumb1 from trail1 (delete belongs_to link)
-      - Abandon trail1 (trail1.Abandon() then trailsTable.Set)
-      - Verify explore_crumb1 still exists (was removed before abandon)
-      - Verify explore_crumb2 is deleted (was on trail at abandon time)
-      - Create trail2 in active state
-      - Create explore_crumb3, link to trail2
-      - Complete trail2 (trail2.Complete() then trailsTable.Set)
-      - Verify explore_crumb3 still exists (completion preserves crumbs)
-      - Verify no belongs_to link for explore_crumb3 (link removed on complete)
-    expected:
-      state:
-        trail1_state: abandoned
-        trail2_state: completed
-        explore_crumb1_exists: true
-        explore_crumb2_exists: false
-        explore_crumb3_exists: true
-        explore_crumb3_has_belongs_to: false
-  # --- uc: rel03.0-uc002-link-management: Link management CRUD and filtering ---
-
-  - name: Create link generates UUID v7
-    description: 'Creating a link with empty ID generates a UUID v7 for LinkID and sets CreatedAt.
-      '
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create crumb in draft state
-      command: 'link := &Link{LinkType: "belongs_to", FromID: crumb.CrumbID, ToID: trail.TrailID}
-        id, err := linksTable.Set("", link)
-        '
-    expected:
-      exit_code: 0
-      state:
-        returned_id_not_empty: true
-        returned_id_is_uuid_v7: true
-        link_linkid_equals_returned_id: true
-        link_createdat_not_zero: true
-  - name: Set with existing ID updates link
-    description: 'Calling Set with an existing link ID updates the link fields.
-      '
-    inputs:
-      setup:
-      - Create trail and two crumbs
-      - Create belongs_to link from crumb1 to trail
-      command: 'link.FromID = crumb2.CrumbID
-        linksTable.Set(linkID, link)
-        '
-    expected:
-      exit_code: 0
-      state:
-        retrieved_link_from_id: crumb2_id
-  - name: Create belongs_to link for crumb-trail membership
-    description: 'A belongs_to link associates a crumb with a trail. FromID is the crumb, ToID is the trail.
-      '
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create crumb in draft state
-      command: 'link := &Link{LinkType: "belongs_to", FromID: crumb.CrumbID, ToID: trail.TrailID}
-        id, err := linksTable.Set("", link)
-        entity, err := linksTable.Get(id)
-        '
-    expected:
-      exit_code: 0
-      state:
-        link_type: belongs_to
-        link_from_id: crumb_id
-        link_to_id: trail_id
-  - name: Create child_of link for crumb hierarchy
-    description: 'A child_of link establishes a parent-child hierarchy between crumbs. FromID is the child crumb, ToID is the
-      parent crumb.
-      '
-    inputs:
-      setup:
-      - Create parent crumb (epic) in draft state
-      - Create child crumb (task) in draft state
-      command: 'link := &Link{LinkType: "child_of", FromID: child.CrumbID, ToID: parent.CrumbID}
-        id, err := linksTable.Set("", link)
-        entity, err := linksTable.Get(id)
-        '
-    expected:
-      exit_code: 0
-      state:
-        link_type: child_of
-        link_from_id: child_crumb_id
-        link_to_id: parent_crumb_id
-  - name: Query children of parent crumb
-    description: 'Fetch with LinkType=child_of and ToID=parent returns all child links.
-      '
-    inputs:
-      setup:
-      - Create parent crumb
-      - Create child1 and child2 crumbs
-      - Create child_of links from both children to parent
-      command: 'filter := map[string]any{"LinkType": "child_of", "ToID": parent.CrumbID}
-        entities, err := linksTable.Fetch(filter)
-        '
-    expected:
-      exit_code: 0
-      state:
-        result_count: 2
-        result_from_ids_include:
-        - child1_id
-        - child2_id
-  - name: Query parent of child crumb
-    description: 'Fetch with LinkType=child_of and FromID=child returns the parent link.
-      '
-    inputs:
-      setup:
-      - Create parent crumb
-      - Create child crumb
-      - Create child_of link from child to parent
-      command: 'filter := map[string]any{"LinkType": "child_of", "FromID": child.CrumbID}
-        entities, err := linksTable.Fetch(filter)
-        '
-    expected:
-      exit_code: 0
-      state:
-        result_count: 1
-        result_to_id: parent_crumb_id
-  - name: Create branches_from link for trail branch point
-    description: 'A branches_from link indicates where a trail branched from a crumb. FromID is the trail, ToID is the branch
-      point crumb.
-      '
-    inputs:
-      setup:
-      - Create branch point crumb (decision point)
-      - Create trail in active state
-      command: 'link := &Link{LinkType: "branches_from", FromID: trail.TrailID, ToID: crumb.CrumbID}
-        id, err := linksTable.Set("", link)
-        entity, err := linksTable.Get(id)
-        '
-    expected:
-      exit_code: 0
-      state:
-        link_type: branches_from
-        link_from_id: trail_id
-        link_to_id: branch_point_crumb_id
-  - name: Query branch point of trail
-    description: 'Fetch with LinkType=branches_from and FromID=trail returns the branch point.
-      '
-    inputs:
-      setup:
-      - Create branch point crumb
-      - Create trail and branches_from link
-      command: 'filter := map[string]any{"LinkType": "branches_from", "FromID": trail.TrailID}
-        entities, err := linksTable.Fetch(filter)
-        '
-    expected:
-      exit_code: 0
-      state:
-        result_count: 1
-        result_to_id: branch_point_crumb_id
-  - name: Create scoped_to link for stash trail scope
-    description: 'A scoped_to link scopes a stash to a trail. FromID is the stash, ToID is the trail.
-      '
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create stash with type context
-      command: 'link := &Link{LinkType: "scoped_to", FromID: stash.StashID, ToID: trail.TrailID}
-        id, err := linksTable.Set("", link)
-        entity, err := linksTable.Get(id)
-        '
-    expected:
-      exit_code: 0
-      state:
-        link_type: scoped_to
-        link_from_id: stash_id
-        link_to_id: trail_id
-  - name: Query stashes scoped to trail
-    description: 'Fetch with LinkType=scoped_to and ToID=trail returns all scoped stash links.
-      '
-    inputs:
-      setup:
-      - Create trail
-      - Create stash1 and stash2
-      - Create scoped_to links from both stashes to trail
-      command: 'filter := map[string]any{"LinkType": "scoped_to", "ToID": trail.TrailID}
-        entities, err := linksTable.Fetch(filter)
-        '
-    expected:
-      exit_code: 0
-      state:
-        result_count: 2
-  - name: Query trail scope of stash
-    description: 'Fetch with LinkType=scoped_to and FromID=stash returns the trail scope.
-      '
-    inputs:
-      setup:
-      - Create trail
-      - Create stash and scoped_to link
-      command: 'filter := map[string]any{"LinkType": "scoped_to", "FromID": stash.StashID}
-        entities, err := linksTable.Fetch(filter)
-        '
-    expected:
-      exit_code: 0
-      state:
-        result_count: 1
-        result_to_id: trail_id
-  - name: Fetch by link_type returns only matching links
-    description: 'Fetch with LinkType filter returns only links of that type.
-      '
-    inputs:
-      setup:
-      - Create trail, crumbs, stash
-      - Create one belongs_to link, one child_of link, one scoped_to link
-      command: 'filter := map[string]any{"LinkType": "belongs_to"}
-        entities, err := linksTable.Fetch(filter)
-        '
-    expected:
-      exit_code: 0
-      state:
-        result_count: 1
-        all_results_link_type: belongs_to
-  - name: Fetch all links without filter
-    description: 'Fetch with nil filter returns all links of all types.
-      '
-    inputs:
-      setup:
-      - Create trail, crumbs, stash
-      - Create one belongs_to, one child_of, one scoped_to link
-      command: 'entities, err := linksTable.Fetch(nil)
-        '
-    expected:
-      exit_code: 0
-      state:
-        result_count: 3
-        link_types_present:
-        - belongs_to
-        - child_of
-        - scoped_to
-  - name: Fetch by from_id returns links from that entity
-    description: 'Fetch with FromID filter returns links originating from that entity.
-      '
-    inputs:
-      setup:
-      - Create trail and crumb
-      - Create belongs_to link from crumb to trail
-      command: 'filter := map[string]any{"FromID": crumb.CrumbID}
-        entities, err := linksTable.Fetch(filter)
-        '
-    expected:
-      exit_code: 0
-      state:
-        result_count: 1
-        result_from_id: crumb_id
-  - name: Fetch by from_id with no matches returns empty
-    description: 'Fetch with FromID that has no links returns an empty slice.
-      '
-    inputs:
-      setup:
-      - Create trail and crumb
-      - Create belongs_to link
-      command: 'filter := map[string]any{"FromID": "nonexistent-id"}
-        entities, err := linksTable.Fetch(filter)
-        '
-    expected:
-      exit_code: 0
-      state:
-        result_count: 0
-  - name: Fetch by to_id returns links to that entity
-    description: 'Fetch with ToID filter returns links targeting that entity.
-      '
-    inputs:
-      setup:
-      - Create trail
-      - Create crumb1 and crumb2
-      - Create belongs_to links from both crumbs to trail
-      command: 'filter := map[string]any{"ToID": trail.TrailID}
-        entities, err := linksTable.Fetch(filter)
-        '
-    expected:
-      exit_code: 0
-      state:
-        result_count: 2
-        all_results_to_id: trail_id
-  - name: Fetch by to_id with no matches returns empty
-    description: 'Fetch with ToID that has no links returns an empty slice.
-      '
-    inputs:
-      setup:
-      - Create trail and crumb
-      - Create belongs_to link
-      command: 'filter := map[string]any{"ToID": "nonexistent-id"}
-        entities, err := linksTable.Fetch(filter)
-        '
-    expected:
-      exit_code: 0
-      state:
-        result_count: 0
-  - name: Fetch with link_type and to_id combined
-    description: 'Fetch with both LinkType and ToID filters returns links matching both criteria.
-      '
-    inputs:
-      setup:
-      - Create trail
-      - Create crumb1 and crumb2
-      - Create belongs_to link from crumb1 to trail
-      - Create child_of link from crumb2 to crumb1
-      command: 'filter := map[string]any{"LinkType": "belongs_to", "ToID": trail.TrailID}
-        entities, err := linksTable.Fetch(filter)
-        '
-    expected:
-      exit_code: 0
-      state:
-        result_count: 1
-        result_link_type: belongs_to
-        result_to_id: trail_id
-  - name: Fetch with all three filters
-    description: 'Fetch with LinkType, FromID, and ToID filters returns the exact match.
-      '
-    inputs:
-      setup:
-      - Create trail and crumb
-      - Create belongs_to link
-      command: "filter := map[string]any{\n  \"LinkType\": \"belongs_to\",\n  \"FromID\": crumb.CrumbID,\n  \"ToID\": trail.TrailID,\n\
-        }\nentities, err := linksTable.Fetch(filter)\n"
-    expected:
-      exit_code: 0
-      state:
-        result_count: 1
-  - name: Delete link removes it
-    description: 'Delete removes a link. Subsequent Get returns ErrNotFound.
-      '
-    inputs:
-      setup:
-      - Create trail and crumb
-      - Create belongs_to link
-      command: 'err := linksTable.Delete(linkID)
-        _, err = linksTable.Get(linkID)
-        '
-    expected:
-      state:
-        delete_error: nil
-        get_error: ErrNotFound
-  - name: Delete link does not affect other links
-    description: 'Deleting one link does not affect other links in the table.
-      '
-    inputs:
-      setup:
-      - Create trail
-      - Create crumb1 and crumb2
-      - Create belongs_to link1 from crumb1 to trail
-      - Create belongs_to link2 from crumb2 to trail
-      command: 'err := linksTable.Delete(link1ID)
-        entity, err := linksTable.Get(link2ID)
-        '
-    expected:
-      state:
-        delete_error: nil
-        link2_exists: true
-  - name: Delete nonexistent link returns ErrNotFound
-    description: 'Delete with a nonexistent ID returns ErrNotFound.
-      '
-    inputs:
-      command: 'err := linksTable.Delete("nonexistent-uuid-12345")
-        '
-    expected:
-      error: ErrNotFound
-  - name: Delete with empty ID returns ErrInvalidID
-    description: 'Delete with an empty string ID returns ErrInvalidID.
-      '
-    inputs:
-      command: 'err := linksTable.Delete("")
-        '
-    expected:
-      error: ErrInvalidID
-  - name: Get with empty ID returns ErrInvalidID
-    description: 'Get with an empty string ID returns ErrInvalidID.
-      '
-    inputs:
-      command: '_, err := linksTable.Get("")
-        '
-    expected:
-      error: ErrInvalidID
-  - name: Get nonexistent link returns ErrNotFound
-    description: 'Get with a nonexistent ID returns ErrNotFound.
-      '
-    inputs:
-      command: '_, err := linksTable.Get("nonexistent-uuid-12345")
-        '
-    expected:
-      error: ErrNotFound
-  - name: Fetch empty table returns empty slice
-    description: 'Fetch on an empty table returns an empty slice, not nil.
-      '
-    inputs:
-      command: 'entities, err := linksTable.Fetch(nil)
-        '
-    expected:
-      exit_code: 0
-      state:
-        result_count: 0
-  - name: Full link management workflow
-    description: 'Creates entities, establishes all four link types, queries via filters, deletes a link, and verifies final
-      state. Validates the complete link management lifecycle.
-      '
-    inputs:
-      steps:
-      - Create trail in active state
-      - Create parentCrumb (epic) and childCrumb (task)
-      - Create stash (context type)
-      - Create belongs_to link from childCrumb to trail
-      - Create child_of link from childCrumb to parentCrumb
-      - Create branches_from link from trail to parentCrumb
-      - Create scoped_to link from stash to trail
-      - Fetch all links and verify count is 4
-      - Query belongs_to links for trail (filter: LinkType + ToID)
-      - Query child_of links where ToID is parentCrumb
-      - Delete belongs_to link
-      - Fetch all links and verify count is 3
-      - Query belongs_to links for trail and verify count is 0
-    expected:
-      state:
-        initial_link_count: 4
-        belongs_to_for_trail: 1
-        children_of_parent: 1
-        final_link_count: 3
-        belongs_to_after_delete: 0
-  # --- uc: rel03.0-uc003-stash-operations: Stash operations for all stash types ---
-
-  - name: Create stash generates UUID v7
-    inputs:
-      command: 'stash := &Stash{Name: "test-stash", StashType: "context", Value: map[string]any{"key": "value"}, Version: 1}
-        id, err := stashesTable.Set("", stash)
-        '
-    expected:
-      exit_code: 0
-      state:
-        id_not_empty: true
-        stash_id_is_uuid_v7: true
-        stash_stashid_equals_returned_id: true
-        created_at_not_zero: true
-  - name: Set with existing ID updates stash
-    inputs:
-      setup:
-      - 'Create context stash with value {"original": true}'
-      command: 'stash.Value = map[string]any{"updated": true}
-        stashesTable.Set(stashID, stash)
-        entity, _ := stashesTable.Get(stashID)
-        '
-    expected:
-      exit_code: 0
-      state:
-        value_has_updated_key: true
-  - name: Create resource stash
-    inputs:
-      command: 'stash := &Stash{Name: "api-connection", StashType: "resource", Value: map[string]any{"uri": "https://api.example.com",
-        "kind": "http"}, Version: 1}
-        id, _ := stashesTable.Set("", stash)
-        entity, _ := stashesTable.Get(id)
-        '
-    expected:
-      exit_code: 0
-      state:
-        stash_type: resource
-  - name: Create artifact stash
-    inputs:
-      command: 'stash := &Stash{Name: "build-output", StashType: "artifact", Value: map[string]any{"path": "/tmp/build.zip",
-        "producer": "build-agent"}, Version: 1}
-        id, _ := stashesTable.Set("", stash)
-        entity, _ := stashesTable.Get(id)
-        '
-    expected:
-      exit_code: 0
-      state:
-        stash_type: artifact
-  - name: Create context stash
-    inputs:
-      command: 'stash := &Stash{Name: "shared-config", StashType: "context", Value: map[string]any{"timeout": 30, "retries":
-        3}, Version: 1}
-        id, _ := stashesTable.Set("", stash)
-        entity, _ := stashesTable.Get(id)
-        '
-    expected:
-      exit_code: 0
-      state:
-        stash_type: context
-  - name: Create counter stash
-    inputs:
-      command: 'stash := &Stash{Name: "request-counter", StashType: "counter", Value: map[string]any{"value": int64(0)}, Version:
-        1}
-        id, _ := stashesTable.Set("", stash)
-        entity, _ := stashesTable.Get(id)
-        '
-    expected:
-      exit_code: 0
-      state:
-        stash_type: counter
-  - name: Create lock stash
-    inputs:
-      command: 'stash := &Stash{Name: "resource-lock", StashType: "lock", Value: nil, Version: 1}
-        id, _ := stashesTable.Set("", stash)
-        entity, _ := stashesTable.Get(id)
-        '
-    expected:
-      exit_code: 0
-      state:
-        stash_type: lock
-        value_is_nil: true
-  - name: SetValue updates value and increments version
-    inputs:
-      setup:
-      - 'Create context stash with value {"timeout": 30} and Version 1'
-      command: 'stash.SetValue(map[string]any{"timeout": 60})
-        stashesTable.Set(stashID, stash)
-        entity, _ := stashesTable.Get(stashID)
-        '
-    expected:
-      exit_code: 0
-      state:
-        value_timeout: 60
-        version: 2
-  - name: SetValue on lock type returns ErrInvalidStashType
-    inputs:
-      setup:
-      - Create lock stash
-      command: 'stash.SetValue(map[string]any{"invalid": true})'
-    expected:
-      error: ErrInvalidStashType
-  - name: GetValue returns current value
-    inputs:
-      setup:
-      - 'Create context stash with value {"key": "original"}'
-      command: value := stash.GetValue()
-    expected:
-      state:
-        value_not_nil: true
-        value_key: original
-  - name: GetValue returns nil for empty stash
-    inputs:
-      setup:
-      - Create lock stash with nil value
-      command: value := stash.GetValue()
-    expected:
-      state:
-        value_is_nil: true
-  - name: Increment with positive delta
-    inputs:
-      setup:
-      - Create counter stash with value 0
-      command: 'newVal, err := stash.Increment(5)
-        stashesTable.Set(stashID, stash)
-        '
-    expected:
-      exit_code: 0
-      state:
-        new_value: 5
-        version: 2
-  - name: Increment with negative delta
-    inputs:
-      setup:
-      - Create counter stash with value 10
-      command: 'newVal, err := stash.Increment(-3)
-        stashesTable.Set(stashID, stash)
-        '
-    expected:
-      exit_code: 0
-      state:
-        new_value: 7
-  - name: Multiple increments accumulate correctly
-    inputs:
-      setup:
-      - Create counter stash with value 0
-      command: 'stash.Increment(10)  // returns 10
-        stash.Increment(-3)  // returns 7
-        stash.Increment(5)   // returns 12
-        stashesTable.Set(stashID, stash)
-        '
-    expected:
-      state:
-        final_value: 12
-        version: 4
-  - name: Increment on non-counter returns ErrInvalidStashType
-    inputs:
-      setup:
-      - Create context stash
-      command: stash.Increment(1)
-    expected:
-      error: ErrInvalidStashType
-  - name: Acquire lock sets holder and increments version
-    inputs:
-      setup:
-      - Create lock stash with nil value and Version 1
-      command: 'err := stash.Acquire("worker-1")
-        stashesTable.Set(stashID, stash)
-        '
-    expected:
-      exit_code: 0
-      state:
-        holder: worker-1
-        acquired_at_set: true
-        version: 2
-  - name: Acquire by same holder succeeds (reentrant)
-    inputs:
-      setup:
-      - Create lock stash
-      - Acquire lock with holder "worker-1"
-      command: stash.Acquire("worker-1")
-    expected:
-      exit_code: 0
-      state:
-        holder: worker-1
-  - name: Acquire by different holder returns ErrLockHeld
-    inputs:
-      setup:
-      - Create lock stash
-      - Acquire lock with holder "worker-1"
-      command: stash.Acquire("worker-2")
-    expected:
-      error: ErrLockHeld
-  - name: Acquire with empty holder returns ErrInvalidHolder
-    inputs:
-      setup:
-      - Create lock stash
-      command: stash.Acquire("")
-    expected:
-      error: ErrInvalidHolder
-  - name: Acquire on non-lock returns ErrInvalidStashType
-    inputs:
-      setup:
-      - Create context stash
-      command: stash.Acquire("worker-1")
-    expected:
-      error: ErrInvalidStashType
-  - name: Release lock clears value and increments version
-    inputs:
-      setup:
-      - Create lock stash
-      - Acquire lock with holder "worker-1"
-      command: 'versionAfterAcquire := stash.Version
-        err := stash.Release("worker-1")
-        stashesTable.Set(stashID, stash)
-        '
-    expected:
-      exit_code: 0
-      state:
-        value_is_nil: true
-        version_incremented: true
-  - name: Release by wrong holder returns ErrNotLockHolder
-    inputs:
-      setup:
-      - Create lock stash
-      - Acquire lock with holder "worker-1"
-      command: stash.Release("worker-2")
-    expected:
-      error: ErrNotLockHolder
-  - name: Release on unheld lock returns ErrNotLockHolder
-    inputs:
-      setup:
-      - Create lock stash with nil value
-      command: stash.Release("worker-1")
-    expected:
-      error: ErrNotLockHolder
-  - name: Release on non-lock returns ErrInvalidStashType
-    inputs:
-      setup:
-      - Create context stash
-      command: stash.Release("worker-1")
-    expected:
-      error: ErrInvalidStashType
-  - name: Version starts at 1 on creation
-    inputs:
-      command: 'stash := &Stash{Name: "version-test", StashType: "context", Value: map[string]any{}, Version: 1}
-        stashID, _ := stashesTable.Set("", stash)
-        entity, _ := stashesTable.Get(stashID)
-        '
-    expected:
-      state:
-        version: 1
-  - name: Version increments on each mutation
-    inputs:
-      setup:
-      - Create counter stash with Version 1
-      command: 'stash.Increment(1)
-        stash.Increment(1)
-        stash.Increment(1)
-        stashesTable.Set(stashID, stash)
-        entity, _ := stashesTable.Get(stashID)
-        '
-    expected:
-      state:
-        version: 4
-  - name: Fetch by stash_type returns only matching stashes
-    inputs:
-      setup:
-      - Create counter stash "counter-1"
-      - Create context stash "context-1"
-      - Create lock stash "lock-1"
-      command: 'filter := map[string]any{"StashType": "counter"}
-        entities, _ := stashesTable.Fetch(filter)
-        '
-    expected:
-      exit_code: 0
-      state:
-        result_count: 1
-        all_results_type: counter
-  - name: Fetch by name returns matching stash
-    inputs:
-      setup:
-      - Create context stash "shared-config"
-      - Create context stash "other-config"
-      command: 'filter := map[string]any{"Name": "shared-config"}
-        entities, _ := stashesTable.Fetch(filter)
-        '
-    expected:
-      exit_code: 0
-      state:
-        result_count: 1
-        result_name: shared-config
-  - name: Fetch with no filter returns all stashes
-    inputs:
-      setup:
-      - Create one stash of each type (resource, artifact, context, counter, lock)
-      command: entities, _ := stashesTable.Fetch(nil)
-    expected:
-      exit_code: 0
-      state:
-        result_count: 5
-  - name: Fetch with no matches returns empty slice
-    inputs:
-      setup:
-      - Create context stash
-      command: 'filter := map[string]any{"StashType": "nonexistent"}
-        entities, _ := stashesTable.Fetch(filter)
-        '
-    expected:
-      exit_code: 0
-      state:
-        result_count: 0
-  - name: Delete stash removes it
-    inputs:
-      setup:
-      - Create context stash
-      command: 'err := stashesTable.Delete(stashID)
-        _, getErr := stashesTable.Get(stashID)
-        '
-    expected:
-      state:
-        delete_succeeds: true
-        get_error: ErrNotFound
-  - name: Delete nonexistent stash returns ErrNotFound
-    inputs:
-      command: stashesTable.Delete("nonexistent-uuid-12345")
-    expected:
-      error: ErrNotFound
-  - name: Delete with empty ID returns ErrInvalidID
-    inputs:
-      command: stashesTable.Delete("")
-    expected:
-      error: ErrInvalidID
-  - name: Get with empty ID returns ErrInvalidID
-    inputs:
-      command: stashesTable.Get("")
-    expected:
-      error: ErrInvalidID
-  - name: Get nonexistent stash returns ErrNotFound
-    inputs:
-      command: stashesTable.Get("nonexistent-uuid-12345")
-    expected:
-      error: ErrNotFound
-  - name: Fetch on empty table returns empty slice
-    inputs:
-      command: entities, _ := stashesTable.Fetch(nil)
-    expected:
-      exit_code: 0
-      state:
-        result_count: 0
-  - name: History entry created for each mutation
-    description: Verify that stash history is recorded for each operation
-    inputs:
-      setup:
-      - Create context stash
-      - SetValue once
-      - SetValue again
-      command: 'stashesTable := backend.GetTable("stashes").(*sqlite.Table)
-        history, err := stashesTable.FetchStashHistory(stashID)
-        '
-    expected:
-      exit_code: 0
-      state:
-        history_entry_count: 3
-        operations:
-        - create
-        - set
-        - set
-  - name: History entries queryable by stash ID
-    description: Verify FetchStashHistory returns entries ordered by version
-    inputs:
-      setup:
-      - Create counter stash with value 0
-      - Increment by 5
-      - Increment by 3
-      command: 'stashesTable := backend.GetTable("stashes").(*sqlite.Table)
-        history, err := stashesTable.FetchStashHistory(stashID)
-        '
-    expected:
-      exit_code: 0
-      state:
-        history_entry_count: 3
-        operations:
-        - create
-        - increment
-        - increment
-        versions:
-        - 1
-        - 2
-        - 3
-        ordered_by_version_asc: true
-  - name: History records operation details
-    description: Verify history entries contain version, value, operation, and timestamps
-    inputs:
-      setup:
-      - Create counter stash with value 0
-      - Increment by 10
-      command: 'stashesTable := backend.GetTable("stashes").(*sqlite.Table)
-        history, err := stashesTable.FetchStashHistory(stashID)
-        '
-    expected:
-      exit_code: 0
-      state:
-        entry_0_operation: create
-        entry_0_version: 1
-        entry_1_operation: increment
-        entry_1_version: 2
-        entry_1_value_counter: 10
-        all_entries_have_created_at: true
-  - name: Full stash operations workflow
-    description: 'Create stashes of each type, exercise type-specific operations, verify version tracking, filter queries, and
-      cleanup.
-      '
-    inputs:
-      steps:
-      - Create resource stash "api-conn" with uri "https://api.example.com"
-      - Create artifact stash "build-out" with path "/tmp/build"
-      - Create context stash "shared-cfg" with timeout 30
-      - Create counter stash "req-counter" with value 0
-      - Create lock stash "mutex" with nil value
-      - Verify 5 stashes exist via Fetch(nil)
-      - SetValue on context stash to update timeout to 60
-      - Increment counter by 10, then -3, then 5 (expect 12)
-      - Acquire lock with worker-1
-      - Try acquire with worker-2 (expect ErrLockHeld)
-      - Release lock with worker-1
-      - Acquire lock with worker-2 (success)
-      - Verify lock holder is worker-2
-      - Fetch by stash_type "counter" (expect 1)
-      - Fetch by stash_type "lock" (expect 1)
-      - Delete context stash
-      - Fetch all (expect 4)
-    expected:
-      state:
-        initial_stash_count: 5
-        context_value_after_set: 60
-        counter_value_after_increments: 12
-        lock_holder_after_release_reacquire: worker-2
-        counter_fetch_count: 1
-        lock_fetch_count: 1
-        final_stash_count: 4
-  # --- uc: rel03.0-uc004-trail-crumb-lifecycle: Trail-crumb lifecycle control and cascade operations ---
-
-  - name: Create belongs_to link associates crumb with trail
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create crumb via crumbsTable.Set
-      command: 'link := &Link{LinkType: "belongs_to", FromID: crumb.CrumbID, ToID: trail.TrailID}
-        linksTable.Set("", link)
-        '
-    expected:
-      exit_code: 0
-      state:
-        link_created: true
-        link_type: belongs_to
-        link_from_id: crumb_id
-        link_to_id: trail_id
-  - name: Crumb without belongs_to link is orphaned or permanent
-    description: A crumb with no belongs_to link is either permanent (was on completed trail) or orphaned
-    inputs:
-      setup:
-      - Create crumb via crumbsTable.Set (no link)
-      command: 'linksTable.Fetch(map[string]any{"link_type": "belongs_to", "from_id": crumb.CrumbID})
-        '
-    expected:
-      state:
-        result_count: 0
-        crumb_has_no_trail: true
-  - name: Crumb can belong to only one trail
-    description: Attempting to add second belongs_to link for same crumb fails due to uniqueness constraint
-    inputs:
-      setup:
-      - Create trail1 and trail2 in active state
-      - Create crumb and link to trail1 via belongs_to
-      command: 'link := &Link{LinkType: "belongs_to", FromID: crumb.CrumbID, ToID: trail2.TrailID}
-        linksTable.Set("", link)
-        '
-    expected:
-      error: uniqueness_constraint_violation
-  - name: Moving crumb requires deleting old link first
-    inputs:
-      setup:
-      - Create trail1 and trail2 in active state
-      - Create crumb and link to trail1 via belongs_to
-      steps:
-      - linksTable.Delete(link.LinkID)
-      - 'linksTable.Set("", &Link{LinkType: "belongs_to", FromID: crumb.CrumbID, ToID: trail2.TrailID})'
-      command: 'linksTable.Fetch(map[string]any{"link_type": "belongs_to", "from_id": crumb.CrumbID})
-        '
-    expected:
-      exit_code: 0
-      state:
-        result_count: 1
-        crumb_belongs_to: trail2_id
-  - name: Fetch all crumbs belonging to a trail
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create crumb1, crumb2, crumb3
-      - Link crumb1 and crumb2 to trail via belongs_to
-      - crumb3 has no belongs_to link
-      command: 'linksTable.Fetch(map[string]any{"link_type": "belongs_to", "to_id": trail.TrailID})
-        '
-    expected:
-      state:
-        result_count: 2
-        result_contains_from_ids:
-        - crumb1_id
-        - crumb2_id
-        result_excludes_from_ids:
-        - crumb3_id
-  - name: Fetch returns empty for trail with no crumbs
-    inputs:
-      setup:
-      - Create trail in active state (no crumbs added)
-      command: 'linksTable.Fetch(map[string]any{"link_type": "belongs_to", "to_id": trail.TrailID})
-        '
-    expected:
-      state:
-        result_count: 0
-  - name: Fetch crumbs across multiple trails
-    inputs:
-      setup:
-      - Create trail1 and trail2 in active state
-      - Create crumb1 on trail1, crumb2 on trail2
-      steps:
-      - 'linksTable.Fetch(map[string]any{"link_type": "belongs_to", "to_id": trail1.TrailID})'
-      - 'linksTable.Fetch(map[string]any{"link_type": "belongs_to", "to_id": trail2.TrailID})'
-    expected:
-      state:
-        trail1_crumbs:
-        - crumb1_id
-        trail2_crumbs:
-        - crumb2_id
-  - name: Move crumb from one trail to another
-    inputs:
-      setup:
-      - Create trail1 and trail2 in active state
-      - Create crumb and link to trail1
-      steps:
-      - linksTable.Delete(link.LinkID)
-      - 'linksTable.Set("", &Link{LinkType: "belongs_to", FromID: crumb.CrumbID, ToID: trail2.TrailID})'
-    expected:
-      exit_code: 0
-      state:
-        crumb_on_trail1: false
-        crumb_on_trail2: true
-  - name: Crumb data unchanged after moving trails
-    inputs:
-      setup:
-      - Create trail1 and trail2 in active state
-      - Create crumb with name and state, link to trail1
-      steps:
-      - linksTable.Delete(link.LinkID)
-      - 'linksTable.Set("", &Link{LinkType: "belongs_to", FromID: crumb.CrumbID, ToID: trail2.TrailID})'
-      - crumbsTable.Get(crumb.CrumbID)
-    expected:
-      state:
-        crumb_name: unchanged
-        crumb_state: unchanged
-  - name: Complete trail removes all belongs_to links
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create crumb1 and crumb2, link both to trail
-      steps:
-      - trail.Complete()
-      - trailsTable.Set(trail.TrailID, trail)
-      - 'linksTable.Fetch(map[string]any{"link_type": "belongs_to", "to_id": trail.TrailID})'
-    expected:
-      state:
-        trail_state: completed
-        links_count: 0
-  - name: Complete sets CompletedAt timestamp
-    inputs:
-      setup:
-      - Create trail in active state
-      steps:
-      - trail.Complete()
-      - trailsTable.Set(trail.TrailID, trail)
-      - trailsTable.Get(trail.TrailID)
-    expected:
-      state:
-        trail_state: completed
-        completed_at_set: true
-        completed_at_not_nil: true
-  - name: Crumbs exist after trail completion
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create crumb1 and crumb2, link to trail
-      steps:
-      - trail.Complete()
-      - trailsTable.Set(trail.TrailID, trail)
-      - crumbsTable.Get(crumb1.CrumbID)
-      - crumbsTable.Get(crumb2.CrumbID)
-    expected:
-      state:
-        crumb1_exists: true
-        crumb2_exists: true
-  - name: Completed crumbs have no belongs_to link
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create crumb, link to trail
-      steps:
-      - trail.Complete()
-      - trailsTable.Set(trail.TrailID, trail)
-      - 'linksTable.Fetch(map[string]any{"link_type": "belongs_to", "from_id": crumb.CrumbID})'
-    expected:
-      state:
-        result_count: 0
-        crumb_is_permanent: true
-  - name: Permanent crumbs indistinguishable from never-trailed crumbs
-    description: After completion, crumbs look the same as crumbs that were never on a trail
-    inputs:
-      setup:
-      - Create crumb_standalone (never linked to trail)
-      - Create trail in active state
-      - Create crumb_completed, link to trail
-      - Complete trail
-      steps:
-      - crumbsTable.Get(crumb_standalone.CrumbID)
-      - crumbsTable.Get(crumb_completed.CrumbID)
-      - 'linksTable.Fetch(map[string]any{"link_type": "belongs_to", "from_id": crumb_standalone.CrumbID})'
-      - 'linksTable.Fetch(map[string]any{"link_type": "belongs_to", "from_id": crumb_completed.CrumbID})'
-    expected:
-      state:
-        both_crumbs_exist: true
-        standalone_belongs_to_count: 0
-        completed_belongs_to_count: 0
-  - name: Abandon trail deletes associated crumbs
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create crumb1 and crumb2, link both to trail
-      steps:
-      - trail.Abandon()
-      - trailsTable.Set(trail.TrailID, trail)
-      - crumbsTable.Get(crumb1.CrumbID)
-      - crumbsTable.Get(crumb2.CrumbID)
-    expected:
-      state:
-        trail_state: abandoned
-        crumb1_error: ErrNotFound
-        crumb2_error: ErrNotFound
-  - name: Abandon only deletes crumbs with belongs_to link
-    description: Crumbs not linked to the trail are unaffected
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create crumb_linked, link to trail
-      - Create crumb_unlinked (no belongs_to)
-      steps:
-      - trail.Abandon()
-      - trailsTable.Set(trail.TrailID, trail)
-      - crumbsTable.Get(crumb_linked.CrumbID)
-      - crumbsTable.Get(crumb_unlinked.CrumbID)
-    expected:
-      state:
-        crumb_linked_error: ErrNotFound
-        crumb_unlinked_exists: true
-  - name: Crumb removed from trail before abandon survives
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create crumb1 and crumb2, link both to trail
-      steps:
-      - linksTable.Delete(link_for_crumb1.LinkID)
-      - trail.Abandon()
-      - trailsTable.Set(trail.TrailID, trail)
-      - crumbsTable.Get(crumb1.CrumbID)
-      - crumbsTable.Get(crumb2.CrumbID)
-    expected:
-      state:
-        crumb1_exists: true
-        crumb2_error: ErrNotFound
-  - name: Abandon deletes crumb properties
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create crumb with properties set
-      - Link crumb to trail
-      steps:
-      - trail.Abandon()
-      - trailsTable.Set(trail.TrailID, trail)
-    expected:
-      state:
-        crumb_properties_deleted: true
-  - name: Abandon deletes crumb metadata
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create crumb with metadata attached
-      - Link crumb to trail
-      steps:
-      - trail.Abandon()
-      - trailsTable.Set(trail.TrailID, trail)
-      - 'metadataTable.Fetch(map[string]any{"CrumbID": crumb.CrumbID})'
-    expected:
-      state:
-        metadata_count: 0
-  - name: Abandon deletes all links involving crumb
-    description: Both belongs_to and any child_of links are removed
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create parent_crumb and child_crumb, link both to trail
-      - Create child_of link from child_crumb to parent_crumb
-      steps:
-      - trail.Abandon()
-      - trailsTable.Set(trail.TrailID, trail)
-      - 'linksTable.Fetch(map[string]any{"link_type": "child_of"})'
-    expected:
-      state:
-        child_of_links_count: 0
-  - name: Abandon removes belongs_to links for trail
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create crumb, link to trail
-      steps:
-      - trail.Abandon()
-      - trailsTable.Set(trail.TrailID, trail)
-      - 'linksTable.Fetch(map[string]any{"link_type": "belongs_to", "to_id": trail.TrailID})'
-    expected:
-      state:
-        belongs_to_links_count: 0
-  - name: Abandoned trail still retrievable
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create crumb, link to trail
-      steps:
-      - trail.Abandon()
-      - trailsTable.Set(trail.TrailID, trail)
-      - trailsTable.Get(trail.TrailID)
-    expected:
-      state:
-        trail_exists: true
-        trail_state: abandoned
-        completed_at_set: true
-  - name: Abandoned trail has no associated crumbs
-    inputs:
-      setup:
-      - Create trail in active state
-      - Create crumb1 and crumb2, link to trail
-      steps:
-      - trail.Abandon()
-      - trailsTable.Set(trail.TrailID, trail)
-      - 'linksTable.Fetch(map[string]any{"link_type": "belongs_to", "to_id": trail.TrailID})'
-    expected:
-      state:
-        trail_state: abandoned
-        associated_crumbs_count: 0
-  - name: Complete requires active state
-    inputs:
-      setup:
-      - Create trail in draft state
-      command: trail.Complete()
-    expected:
-      error: ErrInvalidState
-  - name: Complete on pending state returns error
-    inputs:
-      setup:
-      - Create trail in pending state
-      command: trail.Complete()
-    expected:
-      error: ErrInvalidState
-  - name: Complete on completed state returns error
-    inputs:
-      setup:
-      - Create trail in active state
-      - Complete the trail
-      command: trail.Complete()
-    expected:
-      error: ErrInvalidState
-  - name: Abandon requires active state
-    inputs:
-      setup:
-      - Create trail in draft state
-      command: trail.Abandon()
-    expected:
-      error: ErrInvalidState
-  - name: Abandon on completed state returns error
-    inputs:
-      setup:
-      - Create trail in active state
-      - Complete the trail
-      command: trail.Abandon()
-    expected:
-      error: ErrInvalidState
-  - name: Abandon on abandoned state returns error
-    inputs:
-      setup:
-      - Create trail in active state
-      - Abandon the trail
-      command: trail.Abandon()
-    expected:
-      error: ErrInvalidState
-  - name: Complete lifecycle - trail as container with completion
-    description: Create trail, add crumbs, complete, verify crumbs become permanent
-    inputs:
-      steps:
-      - Create trail in draft state
-      - Transition trail to active
-      - Create crumb1, crumb2, crumb3
-      - Link all crumbs to trail via belongs_to
-      - Verify Fetch returns 3 crumbs for trail
-      - Complete trail
-      - Verify all 3 crumbs still exist
-      - Verify no belongs_to links remain for trail
-      - Verify crumbs are queryable and modifiable
-    expected:
-      state:
-        trail_state: completed
-        crumb1_exists: true
-        crumb2_exists: true
-        crumb3_exists: true
-        belongs_to_links_for_trail: 0
-  - name: Abandon lifecycle - trail as container with cleanup
-    description: Create trail, add crumbs with properties, abandon, verify cascade deletion
-    inputs:
-      steps:
-      - Create trail in active state
-      - Create crumb1 and crumb2 with properties
-      - Link crumbs to trail via belongs_to
-      - Create child_of link between crumbs
-      - Abandon trail
-      - Verify crumbs are deleted
-      - Verify properties are deleted
-      - Verify all links involving crumbs are deleted
-      - Verify trail still exists in abandoned state
-    expected:
-      state:
-        trail_state: abandoned
-        trail_exists: true
-        crumb1_exists: false
-        crumb2_exists: false
-        orphan_links: 0
-
-cleanup:
-  - Remove temp data directory
-  - Detach cupboard
+- name: Create trail defaults to draft state
+  description: When no state is provided, new trails default to draft state per prd006-trails-interface
+    R2.2
+  inputs:
+    args:
+    - 'trail := &Trail{CreatedAt: time.Now()} trailsTable.Set("", trail) '
+  expected:
+    exit_code: 0
+- name: Create trail with explicit active state
+  inputs:
+    args:
+    - 'trail := &Trail{State: "active", CreatedAt: time.Now()} trailsTable.Set("",
+      trail) '
+  expected:
+    exit_code: 0
+- name: Create trail in draft state explicitly
+  inputs:
+    args:
+    - 'trail := &Trail{State: "draft", CreatedAt: time.Now()} trailsTable.Set("",
+      trail) '
+  expected:
+    exit_code: 0
+- name: Transition trail from draft to active via SetState
+  inputs: {}
+  expected:
+    exit_code: 0
+- name: Transition trail from draft to pending via SetState
+  inputs: {}
+  expected:
+    exit_code: 0
+- name: SetState rejects invalid transitions from draft
+  inputs:
+    args:
+    - trail.SetState("completed")
+  expected: {}
+- name: SetState rejects transitions from terminal states
+  inputs:
+    args:
+    - trail.SetState("active")
+  expected: {}
+- name: Create belongs_to link associates crumb with trail
+  inputs:
+    args:
+    - 'link := &Link{LinkType: "belongs_to", FromID: crumb.CrumbID, ToID: trail.TrailID}
+      linksTable.Set("", link) '
+  expected:
+    exit_code: 0
+- name: Multiple crumbs can belong to same trail
+  inputs: {}
+  expected:
+    exit_code: 0
+- name: Fetch crumbs on trail via belongs_to filter
+  inputs:
+    args:
+    - 'filter := map[string]any{"link_type": "belongs_to", "to_id": trail.TrailID}
+      linksTable.Fetch(filter) '
+  expected:
+    exit_code: 0
+- name: Delete belongs_to link keeps crumb intact
+  inputs: {}
+  expected:
+    exit_code: 0
+- name: Abandon trail deletes associated crumbs
+  inputs: {}
+  expected: {}
+- name: Abandon trail removes belongs_to links
+  inputs: {}
+  expected: {}
+- name: Crumb removed before abandon survives
+  inputs: {}
+  expected: {}
+- name: Complete trail removes belongs_to links
+  inputs: {}
+  expected: {}
+- name: Completed trail crumbs remain accessible
+  inputs: {}
+  expected: {}
+- name: Completed trail crumbs are indistinguishable from permanent crumbs
+  description: After completion, crumbs have no belongs_to link and exist as permanent
+    entities.
+  inputs: {}
+  expected: {}
+- name: Trail state is completed after Complete
+  inputs: {}
+  expected: {}
+- name: Trail state is abandoned after Abandon
+  inputs: {}
+  expected: {}
+- name: Complete on non-active trail returns ErrInvalidState
+  inputs:
+    args:
+    - trail.Complete()
+  expected: {}
+- name: Abandon on non-active trail returns ErrInvalidState
+  inputs:
+    args:
+    - trail.Abandon()
+  expected: {}
+- name: No orphan links after abandonment
+  inputs: {}
+  expected: {}
+- name: Crumb properties deleted on trail abandonment
+  inputs: {}
+  expected: {}
+- name: Create branches_from link indicates branch point
+  inputs:
+    args:
+    - 'link := &Link{LinkType: "branches_from", FromID: trail.TrailID, ToID: parentCrumb.CrumbID}
+      linksTable.Set("", link) '
+  expected:
+    exit_code: 0
+- name: Query branches_from link to find branch point
+  inputs:
+    args:
+    - 'filter := map[string]any{"link_type": "branches_from", "from_id": trail.TrailID}
+      linksTable.Fetch(filter) '
+  expected: {}
+- name: Full trail exploration workflow
+  description: 'Create a trail branching from a parent crumb, add exploration crumbs,
+    remove one crumb, abandon the trail, verify cleanup, then create another trail
+    and complete it successfully. '
+  inputs: {}
+  expected: {}
+- name: Create link generates UUID v7
+  description: 'Creating a link with empty ID generates a UUID v7 for LinkID and sets
+    CreatedAt. '
+  inputs:
+    args:
+    - 'link := &Link{LinkType: "belongs_to", FromID: crumb.CrumbID, ToID: trail.TrailID}
+      id, err := linksTable.Set("", link) '
+  expected:
+    exit_code: 0
+- name: Set with existing ID updates link
+  description: 'Calling Set with an existing link ID updates the link fields. '
+  inputs:
+    args:
+    - 'link.FromID = crumb2.CrumbID linksTable.Set(linkID, link) '
+  expected:
+    exit_code: 0
+- name: Create belongs_to link for crumb-trail membership
+  description: 'A belongs_to link associates a crumb with a trail. FromID is the crumb,
+    ToID is the trail. '
+  inputs:
+    args:
+    - 'link := &Link{LinkType: "belongs_to", FromID: crumb.CrumbID, ToID: trail.TrailID}
+      id, err := linksTable.Set("", link) entity, err := linksTable.Get(id) '
+  expected:
+    exit_code: 0
+- name: Create child_of link for crumb hierarchy
+  description: 'A child_of link establishes a parent-child hierarchy between crumbs.
+    FromID is the child crumb, ToID is the parent crumb. '
+  inputs:
+    args:
+    - 'link := &Link{LinkType: "child_of", FromID: child.CrumbID, ToID: parent.CrumbID}
+      id, err := linksTable.Set("", link) entity, err := linksTable.Get(id) '
+  expected:
+    exit_code: 0
+- name: Query children of parent crumb
+  description: 'Fetch with LinkType=child_of and ToID=parent returns all child links. '
+  inputs:
+    args:
+    - 'filter := map[string]any{"LinkType": "child_of", "ToID": parent.CrumbID} entities,
+      err := linksTable.Fetch(filter) '
+  expected:
+    exit_code: 0
+- name: Query parent of child crumb
+  description: 'Fetch with LinkType=child_of and FromID=child returns the parent link. '
+  inputs:
+    args:
+    - 'filter := map[string]any{"LinkType": "child_of", "FromID": child.CrumbID} entities,
+      err := linksTable.Fetch(filter) '
+  expected:
+    exit_code: 0
+- name: Create branches_from link for trail branch point
+  description: 'A branches_from link indicates where a trail branched from a crumb.
+    FromID is the trail, ToID is the branch point crumb. '
+  inputs:
+    args:
+    - 'link := &Link{LinkType: "branches_from", FromID: trail.TrailID, ToID: crumb.CrumbID}
+      id, err := linksTable.Set("", link) entity, err := linksTable.Get(id) '
+  expected:
+    exit_code: 0
+- name: Query branch point of trail
+  description: 'Fetch with LinkType=branches_from and FromID=trail returns the branch
+    point. '
+  inputs:
+    args:
+    - 'filter := map[string]any{"LinkType": "branches_from", "FromID": trail.TrailID}
+      entities, err := linksTable.Fetch(filter) '
+  expected:
+    exit_code: 0
+- name: Create scoped_to link for stash trail scope
+  description: 'A scoped_to link scopes a stash to a trail. FromID is the stash, ToID
+    is the trail. '
+  inputs:
+    args:
+    - 'link := &Link{LinkType: "scoped_to", FromID: stash.StashID, ToID: trail.TrailID}
+      id, err := linksTable.Set("", link) entity, err := linksTable.Get(id) '
+  expected:
+    exit_code: 0
+- name: Query stashes scoped to trail
+  description: 'Fetch with LinkType=scoped_to and ToID=trail returns all scoped stash
+    links. '
+  inputs:
+    args:
+    - 'filter := map[string]any{"LinkType": "scoped_to", "ToID": trail.TrailID} entities,
+      err := linksTable.Fetch(filter) '
+  expected:
+    exit_code: 0
+- name: Query trail scope of stash
+  description: 'Fetch with LinkType=scoped_to and FromID=stash returns the trail scope. '
+  inputs:
+    args:
+    - 'filter := map[string]any{"LinkType": "scoped_to", "FromID": stash.StashID}
+      entities, err := linksTable.Fetch(filter) '
+  expected:
+    exit_code: 0
+- name: Fetch by link_type returns only matching links
+  description: 'Fetch with LinkType filter returns only links of that type. '
+  inputs:
+    args:
+    - 'filter := map[string]any{"LinkType": "belongs_to"} entities, err := linksTable.Fetch(filter) '
+  expected:
+    exit_code: 0
+- name: Fetch all links without filter
+  description: 'Fetch with nil filter returns all links of all types. '
+  inputs:
+    args:
+    - 'entities, err := linksTable.Fetch(nil) '
+  expected:
+    exit_code: 0
+- name: Fetch by from_id returns links from that entity
+  description: 'Fetch with FromID filter returns links originating from that entity. '
+  inputs:
+    args:
+    - 'filter := map[string]any{"FromID": crumb.CrumbID} entities, err := linksTable.Fetch(filter) '
+  expected:
+    exit_code: 0
+- name: Fetch by from_id with no matches returns empty
+  description: 'Fetch with FromID that has no links returns an empty slice. '
+  inputs:
+    args:
+    - 'filter := map[string]any{"FromID": "nonexistent-id"} entities, err := linksTable.Fetch(filter) '
+  expected:
+    exit_code: 0
+- name: Fetch by to_id returns links to that entity
+  description: 'Fetch with ToID filter returns links targeting that entity. '
+  inputs:
+    args:
+    - 'filter := map[string]any{"ToID": trail.TrailID} entities, err := linksTable.Fetch(filter) '
+  expected:
+    exit_code: 0
+- name: Fetch by to_id with no matches returns empty
+  description: 'Fetch with ToID that has no links returns an empty slice. '
+  inputs:
+    args:
+    - 'filter := map[string]any{"ToID": "nonexistent-id"} entities, err := linksTable.Fetch(filter) '
+  expected:
+    exit_code: 0
+- name: Fetch with link_type and to_id combined
+  description: 'Fetch with both LinkType and ToID filters returns links matching both
+    criteria. '
+  inputs:
+    args:
+    - 'filter := map[string]any{"LinkType": "belongs_to", "ToID": trail.TrailID} entities,
+      err := linksTable.Fetch(filter) '
+  expected:
+    exit_code: 0
+- name: Fetch with all three filters
+  description: 'Fetch with LinkType, FromID, and ToID filters returns the exact match. '
+  inputs:
+    args:
+    - |
+      filter := map[string]any{
+        "LinkType": "belongs_to",
+        "FromID": crumb.CrumbID,
+        "ToID": trail.TrailID,
+      }
+      entities, err := linksTable.Fetch(filter)
+  expected:
+    exit_code: 0
+- name: Delete link removes it
+  description: 'Delete removes a link. Subsequent Get returns ErrNotFound. '
+  inputs:
+    args:
+    - 'err := linksTable.Delete(linkID) _, err = linksTable.Get(linkID) '
+  expected: {}
+- name: Delete link does not affect other links
+  description: 'Deleting one link does not affect other links in the table. '
+  inputs:
+    args:
+    - 'err := linksTable.Delete(link1ID) entity, err := linksTable.Get(link2ID) '
+  expected: {}
+- name: Delete nonexistent link returns ErrNotFound
+  description: 'Delete with a nonexistent ID returns ErrNotFound. '
+  inputs:
+    args:
+    - 'err := linksTable.Delete("nonexistent-uuid-12345") '
+  expected: {}
+- name: Delete with empty ID returns ErrInvalidID
+  description: 'Delete with an empty string ID returns ErrInvalidID. '
+  inputs:
+    args:
+    - 'err := linksTable.Delete("") '
+  expected: {}
+- name: Get with empty ID returns ErrInvalidID
+  description: 'Get with an empty string ID returns ErrInvalidID. '
+  inputs:
+    args:
+    - '_, err := linksTable.Get("") '
+  expected: {}
+- name: Get nonexistent link returns ErrNotFound
+  description: 'Get with a nonexistent ID returns ErrNotFound. '
+  inputs:
+    args:
+    - '_, err := linksTable.Get("nonexistent-uuid-12345") '
+  expected: {}
+- name: Fetch empty table returns empty slice
+  description: 'Fetch on an empty table returns an empty slice, not nil. '
+  inputs:
+    args:
+    - 'entities, err := linksTable.Fetch(nil) '
+  expected:
+    exit_code: 0
+- name: Full link management workflow
+  description: 'Creates entities, establishes all four link types, queries via filters,
+    deletes a link, and verifies final state. Validates the complete link management
+    lifecycle. '
+  inputs: {}
+  expected: {}
+- name: Create stash generates UUID v7
+  inputs:
+    args:
+    - 'stash := &Stash{Name: "test-stash", StashType: "context", Value: map[string]any{"key":
+      "value"}, Version: 1} id, err := stashesTable.Set("", stash) '
+  expected:
+    exit_code: 0
+- name: Set with existing ID updates stash
+  inputs:
+    args:
+    - 'stash.Value = map[string]any{"updated": true} stashesTable.Set(stashID, stash)
+      entity, _ := stashesTable.Get(stashID) '
+  expected:
+    exit_code: 0
+- name: Create resource stash
+  inputs:
+    args:
+    - 'stash := &Stash{Name: "api-connection", StashType: "resource", Value: map[string]any{"uri":
+      "https://api.example.com", "kind": "http"}, Version: 1} id, _ := stashesTable.Set("",
+      stash) entity, _ := stashesTable.Get(id) '
+  expected:
+    exit_code: 0
+- name: Create artifact stash
+  inputs:
+    args:
+    - 'stash := &Stash{Name: "build-output", StashType: "artifact", Value: map[string]any{"path":
+      "/tmp/build.zip", "producer": "build-agent"}, Version: 1} id, _ := stashesTable.Set("",
+      stash) entity, _ := stashesTable.Get(id) '
+  expected:
+    exit_code: 0
+- name: Create context stash
+  inputs:
+    args:
+    - 'stash := &Stash{Name: "shared-config", StashType: "context", Value: map[string]any{"timeout":
+      30, "retries": 3}, Version: 1} id, _ := stashesTable.Set("", stash) entity,
+      _ := stashesTable.Get(id) '
+  expected:
+    exit_code: 0
+- name: Create counter stash
+  inputs:
+    args:
+    - 'stash := &Stash{Name: "request-counter", StashType: "counter", Value: map[string]any{"value":
+      int64(0)}, Version: 1} id, _ := stashesTable.Set("", stash) entity, _ := stashesTable.Get(id) '
+  expected:
+    exit_code: 0
+- name: Create lock stash
+  inputs:
+    args:
+    - 'stash := &Stash{Name: "resource-lock", StashType: "lock", Value: nil, Version:
+      1} id, _ := stashesTable.Set("", stash) entity, _ := stashesTable.Get(id) '
+  expected:
+    exit_code: 0
+- name: SetValue updates value and increments version
+  inputs:
+    args:
+    - 'stash.SetValue(map[string]any{"timeout": 60}) stashesTable.Set(stashID, stash)
+      entity, _ := stashesTable.Get(stashID) '
+  expected:
+    exit_code: 0
+- name: SetValue on lock type returns ErrInvalidStashType
+  inputs:
+    args:
+    - 'stash.SetValue(map[string]any{"invalid": true})'
+  expected: {}
+- name: GetValue returns current value
+  inputs:
+    args:
+    - value := stash.GetValue()
+  expected: {}
+- name: GetValue returns nil for empty stash
+  inputs:
+    args:
+    - value := stash.GetValue()
+  expected: {}
+- name: Increment with positive delta
+  inputs:
+    args:
+    - 'newVal, err := stash.Increment(5) stashesTable.Set(stashID, stash) '
+  expected:
+    exit_code: 0
+- name: Increment with negative delta
+  inputs:
+    args:
+    - 'newVal, err := stash.Increment(-3) stashesTable.Set(stashID, stash) '
+  expected:
+    exit_code: 0
+- name: Multiple increments accumulate correctly
+  inputs:
+    args:
+    - 'stash.Increment(10)  // returns 10 stash.Increment(-3)  // returns 7 stash.Increment(5)   //
+      returns 12 stashesTable.Set(stashID, stash) '
+  expected: {}
+- name: Increment on non-counter returns ErrInvalidStashType
+  inputs:
+    args:
+    - stash.Increment(1)
+  expected: {}
+- name: Acquire lock sets holder and increments version
+  inputs:
+    args:
+    - 'err := stash.Acquire("worker-1") stashesTable.Set(stashID, stash) '
+  expected:
+    exit_code: 0
+- name: Acquire by same holder succeeds (reentrant)
+  inputs:
+    args:
+    - stash.Acquire("worker-1")
+  expected:
+    exit_code: 0
+- name: Acquire by different holder returns ErrLockHeld
+  inputs:
+    args:
+    - stash.Acquire("worker-2")
+  expected: {}
+- name: Acquire with empty holder returns ErrInvalidHolder
+  inputs:
+    args:
+    - stash.Acquire("")
+  expected: {}
+- name: Acquire on non-lock returns ErrInvalidStashType
+  inputs:
+    args:
+    - stash.Acquire("worker-1")
+  expected: {}
+- name: Release lock clears value and increments version
+  inputs:
+    args:
+    - 'versionAfterAcquire := stash.Version err := stash.Release("worker-1") stashesTable.Set(stashID,
+      stash) '
+  expected:
+    exit_code: 0
+- name: Release by wrong holder returns ErrNotLockHolder
+  inputs:
+    args:
+    - stash.Release("worker-2")
+  expected: {}
+- name: Release on unheld lock returns ErrNotLockHolder
+  inputs:
+    args:
+    - stash.Release("worker-1")
+  expected: {}
+- name: Release on non-lock returns ErrInvalidStashType
+  inputs:
+    args:
+    - stash.Release("worker-1")
+  expected: {}
+- name: Version starts at 1 on creation
+  inputs:
+    args:
+    - 'stash := &Stash{Name: "version-test", StashType: "context", Value: map[string]any{},
+      Version: 1} stashID, _ := stashesTable.Set("", stash) entity, _ := stashesTable.Get(stashID) '
+  expected: {}
+- name: Version increments on each mutation
+  inputs:
+    args:
+    - 'stash.Increment(1) stash.Increment(1) stash.Increment(1) stashesTable.Set(stashID,
+      stash) entity, _ := stashesTable.Get(stashID) '
+  expected: {}
+- name: Fetch by stash_type returns only matching stashes
+  inputs:
+    args:
+    - 'filter := map[string]any{"StashType": "counter"} entities, _ := stashesTable.Fetch(filter) '
+  expected:
+    exit_code: 0
+- name: Fetch by name returns matching stash
+  inputs:
+    args:
+    - 'filter := map[string]any{"Name": "shared-config"} entities, _ := stashesTable.Fetch(filter) '
+  expected:
+    exit_code: 0
+- name: Fetch with no filter returns all stashes
+  inputs:
+    args:
+    - entities, _ := stashesTable.Fetch(nil)
+  expected:
+    exit_code: 0
+- name: Fetch with no matches returns empty slice
+  inputs:
+    args:
+    - 'filter := map[string]any{"StashType": "nonexistent"} entities, _ := stashesTable.Fetch(filter) '
+  expected:
+    exit_code: 0
+- name: Delete stash removes it
+  inputs:
+    args:
+    - 'err := stashesTable.Delete(stashID) _, getErr := stashesTable.Get(stashID) '
+  expected: {}
+- name: Delete nonexistent stash returns ErrNotFound
+  inputs:
+    args:
+    - stashesTable.Delete("nonexistent-uuid-12345")
+  expected: {}
+- name: Delete with empty ID returns ErrInvalidID
+  inputs:
+    args:
+    - stashesTable.Delete("")
+  expected: {}
+- name: Get with empty ID returns ErrInvalidID
+  inputs:
+    args:
+    - stashesTable.Get("")
+  expected: {}
+- name: Get nonexistent stash returns ErrNotFound
+  inputs:
+    args:
+    - stashesTable.Get("nonexistent-uuid-12345")
+  expected: {}
+- name: Fetch on empty table returns empty slice
+  inputs:
+    args:
+    - entities, _ := stashesTable.Fetch(nil)
+  expected:
+    exit_code: 0
+- name: History entry created for each mutation
+  description: Verify that stash history is recorded for each operation
+  inputs:
+    args:
+    - 'stashesTable := backend.GetTable("stashes").(*sqlite.Table) history, err :=
+      stashesTable.FetchStashHistory(stashID) '
+  expected:
+    exit_code: 0
+- name: History entries queryable by stash ID
+  description: Verify FetchStashHistory returns entries ordered by version
+  inputs:
+    args:
+    - 'stashesTable := backend.GetTable("stashes").(*sqlite.Table) history, err :=
+      stashesTable.FetchStashHistory(stashID) '
+  expected:
+    exit_code: 0
+- name: History records operation details
+  description: Verify history entries contain version, value, operation, and timestamps
+  inputs:
+    args:
+    - 'stashesTable := backend.GetTable("stashes").(*sqlite.Table) history, err :=
+      stashesTable.FetchStashHistory(stashID) '
+  expected:
+    exit_code: 0
+- name: Full stash operations workflow
+  description: 'Create stashes of each type, exercise type-specific operations, verify
+    version tracking, filter queries, and cleanup. '
+  inputs: {}
+  expected: {}
+- name: Create belongs_to link associates crumb with trail
+  inputs:
+    args:
+    - 'link := &Link{LinkType: "belongs_to", FromID: crumb.CrumbID, ToID: trail.TrailID}
+      linksTable.Set("", link) '
+  expected:
+    exit_code: 0
+- name: Crumb without belongs_to link is orphaned or permanent
+  description: A crumb with no belongs_to link is either permanent (was on completed
+    trail) or orphaned
+  inputs:
+    args:
+    - 'linksTable.Fetch(map[string]any{"link_type": "belongs_to", "from_id": crumb.CrumbID}) '
+  expected: {}
+- name: Crumb can belong to only one trail
+  description: Attempting to add second belongs_to link for same crumb fails due to
+    uniqueness constraint
+  inputs:
+    args:
+    - 'link := &Link{LinkType: "belongs_to", FromID: crumb.CrumbID, ToID: trail2.TrailID}
+      linksTable.Set("", link) '
+  expected: {}
+- name: Moving crumb requires deleting old link first
+  inputs:
+    args:
+    - 'linksTable.Fetch(map[string]any{"link_type": "belongs_to", "from_id": crumb.CrumbID}) '
+  expected:
+    exit_code: 0
+- name: Fetch all crumbs belonging to a trail
+  inputs:
+    args:
+    - 'linksTable.Fetch(map[string]any{"link_type": "belongs_to", "to_id": trail.TrailID}) '
+  expected: {}
+- name: Fetch returns empty for trail with no crumbs
+  inputs:
+    args:
+    - 'linksTable.Fetch(map[string]any{"link_type": "belongs_to", "to_id": trail.TrailID}) '
+  expected: {}
+- name: Fetch crumbs across multiple trails
+  inputs: {}
+  expected: {}
+- name: Move crumb from one trail to another
+  inputs: {}
+  expected:
+    exit_code: 0
+- name: Crumb data unchanged after moving trails
+  inputs: {}
+  expected: {}
+- name: Complete trail removes all belongs_to links
+  inputs: {}
+  expected: {}
+- name: Complete sets CompletedAt timestamp
+  inputs: {}
+  expected: {}
+- name: Crumbs exist after trail completion
+  inputs: {}
+  expected: {}
+- name: Completed crumbs have no belongs_to link
+  inputs: {}
+  expected: {}
+- name: Permanent crumbs indistinguishable from never-trailed crumbs
+  description: After completion, crumbs look the same as crumbs that were never on
+    a trail
+  inputs: {}
+  expected: {}
+- name: Abandon trail deletes associated crumbs
+  inputs: {}
+  expected: {}
+- name: Abandon only deletes crumbs with belongs_to link
+  description: Crumbs not linked to the trail are unaffected
+  inputs: {}
+  expected: {}
+- name: Crumb removed from trail before abandon survives
+  inputs: {}
+  expected: {}
+- name: Abandon deletes crumb properties
+  inputs: {}
+  expected: {}
+- name: Abandon deletes crumb metadata
+  inputs: {}
+  expected: {}
+- name: Abandon deletes all links involving crumb
+  description: Both belongs_to and any child_of links are removed
+  inputs: {}
+  expected: {}
+- name: Abandon removes belongs_to links for trail
+  inputs: {}
+  expected: {}
+- name: Abandoned trail still retrievable
+  inputs: {}
+  expected: {}
+- name: Abandoned trail has no associated crumbs
+  inputs: {}
+  expected: {}
+- name: Complete requires active state
+  inputs:
+    args:
+    - trail.Complete()
+  expected: {}
+- name: Complete on pending state returns error
+  inputs:
+    args:
+    - trail.Complete()
+  expected: {}
+- name: Complete on completed state returns error
+  inputs:
+    args:
+    - trail.Complete()
+  expected: {}
+- name: Abandon requires active state
+  inputs:
+    args:
+    - trail.Abandon()
+  expected: {}
+- name: Abandon on completed state returns error
+  inputs:
+    args:
+    - trail.Abandon()
+  expected: {}
+- name: Abandon on abandoned state returns error
+  inputs:
+    args:
+    - trail.Abandon()
+  expected: {}
+- name: Complete lifecycle - trail as container with completion
+  description: Create trail, add crumbs, complete, verify crumbs become permanent
+  inputs: {}
+  expected: {}
+- name: Abandon lifecycle - trail as container with cleanup
+  description: Create trail, add crumbs with properties, abandon, verify cascade deletion
+  inputs: {}
+  expected: {}

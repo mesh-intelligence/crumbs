@@ -1,0 +1,566 @@
+id: crumbs
+title: Specifications
+
+overview: |
+  Crumbs is a storage system for work items that supports exploratory development through trails.
+  We use a breadcrumb metaphor where individual work items (crumbs) can be grouped into trails for
+  experimental work, then either completed (making crumbs permanent) or abandoned (cleaning up
+  associated crumbs atomically). The system provides a Cupboard interface for backend-agnostic
+  storage access and a Table interface for uniform CRUD operations.
+
+  This document indexes all PRDs, use cases, and test suites in the project and shows how they
+  relate. For goals and boundaries, see VISION.yaml. For components and interfaces, see
+  ARCHITECTURE.yaml.
+
+roadmap_summary:
+  - version: "01.0"
+    name: Core Storage with SQLite Backend
+    use_cases_done: 5
+    use_cases_total: 5
+    status: done
+  - version: "01.1"
+    name: Post-Core Validation
+    use_cases_done: 5
+    use_cases_total: 5
+    status: done
+  - version: "02.0"
+    name: Properties with Enforcement
+    use_cases_done: 2
+    use_cases_total: 2
+    status: done
+  - version: "02.1"
+    name: Issue-Tracking and Self-Hosting
+    use_cases_done: 4
+    use_cases_total: 4
+    status: done
+  - version: "03.0"
+    name: Trails and Stashes
+    use_cases_done: 4
+    use_cases_total: 4
+    status: done
+  - version: "03.1"
+    name: Post-Trails Validation
+    use_cases_done: 1
+    use_cases_total: 1
+    status: done
+  - version: "99.0"
+    name: Unscheduled
+    use_cases_done: 0
+    use_cases_total: 2
+    status: not_started
+
+prd_index:
+  - id: prd001-cupboard-core
+    title: Cupboard Core Interface
+    summary: Defines the Cupboard and Table interfaces for backend-agnostic storage access
+    path: specs/product-requirements/prd001-cupboard-core.yaml
+  - id: prd002-sqlite-backend
+    title: SQLite Backend
+    summary: Specifies JSONL persistence format, SQLite schema, and startup/write/shutdown sequences
+    path: specs/product-requirements/prd002-sqlite-backend.yaml
+  - id: prd003-crumbs-interface
+    title: Crumbs Interface
+    summary: Defines the Crumb entity structure, state transitions, and property operations
+    path: specs/product-requirements/prd003-crumbs-interface.yaml
+  - id: prd004-properties-interface
+    title: Properties Interface
+    summary: Defines Property and Category entities for typed, enumerated crumb attributes
+    path: specs/product-requirements/prd004-properties-interface.yaml
+  - id: prd005-metadata-interface
+    title: Metadata Interface
+    summary: Defines the Metadata entity for schema registration and versioning
+    path: specs/product-requirements/prd005-metadata-interface.yaml
+  - id: prd006-trails-interface
+    title: Trails Interface
+    summary: Defines the Trail entity for grouping crumbs with Complete/Abandon lifecycle
+    path: specs/product-requirements/prd006-trails-interface.yaml
+  - id: prd007-links-interface
+    title: Links Interface
+    summary: Consolidates link requirements for directed edges in the entity graph
+    path: specs/product-requirements/prd007-links-interface.yaml
+  - id: prd008-stash-interface
+    title: Stash Interface
+    summary: Defines the Stash entity for shared state with content versioning
+    path: specs/product-requirements/prd008-stash-interface.yaml
+  - id: prd009-cupboard-cli
+    title: Cupboard CLI Interface
+    summary: Specifies the command-line interface for cupboard operations
+    path: specs/product-requirements/prd009-cupboard-cli.yaml
+  - id: prd010-configuration-directories
+    title: Configuration Directory Structure
+    summary: Defines platform-specific configuration and data directory locations for the CLI
+    path: specs/product-requirements/prd010-configuration-directories.yaml
+
+use_case_index:
+  - id: rel01.0-uc001-cupboard-lifecycle
+    title: Configuration and Cupboard Lifecycle
+    release: "01.0"
+    status: done
+    test_suite: test-rel01.0-uc001-cupboard-lifecycle
+    path: specs/use-cases/rel01.0-uc001-cupboard-lifecycle.yaml
+  - id: rel01.0-uc002-table-crud
+    title: Table Interface CRUD Operations
+    release: "01.0"
+    status: done
+    test_suite: test-rel01.0-uc002-table-crud
+    path: specs/use-cases/rel01.0-uc002-table-crud.yaml
+  - id: rel01.0-uc003-crumb-lifecycle
+    title: Crumb Entity Operations
+    release: "01.0"
+    status: done
+    test_suite: test-rel01.0-uc003-crumb-lifecycle
+    path: specs/use-cases/rel01.0-uc003-crumb-lifecycle.yaml
+  - id: rel01.0-uc004-scaffolding-validation
+    title: Scaffolding Validation
+    release: "01.0"
+    status: done
+    test_suite: test-rel01.0-uc004-scaffolding-validation
+    path: specs/use-cases/rel01.0-uc004-scaffolding-validation.yaml
+  - id: rel01.0-uc005-crumbs-table-benchmarks
+    title: Crumbs Table Performance Benchmarks
+    release: "01.0"
+    status: done
+    test_suite: test-rel01.0-uc005-crumbs-table-benchmarks
+    path: specs/use-cases/rel01.0-uc005-crumbs-table-benchmarks.yaml
+  - id: rel01.1-uc001-go-install
+    title: Go Install
+    release: "01.1"
+    status: done
+    test_suite: test-rel01.1-uc001-go-install
+    path: specs/use-cases/rel01.1-uc001-go-install.yaml
+  - id: rel01.1-uc002-jsonl-git-roundtrip
+    title: JSONL Git Roundtrip
+    release: "01.1"
+    status: done
+    test_suite: test-rel01.1-uc002-jsonl-git-roundtrip
+    path: specs/use-cases/rel01.1-uc002-jsonl-git-roundtrip.yaml
+  - id: rel01.1-uc003-configuration-loading
+    title: Configuration and Path Resolution
+    release: "01.1"
+    status: done
+    test_suite: test-rel01.1-uc003-configuration-loading
+    path: specs/use-cases/rel01.1-uc003-configuration-loading.yaml
+  - id: rel01.1-uc004-generic-table-cli
+    title: Generic Table CLI Operations
+    release: "01.1"
+    status: done
+    test_suite: test-rel01.1-uc004-generic-table-cli
+    path: specs/use-cases/rel01.1-uc004-generic-table-cli.yaml
+  - id: rel01.1-uc005-flat-self-hosting
+    title: Flat Self-Hosting
+    release: "01.1"
+    status: done
+    test_suite: test-rel01.1-uc005-flat-self-hosting
+    path: specs/use-cases/rel01.1-uc005-flat-self-hosting.yaml
+  - id: rel02.0-uc001-property-enforcement
+    title: Property Enforcement
+    release: "02.0"
+    status: done
+    test_suite: test-rel02.0-uc001-property-enforcement
+    path: specs/use-cases/rel02.0-uc001-property-enforcement.yaml
+  - id: rel02.0-uc002-regeneration-compatibility
+    title: Regeneration Compatibility
+    release: "02.0"
+    status: done
+    test_suite: test-rel02.0-uc002-regeneration-compatibility
+    path: specs/use-cases/rel02.0-uc002-regeneration-compatibility.yaml
+  - id: rel02.1-uc001-issue-tracking-cli
+    title: Issue-Tracking CLI
+    release: "02.1"
+    status: done
+    test_suite: test-rel02.1-uc001-issue-tracking-cli
+    path: specs/use-cases/rel02.1-uc001-issue-tracking-cli.yaml
+  - id: rel02.1-uc002-table-benchmarks
+    title: Table Benchmarks
+    release: "02.1"
+    status: done
+    test_suite: test-rel02.1-uc002-table-benchmarks
+    path: specs/use-cases/rel02.1-uc002-table-benchmarks.yaml
+  - id: rel02.1-uc003-self-hosting
+    title: Self-Hosting
+    release: "02.1"
+    status: done
+    test_suite: test-rel02.1-uc003-self-hosting
+    path: specs/use-cases/rel02.1-uc003-self-hosting.yaml
+  - id: rel02.1-uc004-metadata-lifecycle
+    title: Metadata Lifecycle Operations
+    release: "02.1"
+    status: done
+    test_suite: test-rel02.1-uc004-metadata-lifecycle
+    path: specs/use-cases/rel02.1-uc004-metadata-lifecycle.yaml
+  - id: rel03.0-uc001-trail-exploration
+    title: Trail-Based Exploration
+    release: "03.0"
+    status: done
+    test_suite: test-rel03.0-uc001-trail-exploration
+    path: specs/use-cases/rel03.0-uc001-trail-exploration.yaml
+  - id: rel03.0-uc002-link-management
+    title: Link Management
+    release: "03.0"
+    status: done
+    test_suite: test-rel03.0-uc002-link-management
+    path: specs/use-cases/rel03.0-uc002-link-management.yaml
+  - id: rel03.0-uc003-stash-operations
+    title: Stash Operations
+    release: "03.0"
+    status: done
+    test_suite: test-rel03.0-uc003-stash-operations
+    path: specs/use-cases/rel03.0-uc003-stash-operations.yaml
+  - id: rel03.0-uc004-trail-crumb-lifecycle
+    title: Trail-Crumb Lifecycle Control
+    release: "03.0"
+    status: done
+    test_suite: test-rel03.0-uc004-trail-crumb-lifecycle
+    path: specs/use-cases/rel03.0-uc004-trail-crumb-lifecycle.yaml
+  - id: rel03.1-uc001-self-hosting-with-epics
+    title: Self-Hosting with Epics via Trails
+    release: "03.1"
+    status: done
+    test_suite: test-rel03.1-uc001-self-hosting-with-epics
+    path: specs/use-cases/rel03.1-uc001-self-hosting-with-epics.yaml
+  - id: rel99.0-uc001-blazes-templates
+    title: Agent Uses Blazes (Workflow Templates)
+    release: "99.0"
+    status: not_started
+    test_suite: test-rel99.0-uc001-blazes-templates
+    path: specs/use-cases/rel99.0-uc001-blazes-templates.yaml
+  - id: rel99.0-uc002-docker-bootstrap
+    title: Docker Bootstrap (Docs to Working System)
+    release: "99.0"
+    status: not_started
+    test_suite: test-rel99.0-uc002-docker-bootstrap
+    path: specs/use-cases/rel99.0-uc002-docker-bootstrap.yaml
+
+test_suite_index:
+  - id: test-rel01.0
+    title: Core Storage with SQLite Backend
+    traces:
+      - rel01.0-uc001-cupboard-lifecycle
+      - rel01.0-uc002-table-crud
+      - rel01.0-uc003-crumb-lifecycle
+      - rel01.0-uc004-scaffolding-validation
+      - rel01.0-uc005-crumbs-table-benchmarks
+    test_case_count: 112
+    path: specs/test-suites/test-rel01.0.yaml
+  - id: test-rel01.1
+    title: Post-Core Validation
+    traces:
+      - rel01.1-uc001-go-install
+      - rel01.1-uc002-jsonl-git-roundtrip
+      - rel01.1-uc003-configuration-loading
+      - rel01.1-uc004-generic-table-cli
+      - rel01.1-uc005-flat-self-hosting
+    test_case_count: 102
+    path: specs/test-suites/test-rel01.1.yaml
+  - id: test-rel02.0
+    title: Properties with Enforcement
+    traces:
+      - rel02.0-uc001-property-enforcement
+      - rel02.0-uc002-regeneration-compatibility
+    test_case_count: 83
+    path: specs/test-suites/test-rel02.0.yaml
+  - id: test-rel02.1
+    title: Issue-Tracking and Self-Hosting
+    traces:
+      - rel02.1-uc001-issue-tracking-cli
+      - rel02.1-uc002-table-benchmarks
+      - rel02.1-uc003-self-hosting
+      - rel02.1-uc004-metadata-lifecycle
+    test_case_count: 86
+    path: specs/test-suites/test-rel02.1.yaml
+  - id: test-rel03.0
+    title: Trails and Stashes
+    traces:
+      - rel03.0-uc001-trail-exploration
+      - rel03.0-uc002-link-management
+      - rel03.0-uc003-stash-operations
+      - rel03.0-uc004-trail-crumb-lifecycle
+    test_case_count: 124
+    path: specs/test-suites/test-rel03.0.yaml
+  - id: test-rel03.1
+    title: Post-Trails Validation
+    traces:
+      - rel03.1-uc001-self-hosting-with-epics
+    test_case_count: 22
+    path: specs/test-suites/test-rel03.1.yaml
+  - id: test-rel99.0
+    title: Unscheduled
+    traces:
+      - rel99.0-uc001-blazes-templates
+      - rel99.0-uc002-docker-bootstrap
+    test_case_count: 63
+    path: specs/test-suites/test-rel99.0.yaml
+
+prd_to_use_case_mapping:
+  - use_case: rel01.0-uc001-cupboard-lifecycle
+    prd: prd001-cupboard-core
+    why_required: Validates Config, Attach, Detach, GetTable contract
+    coverage: Partial (R1, R2, R4-R7)
+  - use_case: rel01.0-uc002-table-crud
+    prd: prd001-cupboard-core
+    why_required: Uses Cupboard and Table interfaces for CRUD operations
+    coverage: Partial (R2)
+  - use_case: rel01.0-uc002-table-crud
+    prd: prd002-sqlite-backend
+    why_required: Exercises UUID generation, hydration, JSONL persistence
+    coverage: Partial (R5, R14, R16)
+  - use_case: rel01.0-uc003-crumb-lifecycle
+    prd: prd001-cupboard-core
+    why_required: Uses Table interface for persistence and retrieval
+    coverage: Partial (R2)
+  - use_case: rel01.0-uc003-crumb-lifecycle
+    prd: prd003-crumbs-interface
+    why_required: Exercises Crumb state machine, creation defaults, filtering
+    coverage: Partial (R1-R5, R9, R10)
+  - use_case: rel01.0-uc004-scaffolding-validation
+    prd: prd001-cupboard-core
+    why_required: Compile-time verification of Cupboard and Table interfaces
+    coverage: Partial (R2, R2.5)
+  - use_case: rel01.0-uc004-scaffolding-validation
+    prd: prd002-sqlite-backend
+    why_required: Verifies NewBackend, Attach, Detach compile
+    coverage: Partial
+  - use_case: rel01.0-uc004-scaffolding-validation
+    prd: prd003-crumbs-interface
+    why_required: Compile-time verification of Crumb struct fields
+    coverage: Partial (R1)
+  - use_case: rel01.0-uc004-scaffolding-validation
+    prd: prd006-trails-interface
+    why_required: Compile-time verification of Trail struct
+    coverage: Partial
+  - use_case: rel01.0-uc004-scaffolding-validation
+    prd: prd004-properties-interface
+    why_required: Compile-time verification of Property struct
+    coverage: Partial
+  - use_case: rel01.0-uc004-scaffolding-validation
+    prd: prd008-stash-interface
+    why_required: Compile-time verification of Stash struct
+    coverage: Partial
+  - use_case: rel01.0-uc004-scaffolding-validation
+    prd: prd005-metadata-interface
+    why_required: Compile-time verification of Metadata struct
+    coverage: Partial
+  - use_case: rel01.0-uc005-crumbs-table-benchmarks
+    prd: prd001-cupboard-core
+    why_required: Benchmarks Table interface operations at scale
+    coverage: Partial (R2, R3)
+  - use_case: rel01.0-uc005-crumbs-table-benchmarks
+    prd: prd002-sqlite-backend
+    why_required: Benchmarks hydration, dehydration, JSONL persistence, index usage
+    coverage: Partial (R3.3, R14, R15)
+  - use_case: rel01.1-uc001-go-install
+    prd: prd001-cupboard-core
+    why_required: CLI binary uses Config struct and entity types
+    coverage: Partial (R1)
+  - use_case: rel01.1-uc001-go-install
+    prd: prd002-sqlite-backend
+    why_required: Backend creates JSONL files and SQLite cache
+    coverage: Partial (R1, R4)
+  - use_case: rel01.1-uc001-go-install
+    prd: prd010-configuration-directories
+    why_required: Resolves default config and data directories
+    coverage: Partial (R1, R2)
+  - use_case: rel01.1-uc002-jsonl-git-roundtrip
+    prd: prd002-sqlite-backend
+    why_required: Validates startup sequence, JSONL source of truth, sync strategies
+    coverage: Partial (R1.2, R4, R5.2, R14, R16)
+  - use_case: rel01.1-uc002-jsonl-git-roundtrip
+    prd: prd001-cupboard-core
+    why_required: Attach initializes backend
+    coverage: Partial (R4)
+  - use_case: rel01.1-uc003-configuration-loading
+    prd: prd010-configuration-directories
+    why_required: Validates platform defaults, env overrides, flag overrides, config.yaml lifecycle
+    coverage: Partial (R1.2, R1.3, R2.2, R2.3, R7)
+  - use_case: rel01.1-uc003-configuration-loading
+    prd: prd009-cupboard-cli
+    why_required: Tests global flags --config-dir and --data-dir
+    coverage: Partial (R6.2, R6.3)
+  - use_case: rel01.1-uc004-generic-table-cli
+    prd: prd001-cupboard-core
+    why_required: GetTable returns Table for any standard table name
+    coverage: Partial (R2, R3)
+  - use_case: rel01.1-uc004-generic-table-cli
+    prd: prd009-cupboard-cli
+    why_required: Generic get, set, list, delete commands with JSON output
+    coverage: Partial (R3.1-R3.4, R7-R9)
+  - use_case: rel01.1-uc005-flat-self-hosting
+    prd: prd001-cupboard-core
+    why_required: Uses Cupboard and Table interfaces for crumb storage
+    coverage: Partial (R2, R3)
+  - use_case: rel01.1-uc005-flat-self-hosting
+    prd: prd009-cupboard-cli
+    why_required: Generic table commands get, set, list, delete
+    coverage: Partial (R3)
+  - use_case: rel01.1-uc005-flat-self-hosting
+    prd: prd003-crumbs-interface
+    why_required: Crumb Name and State fields for basic tracking
+    coverage: Partial (R1)
+  - use_case: rel01.1-uc005-flat-self-hosting
+    prd: prd002-sqlite-backend
+    why_required: Storage, JSONL persistence, query engine
+    coverage: Partial (R1-R5)
+  - use_case: rel02.0-uc001-property-enforcement
+    prd: prd001-cupboard-core
+    why_required: Uses Cupboard and Table interfaces for property storage
+    coverage: Partial (R2)
+  - use_case: rel02.0-uc001-property-enforcement
+    prd: prd003-crumbs-interface
+    why_required: Exercises property operations on crumbs
+    coverage: Partial (R3, R5)
+  - use_case: rel02.0-uc001-property-enforcement
+    prd: prd004-properties-interface
+    why_required: Validates property definition, auto-init, backfill, seeding
+    coverage: Partial (R2, R4, R7-R9)
+  - use_case: rel02.0-uc001-property-enforcement
+    prd: prd002-sqlite-backend
+    why_required: Property seeding during backend initialization
+    coverage: Partial (R9)
+  - use_case: rel02.0-uc002-regeneration-compatibility
+    prd: prd002-sqlite-backend
+    why_required: Validates JSONL format stability across generations
+    coverage: Partial (R2, R4, R5, R7.2)
+  - use_case: rel02.0-uc002-regeneration-compatibility
+    prd: prd001-cupboard-core
+    why_required: Attach/Detach work identically across generations
+    coverage: Partial (R4, R5)
+  - use_case: rel02.0-uc002-regeneration-compatibility
+    prd: prd004-properties-interface
+    why_required: Property definitions persist across regeneration
+    coverage: Partial (R4)
+  - use_case: rel02.1-uc001-issue-tracking-cli
+    prd: prd001-cupboard-core
+    why_required: Uses GetTable and Table interface for crumb storage
+    coverage: Partial (R2, R3)
+  - use_case: rel02.1-uc001-issue-tracking-cli
+    prd: prd003-crumbs-interface
+    why_required: Exercises creation, state transitions, filtering, properties
+    coverage: Partial (R2-R5, R9, R10)
+  - use_case: rel02.1-uc001-issue-tracking-cli
+    prd: prd004-properties-interface
+    why_required: Uses type, priority, labels properties
+    coverage: Partial (R9)
+  - use_case: rel02.1-uc001-issue-tracking-cli
+    prd: prd002-sqlite-backend
+    why_required: JSONL persistence and metadata
+    coverage: Partial (R2.8, R5)
+  - use_case: rel02.1-uc002-table-benchmarks
+    prd: prd001-cupboard-core
+    why_required: Benchmarks Table interface operations
+    coverage: Partial (R3)
+  - use_case: rel02.1-uc002-table-benchmarks
+    prd: prd002-sqlite-backend
+    why_required: Benchmarks hydration, persistence, atomic write, sync, indexes
+    coverage: Partial (R3.3, R5.2, R14, R15, R16.2)
+  - use_case: rel02.1-uc002-table-benchmarks
+    prd: prd003-crumbs-interface
+    why_required: Benchmarks property operations and filter queries
+    coverage: Partial (R5, R9)
+  - use_case: rel02.1-uc003-self-hosting
+    prd: prd001-cupboard-core
+    why_required: Cupboard and Table interfaces for storage
+    coverage: Partial (R2, R3)
+  - use_case: rel02.1-uc003-self-hosting
+    prd: prd003-crumbs-interface
+    why_required: Crumb creation, state transitions, filtering
+    coverage: Partial (R1, R3, R4, R9, R10)
+  - use_case: rel02.1-uc003-self-hosting
+    prd: prd002-sqlite-backend
+    why_required: Storage, JSONL persistence, query engine
+    coverage: Partial (R1-R5, R12-R15)
+  - use_case: rel02.1-uc004-metadata-lifecycle
+    prd: prd001-cupboard-core
+    why_required: Uses Cupboard and Table interfaces for metadata storage
+    coverage: Partial (R2, R3)
+  - use_case: rel02.1-uc004-metadata-lifecycle
+    prd: prd005-metadata-interface
+    why_required: Validates metadata CRUD, schemas, filtering, cascade delete
+    coverage: Partial (R1, R3-R7, R10)
+  - use_case: rel03.0-uc001-trail-exploration
+    prd: prd006-trails-interface
+    why_required: Validates trail creation, completion, abandonment, crumb membership
+    coverage: Partial (R3, R5-R7, R9)
+  - use_case: rel03.0-uc001-trail-exploration
+    prd: prd002-sqlite-backend
+    why_required: Link-based querying for trail membership
+    coverage: Partial
+  - use_case: rel03.0-uc002-link-management
+    prd: prd007-links-interface
+    why_required: Exercises all four link types and CRUD operations
+    coverage: Full
+  - use_case: rel03.0-uc002-link-management
+    prd: prd002-sqlite-backend
+    why_required: Link entity hydration, indexes
+    coverage: Partial (R3.3, R14.6)
+  - use_case: rel03.0-uc002-link-management
+    prd: prd006-trails-interface
+    why_required: belongs_to and branches_from link semantics
+    coverage: Partial (R7, R9)
+  - use_case: rel03.0-uc002-link-management
+    prd: prd008-stash-interface
+    why_required: scoped_to link semantics
+    coverage: Partial (R13)
+  - use_case: rel03.0-uc003-stash-operations
+    prd: prd001-cupboard-core
+    why_required: Uses Cupboard and Table interfaces for stash storage
+    coverage: Partial (R2, R3)
+  - use_case: rel03.0-uc003-stash-operations
+    prd: prd008-stash-interface
+    why_required: Validates stash types, value ops, counters, locks, history
+    coverage: Partial (R1, R2, R4-R7, R9)
+  - use_case: rel03.0-uc004-trail-crumb-lifecycle
+    prd: prd001-cupboard-core
+    why_required: Uses Cupboard and Table interfaces for trail, crumb, and link storage
+    coverage: Partial (R2, R3)
+  - use_case: rel03.0-uc004-trail-crumb-lifecycle
+    prd: prd006-trails-interface
+    why_required: Trail lifecycle Complete and Abandon with cascade operations
+    coverage: Partial (R2, R5, R6)
+  - use_case: rel03.0-uc004-trail-crumb-lifecycle
+    prd: prd007-links-interface
+    why_required: belongs_to links and cardinality constraints
+    coverage: Partial (R2.1, R6.1)
+  - use_case: rel03.1-uc001-self-hosting-with-epics
+    prd: prd001-cupboard-core
+    why_required: Uses Cupboard and Table interfaces for trail, crumb, and link storage
+    coverage: Partial (R2, R3)
+  - use_case: rel03.1-uc001-self-hosting-with-epics
+    prd: prd006-trails-interface
+    why_required: Trail lifecycle for epic-style grouping
+    coverage: Partial (R2, R5, R6)
+  - use_case: rel03.1-uc001-self-hosting-with-epics
+    prd: prd007-links-interface
+    why_required: belongs_to links associate crumbs with trails
+    coverage: Partial (R2.1)
+  - use_case: rel03.1-uc001-self-hosting-with-epics
+    prd: prd002-sqlite-backend
+    why_required: Storage, JSONL persistence for trails and links
+    coverage: Partial (R1-R5)
+  - use_case: rel99.0-uc001-blazes-templates
+    prd: prd003-crumbs-interface
+    why_required: Crumb struct fields referenced in template definitions
+    coverage: Partial (R1)
+  - use_case: rel99.0-uc001-blazes-templates
+    prd: prd006-trails-interface
+    why_required: Trail creation and belongs_to links for instantiation
+    coverage: Partial (R3, R7)
+  - use_case: rel99.0-uc002-docker-bootstrap
+    prd: prd001-cupboard-core
+    why_required: Core storage abstraction with Attach/Detach lifecycle
+    coverage: Partial (R1-R3)
+  - use_case: rel99.0-uc002-docker-bootstrap
+    prd: prd002-sqlite-backend
+    why_required: Storage implementation with JSONL source of truth
+    coverage: Partial (R1-R16)
+  - use_case: rel99.0-uc002-docker-bootstrap
+    prd: prd003-crumbs-interface
+    why_required: Work item with state lifecycle and properties
+    coverage: Partial (R1-R11)
+  - use_case: rel99.0-uc002-docker-bootstrap
+    prd: prd010-configuration-directories
+    why_required: Config and data directory paths, JSONL format
+    coverage: Partial (R3, R4, R7, R8)
+
+coverage_gaps: |
+  No gaps identified. All 23 use cases have corresponding test suites, and all 10 PRDs are
+  referenced by at least one use case.
