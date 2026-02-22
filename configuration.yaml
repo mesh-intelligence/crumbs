@@ -5,15 +5,12 @@ project:
     module_path: github.com/petar-djukic/crumbs
     binary_name: crumbs
     binary_dir: bin
-    main_package: github.com/petar-djukic/crumbs/cmd/cupboard
-    go_source_dirs:
-        - cmd/
-        - pkg/
-    version_file: cmd/cupboard/version.go
+    main_package: ""
+    go_source_dirs: []
+    version_file: ""
     magefiles_dir: magefiles
     spec_globs: {}
-    seed_files:
-        cmd/cupboard/version.go: magefiles/version.go.tmpl
+    seed_files: {}
 generation:
     prefix: generation-
     cycles: 0
@@ -33,6 +30,7 @@ cobbler:
     design_constitution: docs/constitutions/design.yaml
     estimated_lines_min: 250
     estimated_lines_max: 350
+    history_dir: history
 podman:
     image: claude-cli
     args: []
