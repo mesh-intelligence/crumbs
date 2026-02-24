@@ -32,9 +32,7 @@ go.work.sum
 # .idea/
 # .vscode/
 
-.github
 BACKGROUND/
-.github/
 .cursor
 #scripts/
 
