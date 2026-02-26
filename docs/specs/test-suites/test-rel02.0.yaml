@@ -4,15 +4,15 @@ release: '02.0'
 traces:
 - rel02.0-uc001-property-enforcement
 - rel02.0-uc002-regeneration-compatibility
-preconditions: |-
-  Cupboard binary built from cmd/cupboard
-  Fresh temp directory for config and data
-  Config file points SQLite backend at the temp data directory
-  No existing crumbs or properties
-  Generation N built and installed via go install ./cmd/cupboard
-  Fresh temp directory for test data (separate from repo)
-  The cupboard binary is accessible from $GOBIN or $PATH
-  Git repository is clean (no uncommitted changes)
+preconditions:
+- Cupboard binary built from cmd/cupboard
+- Fresh temp directory for config and data
+- Config file points SQLite backend at the temp data directory
+- No existing crumbs or properties
+- Generation N built and installed via go install ./cmd/cupboard
+- Fresh temp directory for test data (separate from repo)
+- The cupboard binary is accessible from $GOBIN or $PATH
+- Git repository is clean (no uncommitted changes)
 test_cases:
 - name: Built-in properties seeded on initialization
   description: Verify that five built-in properties exist after cupboard initialization.
@@ -65,8 +65,7 @@ test_cases:
     exit_code: 0
     stdout: CrumbID
 - name: New crumb properties have default values
-  description: Verify that text properties default to empty string, list to empty
-    array.
+  description: Verify that text properties default to empty string, list to empty array.
   inputs:
     args:
     - cupboard get crumbs ${crumb_id} --json
@@ -168,8 +167,7 @@ test_cases:
   expected:
     exit_code: 0
 - name: All crumbs have same property count after multiple definitions
-  description: Define multiple properties, create crumbs at different times, verify
-    all have same count.
+  description: Define multiple properties, create crumbs at different times, verify all have same count.
   inputs:
     args:
     - cupboard list crumbs --json
@@ -218,24 +216,21 @@ test_cases:
     exit_code: 1
     stderr_contains: duplicate name
 - name: Get crumb returns populated Properties map
-  description: Verify that Table.Get returns a crumb with Properties map containing
-    all defined properties.
+  description: Verify that Table.Get returns a crumb with Properties map containing all defined properties.
   inputs:
     args:
     - cupboard get crumbs ${crumb_id} --json
   expected:
     exit_code: 0
 - name: Fetched crumb properties match values set at creation
-  description: Verify that properties retrieved via Get match the values that were
-    set during crumb creation.
+  description: Verify that properties retrieved via Get match the values that were set during crumb creation.
   inputs:
     args:
     - cupboard get crumbs ${crumb_id} --json
   expected:
     exit_code: 0
 - name: SetProperty on fetched crumb persists through round-trip
-  description: Get a crumb, set a property, save, re-get, and verify the property
-    value persists.
+  description: Get a crumb, set a property, save, re-get, and verify the property value persists.
   inputs:
     args:
     - cupboard get crumbs ${crumb_id} --json
@@ -249,8 +244,7 @@ test_cases:
   expected:
     exit_code: 0
 - name: Property round-trip with custom property
-  description: Create custom property, create crumb, update property, re-fetch and
-    verify.
+  description: Create custom property, create crumb, update property, re-fetch and verify.
   inputs:
     args:
     - cupboard get crumbs ${crumb_id} --json
@@ -395,8 +389,7 @@ test_cases:
 - name: Create crumb with generation N
   inputs:
     args:
-    - cupboard set crumbs "" '{"Name":"Compat test crumb","State":"draft"}' --datadir
-      /tmp/regen-test
+    - cupboard set crumbs "" '{"Name":"Compat test crumb","State":"draft"}' --datadir /tmp/regen-test
   expected:
     exit_code: 0
     stdout: CrumbID
@@ -413,8 +406,7 @@ test_cases:
     - cat /tmp/regen-test/crumbs.jsonl
   expected:
     exit_code: 0
-    stdout: '[''"name":"Compat test crumb"'', ''"name":"Crumb one"'', ''"name":"Crumb
-      two"'', ''"name":"Crumb three"'']'
+    stdout: '[''"name":"Compat test crumb"'', ''"name":"Crumb one"'', ''"name":"Crumb two"'', ''"name":"Crumb three"'']'
 - name: Create git tag before regeneration
   inputs:
     args:
@@ -473,8 +465,8 @@ test_cases:
 - name: Generation N+1 updates crumb state
   inputs:
     args:
-    - /tmp/cupboard-gen-n1 set crumbs ${CRUMB_ID} '{"CrumbID":"${CRUMB_ID}","Name":"Crumb
-      two","State":"pebble"}' --datadir /tmp/regen-test
+    - /tmp/cupboard-gen-n1 set crumbs ${CRUMB_ID} '{"CrumbID":"${CRUMB_ID}","Name":"Crumb two","State":"pebble"}' --datadir
+      /tmp/regen-test
   expected:
     exit_code: 0
 - name: Modification reflected in JSONL
@@ -487,8 +479,7 @@ test_cases:
 - name: Generation N+1 creates new crumb
   inputs:
     args:
-    - /tmp/cupboard-gen-n1 set crumbs "" '{"Name":"N+1 created crumb","State":"draft"}'
-      --datadir /tmp/regen-test
+    - /tmp/cupboard-gen-n1 set crumbs "" '{"Name":"N+1 created crumb","State":"draft"}' --datadir /tmp/regen-test
   expected:
     exit_code: 0
     stdout: CrumbID
@@ -522,8 +513,7 @@ test_cases:
 - name: Generation N modifies crumb after N+1 modification
   inputs:
     args:
-    - cupboard set crumbs ${CRUMB_ID} '{"CrumbID":"${CRUMB_ID}","Name":"Crumb three","State":"dust"}'
-      --datadir /tmp/regen-test
+    - cupboard set crumbs ${CRUMB_ID} '{"CrumbID":"${CRUMB_ID}","Name":"Crumb three","State":"dust"}' --datadir /tmp/regen-test
   expected:
     exit_code: 0
 - name: Generation N sets property value on crumb
@@ -542,8 +532,8 @@ test_cases:
 - name: Generation N defines custom property
   inputs:
     args:
-    - cupboard set properties "" '{"Name":"regen_test_prop","ValueType":"text","Description":"Test
-      property for regeneration"}' --datadir /tmp/regen-test
+    - cupboard set properties "" '{"Name":"regen_test_prop","ValueType":"text","Description":"Test property for regeneration"}'
+      --datadir /tmp/regen-test
   expected:
     exit_code: 0
 - name: Generation N+1 lists custom property defined by N
@@ -556,8 +546,7 @@ test_cases:
 - name: Generation N+1 sets value on property defined by N
   inputs:
     args:
-    - /tmp/cupboard-gen-n1 set-property crumbs ${CRUMB_ID} regen_test_prop "n+1 value"
-      --datadir /tmp/regen-test
+    - /tmp/cupboard-gen-n1 set-property crumbs ${CRUMB_ID} regen_test_prop "n+1 value" --datadir /tmp/regen-test
   expected:
     exit_code: 0
 - name: Generation N reads property value set by N+1

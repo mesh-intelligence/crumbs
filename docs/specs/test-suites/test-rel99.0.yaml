@@ -4,15 +4,15 @@ release: '99.0'
 traces:
 - rel99.0-uc001-blazes-templates
 - rel99.0-uc002-docker-bootstrap
-preconditions: |-
-  Template directory exists at .crumbs/blazes/ or configured path
-  At least one valid template YAML file in the directory
-  YAML parsing capability available
-  Agent has access to task context for semantic matching
-  Docker installed and running on host
-  Claude API access available (ANTHROPIC_API_KEY set)
-  docs/ directory contains VISION.md, ARCHITECTURE.md, road-map.yaml, PRDs, use cases
-  No crumbs source code in container (only docs/ mounted)
+preconditions:
+- Template directory exists at .crumbs/blazes/ or configured path
+- At least one valid template YAML file in the directory
+- YAML parsing capability available
+- Agent has access to task context for semantic matching
+- Docker installed and running on host
+- Claude API access available (ANTHROPIC_API_KEY set)
+- docs/ directory contains VISION.md, ARCHITECTURE.md, road-map.yaml, PRDs, use cases
+- No crumbs source code in container (only docs/ mounted)
 test_cases:
 - name: Discover template directory at well-known path
   inputs:
@@ -149,8 +149,8 @@ test_cases:
 - name: Verify no source code in container
   inputs:
     args:
-    - 'ls /workspace/ ls /workspace/pkg 2>&1 || echo "no pkg" ls /workspace/internal
-      2>&1 || echo "no internal" ls /workspace/cmd 2>&1 || echo "no cmd" '
+    - 'ls /workspace/ ls /workspace/pkg 2>&1 || echo "no pkg" ls /workspace/internal 2>&1 || echo "no internal" ls /workspace/cmd
+      2>&1 || echo "no cmd" '
   expected:
     stdout: no cmd
 - name: Verify Go toolchain available
@@ -196,16 +196,14 @@ test_cases:
 - name: Create pkg/types directory structure
   inputs:
     args:
-    - 'mkdir -p /workspace/pkg/types mkdir -p /workspace/internal/sqlite mkdir -p
-      /workspace/cmd/crumbs '
+    - 'mkdir -p /workspace/pkg/types mkdir -p /workspace/internal/sqlite mkdir -p /workspace/cmd/crumbs '
   expected:
     exit_code: 0
 - name: Implement Cupboard interface per prd001-cupboard-core
   inputs:
     args:
-    - 'Agent implements pkg/types/cupboard.go with: - Cupboard interface (Attach,
-      Detach, GetTable) - Table interface (Get, Set, Delete, Fetch) - Config struct
-      (Backend, DataDir) '
+    - 'Agent implements pkg/types/cupboard.go with: - Cupboard interface (Attach, Detach, GetTable) - Table interface (Get,
+      Set, Delete, Fetch) - Config struct (Backend, DataDir) '
   expected: {}
 - name: Attach initializes storage
   inputs:
@@ -222,8 +220,7 @@ test_cases:
 - name: Table.Set creates entity
   inputs:
     args:
-    - 'crumbsTable := cupboard.GetTable("crumbs") id, err := crumbsTable.Set("", &Crumb{Name:
-      "Test", State: "draft"}) '
+    - 'crumbsTable := cupboard.GetTable("crumbs") id, err := crumbsTable.Set("", &Crumb{Name: "Test", State: "draft"}) '
   expected:
     exit_code: 0
 - name: Table.Get retrieves entity
@@ -312,8 +309,8 @@ test_cases:
 - name: Verify Cupboard interface matches prd001-cupboard-core
   inputs:
     args:
-    - 'Inspect pkg/types/cupboard.go Verify Attach, Detach, GetTable methods present
-      Verify Table interface has Get, Set, Delete, Fetch '
+    - 'Inspect pkg/types/cupboard.go Verify Attach, Detach, GetTable methods present Verify Table interface has Get, Set,
+      Delete, Fetch '
   expected: {}
 - name: Verify Crumb struct matches prd003-crumbs-interface
   inputs:
@@ -323,8 +320,7 @@ test_cases:
 - name: Verify SQLite backend matches prd002-sqlite-backend
   inputs:
     args:
-    - 'Inspect internal/sqlite/*.go Verify JSONL format, directory layout, startup
-      loading '
+    - 'Inspect internal/sqlite/*.go Verify JSONL format, directory layout, startup loading '
   expected: {}
 - name: Handle missing ANTHROPIC_API_KEY
   inputs:
@@ -342,7 +338,7 @@ test_cases:
     - Agent attempts to implement based on incomplete docs
   expected: {}
 - name: End-to-end bootstrap workflow
-  description: 'Complete bootstrap from empty container to self-hosting crumbs. Validates
-    the entire flow from documentation to working system. '
+  description: 'Complete bootstrap from empty container to self-hosting crumbs. Validates the entire flow from documentation
+    to working system. '
   inputs: {}
   expected: {}

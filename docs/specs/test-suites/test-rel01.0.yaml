@@ -9,18 +9,18 @@ traces:
 - prd001-cupboard-core R2
 - prd001-cupboard-core R2.5
 - rel01.0-uc005-crumbs-table-benchmarks
-preconditions: |-
-  Cupboard binary built from cmd/cupboard
-  Fresh temp directory for config and data
-  Config file points SQLite backend at the temp data directory
-  No existing crumbs, trails, or links
-  No existing entities in any standard table
-  No existing crumbs
-  Go toolchain installed (go build works)
-  Source tree is checked out and module dependencies resolved
-  Go test infrastructure available (go test command)
-  tests/integration package contains benchmark test files
-  Cupboard initialized with SQLite backend in a temp directory
+preconditions:
+- Cupboard binary built from cmd/cupboard
+- Fresh temp directory for config and data
+- Config file points SQLite backend at the temp data directory
+- No existing crumbs, trails, or links
+- No existing entities in any standard table
+- No existing crumbs
+- Go toolchain installed (go build works)
+- Source tree is checked out and module dependencies resolved
+- Go test infrastructure available (go test command)
+- tests/integration package contains benchmark test files
+- Cupboard initialized with SQLite backend in a temp directory
 test_cases:
 - name: Initialize cupboard for lifecycle tests
   description: Validates cupboard init creates required JSONL files.
@@ -71,16 +71,14 @@ test_cases:
   expected:
     exit_code: 0
 - name: Trails persisted to JSONL
-  description: Create trails, transition states, verify JSONL file contains correct
-    state values.
+  description: Create trails, transition states, verify JSONL file contains correct state values.
   inputs: {}
   expected:
     exit_code: 0
 - name: Full lifecycle with crumbs and trails
-  description: 'Create 3 crumbs, transition crumb1 to pebble, create 2 trails, link
-    crumb2 to trail1 and crumb3 to trail2, complete trail1, abandon trail2. Per prd006-trails-interface
-    R5.6/R6.6: completing trail1 removes belongs_to links (crumb2 becomes permanent),
-    abandoning trail2 deletes crumb3. '
+  description: 'Create 3 crumbs, transition crumb1 to pebble, create 2 trails, link crumb2 to trail1 and crumb3 to trail2,
+    complete trail1, abandon trail2. Per prd006-trails-interface R5.6/R6.6: completing trail1 removes belongs_to links (crumb2
+    becomes permanent), abandoning trail2 deletes crumb3. '
   inputs: {}
   expected:
     exit_code: 0
@@ -144,8 +142,7 @@ test_cases:
   description: UpdatedAt timestamp is later than the original after update.
   inputs:
     args:
-    - cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Timestamp
-      updated","State":"draft"}'
+    - cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"Timestamp updated","State":"draft"}'
   expected:
     exit_code: 0
 - name: Fetch with empty filter returns all crumbs
@@ -279,8 +276,7 @@ test_cases:
 - name: JSONL reflects update operation
   inputs:
     args:
-    - cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"After JSONL
-      update","State":"ready"}'
+    - cupboard set crumbs ${crumb_id} '{"CrumbID":"${crumb_id}","Name":"After JSONL update","State":"ready"}'
   expected:
     exit_code: 0
 - name: JSONL reflects delete operation
@@ -290,8 +286,7 @@ test_cases:
   expected:
     exit_code: 0
 - name: Multiple operations reflected in JSONL
-  description: Sequence of create, update, delete operations correctly reflected in
-    JSONL.
+  description: Sequence of create, update, delete operations correctly reflected in JSONL.
   inputs: {}
   expected: {}
 - name: JSONL lines are valid JSON
@@ -299,8 +294,7 @@ test_cases:
   inputs: {}
   expected: {}
 - name: Operations after detach return error
-  description: After Detach, Table operations return ErrCupboardDetached. SKIPPED
-    pending CLI implementation.
+  description: After Detach, Table operations return ErrCupboardDetached. SKIPPED pending CLI implementation.
   inputs:
     args:
     - cupboard get crumbs ${crumb_id}
@@ -340,8 +334,8 @@ test_cases:
     exit_code: 1
     stderr_contains: detach
 - name: Create crumb with draft state and initialized timestamps
-  description: 'New crumb with explicit draft state has CreatedAt and UpdatedAt set.
-    Note: CLI requires explicit State in JSON input. '
+  description: 'New crumb with explicit draft state has CreatedAt and UpdatedAt set. Note: CLI requires explicit State in
+    JSON input. '
   inputs:
     args:
     - cupboard set crumbs "" '{"Name":"New crumb","State":"draft"}'
@@ -418,8 +412,7 @@ test_cases:
   expected:
     exit_code: 0
 - name: UpdatedAt advances on state transition
-  description: 'Verify UpdatedAt changes when state transitions and is later than
-    previous value. CreatedAt must remain constant. '
+  description: 'Verify UpdatedAt changes when state transitions and is later than previous value. CreatedAt must remain constant. '
   inputs: {}
   expected:
     exit_code: 0
@@ -459,16 +452,14 @@ test_cases:
   expected:
     exit_code: 0
 - name: List without filter returns all crumbs
-  description: Listing crumbs without state filter returns all crumbs regardless of
-    state.
+  description: Listing crumbs without state filter returns all crumbs regardless of state.
   inputs:
     args:
     - cupboard list crumbs
   expected:
     exit_code: 0
 - name: Full success path draft to pebble
-  description: 'Exercise the complete success path: draft → pending → ready → taken
-    → pebble. '
+  description: 'Exercise the complete success path: draft → pending → ready → taken → pebble. '
   inputs: {}
   expected:
     exit_code: 0
@@ -478,8 +469,7 @@ test_cases:
   expected:
     exit_code: 0
 - name: Mixed terminal states in same table
-  description: 'Create multiple crumbs with different terminal states and verify correct
-    filtering. '
+  description: 'Create multiple crumbs with different terminal states and verify correct filtering. '
   inputs: {}
   expected:
     exit_code: 0
@@ -492,9 +482,8 @@ test_cases:
   inputs: {}
   expected: {}
 - name: Cupboard CLI compiles without errors
-  description: 'Build must succeed through the mesh-intelligence module path with
-    the local replace directive. Validated by TestMain building the binary before
-    tests run. '
+  description: 'Build must succeed through the mesh-intelligence module path with the local replace directive. Validated by
+    TestMain building the binary before tests run. '
   inputs:
     args:
     - go build -o cupboard ./cmd/cupboard
@@ -508,8 +497,8 @@ test_cases:
     exit_code: 0
     stdout: cupboard
 - name: Version command lists implemented use cases
-  description: 'The version output must include a list of implemented use cases. For
-    this first use case, the output includes at minimum rel01.0-uc004-scaffolding-validation. '
+  description: 'The version output must include a list of implemented use cases. For this first use case, the output includes
+    at minimum rel01.0-uc004-scaffolding-validation. '
   inputs:
     args:
     - cupboard version
@@ -517,8 +506,7 @@ test_cases:
     exit_code: 0
     stdout: rel01.0-uc004
 - name: Version command works without backend connection
-  description: 'The version command must not require an initialized backend. Running
-    it without init must succeed. '
+  description: 'The version command must not require an initialized backend. Running it without init must succeed. '
   inputs:
     args:
     - cupboard version
@@ -526,8 +514,8 @@ test_cases:
     exit_code: 0
     stdout: cupboard
 - name: Crumb struct has required fields
-  description: 'Compile-time test. Instantiate a Crumb with all documented fields
-    to verify the struct definition matches prd003-crumbs-interface. '
+  description: 'Compile-time test. Instantiate a Crumb with all documented fields to verify the struct definition matches
+    prd003-crumbs-interface. '
   inputs: {}
   expected: {}
 - name: Trail struct has required fields
@@ -561,14 +549,12 @@ test_cases:
   inputs: {}
   expected: {}
 - name: Standard table name constants are defined
-  description: 'All six standard table name constants must be defined with correct
-    values. '
+  description: 'All six standard table name constants must be defined with correct values. '
   inputs: {}
   expected: {}
 - name: GetTable succeeds for crumbs table
-  description: 'We probe the crumbs table by requesting a nonexistent ID. Exit code
-    0 or 1 confirms the table exists. We must NOT get "table not found" or "unknown
-    table" errors. '
+  description: 'We probe the crumbs table by requesting a nonexistent ID. Exit code 0 or 1 confirms the table exists. We must
+    NOT get "table not found" or "unknown table" errors. '
   inputs:
     args:
     - cupboard get crumbs nonexistent-probe-id
@@ -599,8 +585,7 @@ test_cases:
     - cupboard get stashes nonexistent-probe-id
   expected: {}
 - name: GetTable fails for unknown table name
-  description: 'Requesting a table that does not exist via CLI must return a non-zero
-    exit code. '
+  description: 'Requesting a table that does not exist via CLI must return a non-zero exit code. '
   inputs:
     args:
     - cupboard get nonexistent nonexistent-id
@@ -626,13 +611,12 @@ test_cases:
   inputs: {}
   expected: {}
 - name: Backend GetTable returns ErrTableNotFound for unknown table
-  description: 'Direct backend API test. GetTable for an unknown table name returns
-    ErrTableNotFound. '
+  description: 'Direct backend API test. GetTable for an unknown table name returns ErrTableNotFound. '
   inputs: {}
   expected: {}
 - name: Get benchmark with 10 crumbs
-  description: 'Measure Table.Get latency with 10 seeded crumbs. Benchmark uses random
-    ID selection to measure average lookup time. '
+  description: 'Measure Table.Get latency with 10 seeded crumbs. Benchmark uses random ID selection to measure average lookup
+    time. '
   inputs:
     args:
     - go test -bench=BenchmarkCrumbsGet10_UC005 -benchmem ./tests/integration/...
@@ -661,9 +645,8 @@ test_cases:
     exit_code: 0
     stdout: BenchmarkCrumbsGet10000_UC005
 - name: Set create benchmark with 10 existing crumbs
-  description: 'Measure Table.Set latency for creating new crumbs (empty ID triggers
-    UUID v7 generation). Seeds 10 existing crumbs before measuring create operations
-    per prd002-sqlite-backend R5.3. '
+  description: 'Measure Table.Set latency for creating new crumbs (empty ID triggers UUID v7 generation). Seeds 10 existing
+    crumbs before measuring create operations per prd002-sqlite-backend R5.3. '
   inputs:
     args:
     - go test -bench=BenchmarkCrumbsSetCreate10_UC005 -benchmem ./tests/integration/...
@@ -678,8 +661,7 @@ test_cases:
     exit_code: 0
     stdout: BenchmarkCrumbsSetCreate1000_UC005
 - name: Set update benchmark with 10 crumbs
-  description: 'Measure Table.Set latency for updating existing crumbs. Uses random
-    ID selection and updates the Name field. '
+  description: 'Measure Table.Set latency for updating existing crumbs. Uses random ID selection and updates the Name field. '
   inputs:
     args:
     - go test -bench=BenchmarkCrumbsSetUpdate10_UC005 -benchmem ./tests/integration/...
@@ -694,9 +676,8 @@ test_cases:
     exit_code: 0
     stdout: BenchmarkCrumbsSetUpdate1000_UC005
 - name: Delete benchmark with 10 crumbs
-  description: 'Measure Table.Delete latency. Seeds 10 crumbs, then each iteration
-    creates and deletes a crumb. Uses StopTimer/StartTimer to exclude create cost
-    from measurement. '
+  description: 'Measure Table.Delete latency. Seeds 10 crumbs, then each iteration creates and deletes a crumb. Uses StopTimer/StartTimer
+    to exclude create cost from measurement. '
   inputs:
     args:
     - go test -bench=BenchmarkCrumbsDelete10_UC005 -benchmem ./tests/integration/...
@@ -711,9 +692,8 @@ test_cases:
     exit_code: 0
     stdout: BenchmarkCrumbsDelete1000_UC005
 - name: Fetch all benchmark with 100 crumbs
-  description: 'Measure Table.Fetch latency with nil filter returning all crumbs.
-    Exercises full table scan with entity hydration. Asserts result count matches
-    data_size. '
+  description: 'Measure Table.Fetch latency with nil filter returning all crumbs. Exercises full table scan with entity hydration.
+    Asserts result count matches data_size. '
   inputs:
     args:
     - go test -bench=BenchmarkCrumbsFetchAll100_UC005 -benchmem ./tests/integration/...
@@ -728,9 +708,8 @@ test_cases:
     exit_code: 0
     stdout: BenchmarkCrumbsFetchAll1000_UC005
 - name: Fetch with state filter benchmark 100 crumbs
-  description: 'Measure Table.Fetch with state filter (State: draft). Seeds 100 crumbs
-    cycling through draft, pending, ready states. Exercises idx_crumbs_state index
-    per prd002-sqlite-backend R3.3. '
+  description: 'Measure Table.Fetch with state filter (State: draft). Seeds 100 crumbs cycling through draft, pending, ready
+    states. Exercises idx_crumbs_state index per prd002-sqlite-backend R3.3. '
   inputs:
     args:
     - go test -bench=BenchmarkCrumbsFetchState100_UC005 -benchmem ./tests/integration/...

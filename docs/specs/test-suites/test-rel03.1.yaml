@@ -3,10 +3,10 @@ title: Post-Trails Validation
 release: '03.1'
 traces:
 - rel03.1-uc001-self-hosting-with-epics
-preconditions: |-
-  Cupboard initialized with SQLite backend
-  No existing crumbs, trails, or links in the database
-  rel03.0 trail lifecycle features are implemented
+preconditions:
+- Cupboard initialized with SQLite backend
+- No existing crumbs, trails, or links in the database
+- rel03.0 trail lifecycle features are implemented
 test_cases:
 - name: Create epic trail in draft state
   inputs:
@@ -135,8 +135,7 @@ test_cases:
     exit_code: 0
     stdout: '[]'
 - name: Crumb cannot belong to multiple trails
-  description: Attempting to create a second belongs_to link for the same crumb should
-    fail or overwrite
+  description: Attempting to create a second belongs_to link for the same crumb should fail or overwrite
   inputs:
     args:
     - cupboard set trails "" '{"State":"active"}'
@@ -166,8 +165,7 @@ test_cases:
   expected:
     exit_code: 0
 - name: Move crumb between trails
-  description: Test moving a crumb from one trail to another by deleting and recreating
-    link
+  description: Test moving a crumb from one trail to another by deleting and recreating link
   inputs:
     args:
     - cupboard set trails "" '{"State":"active"}'
