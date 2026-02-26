@@ -41,15 +41,18 @@ flow:
   step: 'Present selection: display selected template name, description, and required
     parameters to the user for confirmation'
 touchpoints:
-- T1: 'Template directory: file system path containing blaze YAML files'
-- T2: 'YAML parser: reads and parses template files into structured data'
-- T3: 'Template metadata: name, description, tags, parameters extracted from YAML'
-- T4: 'Parameter extraction: identifies required inputs before instantiation'
-- T5: 'prd003-crumbs-interface R1: Crumb struct fields referenced in template trail
+- T1: 'prd011-blazes-templates R4: template directory discovery at well-known or configured
+    path'
+- T2: 'prd011-blazes-templates R5: template file enumeration from directory'
+- T3: 'prd011-blazes-templates R1: Blaze template YAML schema with name, description,
+    tags, parameters'
+- T4: 'prd011-blazes-templates R8: parameter extraction with context inference'
+- T5: 'prd011-blazes-templates R6: tag-based matching of task context against template
+    tags'
+- T6: 'prd011-blazes-templates R7: template selection from matched candidates'
+- T7: 'prd003-crumbs-interface R1: Crumb struct fields referenced in template trail
     definition'
-- T6: 'prd006-trails-interface R3: trail creation referenced for future instantiation'
-- T7: 'prd006-trails-interface R7: belongs_to links for crumb-trail membership in
-    instantiation'
+- T8: 'prd006-trails-interface R3: trail creation referenced for future instantiation'
 success_criteria:
 - id: S1
   criterion: Agent discovers template directory at configured or well-known path

@@ -1,0 +1,366 @@
+id: prd011-blazes-templates
+title: Blazes Template Schema, Discovery, and Selection
+problem: |
+  Coding agents frequently encounter tasks that follow recognizable patterns: fixing a bug, implementing
+  a feature, performing a code review, refactoring a module. Each time, the agent constructs a workflow
+  from scratch — deciding which crumbs to create, how to organize them on a trail, what parameters to
+  gather, and in what order to proceed. This repeated construction is wasteful and error-prone. Two agents
+  tackling the same category of task may produce inconsistent workflows, miss steps, or structure work
+  differently.
+
+  We need reusable workflow templates (blazes) that encode proven patterns. An agent encountering a
+  bug-fix task should be able to discover a bug-fix template, confirm it matches the current task, extract
+  the parameters it needs, and present the selection to the user for confirmation. The template captures
+  the workflow structure (which crumbs to create, their dependencies, their trail organization) so agents
+  start from a known-good pattern instead of improvising.
+
+  This PRD defines the blaze template system: the YAML schema for template files, the mechanism for
+  discovering templates on the filesystem, the algorithm for matching a task to a template via tags, the
+  selection logic when multiple templates match, and the extraction of parameters that the agent or user
+  must supply before instantiation. Template instantiation (actually creating trails, crumbs, and links
+  from a template) is out of scope and deferred to a future PRD (prd-blazes-instantiation).
+goals:
+- G1: Define the Blaze template YAML schema with required and optional fields
+- G2: Define the BlazeParameter schema for template parameters
+- G3: Specify template directory discovery (well-known path and configurable path)
+- G4: Specify template listing and enumeration of template files
+- G5: Specify metadata parsing from template YAML files
+- G6: Specify tag-based matching of task context against template tags
+- G7: Specify template selection when one or multiple templates match
+- G8: Specify parameter extraction with context inference and user input identification
+- G9: Document error handling for missing directories, malformed templates, and permission errors
+requirements:
+  R1:
+    title: Blaze Template YAML Schema
+    items:
+    - R1.1: A blaze template is a single YAML file stored in the template directory. Each file defines
+        one workflow template
+    - R1.2: The template YAML must include the following required fields
+    - R1.3: |
+        Required fields table:
+
+        | Field             | Type       | Required | Description                                                        |
+        |-------------------|------------|----------|--------------------------------------------------------------------|
+        | name              | string     | yes      | Unique human-readable template name (e.g., "bug-fix", "feature")   |
+        | description       | string     | yes      | One-paragraph explanation of what this template does                |
+        | tags              | []string   | yes      | Keywords for matching (e.g., ["bug-fix", "debugging", "hotfix"])    |
+        | parameters        | []Parameter| no       | Input parameters the template requires (see R2). Empty if none     |
+        | trail_definition  | object     | no       | Trail structure with crumb definitions (opaque to discovery/selection; parsed only during instantiation) |
+    - R1.4: The name field must be non-empty. A template with an empty name is malformed
+    - R1.5: The description field must be non-empty. A template with an empty description is malformed
+    - R1.6: The tags field must be a non-empty list of strings. A template with no tags cannot be matched
+        and is malformed
+    - R1.7: Each tag must be a lowercase string containing only letters, numbers, and hyphens. Tags are
+        compared case-insensitively during matching
+    - R1.8: The parameters field is optional. When omitted or empty, the template requires no user input
+        before instantiation
+    - R1.9: The trail_definition field is optional in this PRD. Its schema will be defined in
+        prd-blazes-instantiation. Discovery and selection ignore this field entirely
+    - R1.10: Unknown fields in the template YAML must be ignored (forward compatibility). The parser
+        must not reject a template because it contains fields not defined in this PRD
+    - R1.11: |
+        Optional fields table:
+
+        | Field    | Type   | Required | Description                                                          |
+        |----------|--------|----------|----------------------------------------------------------------------|
+        | version  | string | no       | Template version identifier (e.g., "1.0"). Advisory, not enforced    |
+        | priority | int    | no       | Selection priority when multiple templates match equally. Lower values indicate higher priority. Default is 0 |
+        | author   | string | no       | Template author for attribution                                      |
+    - R1.12: |
+        Example template file (bug-fix.yaml):
+
+        ```yaml
+        name: bug-fix
+        description: |
+          Workflow for diagnosing and fixing a bug. Creates a trail with crumbs
+          for reproduction, root cause analysis, fix implementation, and
+          verification.
+        tags:
+          - bug-fix
+          - debugging
+          - hotfix
+          - defect
+        priority: 0
+        parameters:
+          - name: bug_description
+            description: Description of the bug to fix
+            type: text
+          - name: reproduction_steps
+            description: Steps to reproduce the bug
+            type: text
+            default: ""
+          - name: affected_files
+            description: List of files known to be affected
+            type: list
+            default: []
+          - name: severity
+            description: Bug severity level (1-5)
+            type: integer
+            default: 3
+        trail_definition:
+          # Defined in prd-blazes-instantiation
+        ```
+  R2:
+    title: BlazeParameter Schema
+    items:
+    - R2.1: Each parameter in the parameters list must include the following fields
+    - R2.2: |
+        Parameter fields table:
+
+        | Field       | Type   | Required | Description                                                        |
+        |-------------|--------|----------|--------------------------------------------------------------------|
+        | name        | string | yes      | Parameter identifier (lowercase, letters, numbers, underscores)    |
+        | description | string | yes      | Human-readable explanation of what this parameter is for            |
+        | type        | string | yes      | Value type: one of "text", "integer", "boolean", "list"            |
+        | default     | any    | no       | Default value. When present, the parameter is optional             |
+    - R2.3: The name field must be non-empty and contain only lowercase letters, numbers, and underscores.
+        A parameter with an empty or invalid name makes the template malformed
+    - R2.4: The description field must be non-empty. A parameter with an empty description makes the
+        template malformed
+    - R2.5: The type field must be one of the following values. An unrecognized type makes the template
+        malformed
+    - R2.6: |
+        Parameter types table:
+
+        | Type    | Go equivalent | Default when no default specified | Description            |
+        |---------|---------------|-----------------------------------|------------------------|
+        | text    | string        | "" (empty string)                 | Free-form text value   |
+        | integer | int           | 0                                 | Whole number value     |
+        | boolean | bool          | false                             | True or false value    |
+        | list    | []string      | [] (empty list)                   | List of string values  |
+    - R2.7: A parameter with a default field is optional; the agent may use the default if the value
+        cannot be determined from context. A parameter without a default field is required; the agent
+        or user must supply a value
+    - R2.8: Parameter names must be unique within a template. Duplicate parameter names make the template
+        malformed
+    - R2.9: The default value must match the parameter type. A text parameter with an integer default,
+        or an integer parameter with a string default, makes the template malformed
+  R3:
+    title: Template Directory Discovery
+    items:
+    - R3.1: The template directory is the filesystem location where blaze template YAML files are stored.
+        Discovery determines this location using a precedence chain
+    - R3.2: |
+        Discovery precedence (highest to lowest):
+
+        1. Explicit path passed by the caller (e.g., a function parameter or API call)
+        2. Configuration value in config.yaml under the key `blazes_dir`
+        3. Well-known path: `.crumbs/blazes/` relative to the Cupboard data directory (Config.DataDir)
+    - R3.3: The well-known path `.crumbs/blazes/` is relative to the data directory resolved by
+        prd010-configuration-directories. For example, if DataDir is `/project/.crumbs-db`, the
+        well-known template path is `/project/.crumbs-db/.crumbs/blazes/`
+    - R3.4: If the resolved template directory does not exist, discovery must return
+        ErrTemplateDirNotFound. The caller decides whether to create the directory or proceed without
+        templates
+    - R3.5: If the resolved template directory exists but is not readable (permission denied), discovery
+        must return ErrTemplateDirNotReadable
+    - R3.6: Discovery is a read-only operation. It must not create directories or modify the filesystem
+  R4:
+    title: Template Listing
+    items:
+    - R4.1: Template listing enumerates all blaze template files in the discovered template directory
+    - R4.2: A file is a candidate template if its extension is `.yaml` or `.yml` (case-insensitive)
+    - R4.3: Listing must not recurse into subdirectories. Only files in the top-level template directory
+        are considered
+    - R4.4: If the template directory is empty (no .yaml or .yml files), listing must return an empty
+        list without error
+    - R4.5: Files that are not regular files (e.g., directories with .yaml extension, symlinks to
+        directories) must be skipped
+    - R4.6: The listing result is an ordered list of file paths, sorted alphabetically by filename
+  R5:
+    title: Metadata Parsing
+    items:
+    - R5.1: Metadata parsing reads each candidate template file and extracts the name, description,
+        tags, parameters, version, priority, and author fields
+    - R5.2: Parsing must not read or interpret the trail_definition field. This field is opaque during
+        discovery and selection, reserved for instantiation (prd-blazes-instantiation)
+    - R5.3: If a template file contains invalid YAML (syntax error), the parser must skip that file,
+        record a warning with the filename and parse error, and continue processing remaining files.
+        Malformed files do not halt the parsing of other templates
+    - R5.4: If a template file is valid YAML but violates the schema (e.g., missing required field name,
+        empty tags list, invalid parameter type), the parser must skip that file, record a warning with
+        the filename and validation error, and continue processing remaining files
+    - R5.5: A template with minimal metadata (only name, description, and tags; no parameters, no
+        optional fields) must parse successfully
+    - R5.6: Parsing must produce a list of BlazeMetadata structs (one per successfully parsed template).
+        The BlazeMetadata struct contains the template's name, description, tags, parameters, version,
+        priority, author, and source file path
+    - R5.7: |
+        BlazeMetadata fields:
+
+        | Field       | Type          | Description                                          |
+        |-------------|---------------|------------------------------------------------------|
+        | Name        | string        | Template name from YAML                              |
+        | Description | string        | Template description from YAML                       |
+        | Tags        | []string      | Template tags from YAML                              |
+        | Parameters  | []BlazeParam  | Parsed parameters (empty slice if none)              |
+        | Version     | string        | Template version (empty string if not specified)     |
+        | Priority    | int           | Selection priority (0 if not specified)              |
+        | Author      | string        | Template author (empty string if not specified)      |
+        | FilePath    | string        | Absolute path to the source template file            |
+    - R5.8: Unknown fields in the YAML are silently ignored during parsing (per R1.10)
+  R6:
+    title: Tag-Based Matching
+    items:
+    - R6.1: Tag-based matching compares a task context against the tags of each parsed template to
+        determine which templates are relevant to the current task
+    - R6.2: |
+        The task context for matching is a struct with the following fields:
+
+        | Field       | Type     | Description                                                  |
+        |-------------|----------|--------------------------------------------------------------|
+        | Description | string   | Free-text description of the task                            |
+        | Labels      | []string | Explicit labels or categories assigned to the task           |
+        | Keywords    | []string | Additional keywords extracted from the task context          |
+    - R6.3: An exact match occurs when a template tag exactly equals (case-insensitive) one of the task
+        context labels or keywords. Exact matches are the primary matching mechanism
+    - R6.4: A semantic match occurs when a template tag is a substring of the task description
+        (case-insensitive) or when the task description contains a word that is a substring of the
+        template tag. Semantic matches are secondary to exact matches
+    - R6.5: A template matches a task if it has at least one exact match or at least two semantic
+        matches. The match threshold prevents spurious single-word coincidences from triggering
+        selection
+    - R6.6: The match score for a template equals (number of exact matches * 2) + (number of semantic
+        matches). Higher scores indicate stronger matches
+    - R6.7: If no templates match the task context, the matching result is an empty list. This is not
+        an error; the caller may proceed without a template or prompt the user
+    - R6.8: Matching is case-insensitive. Tags, labels, keywords, and description are all compared in
+        lowercase
+  R7:
+    title: Template Selection
+    items:
+    - R7.1: Template selection chooses the best template from the list of matched templates produced
+        by tag-based matching (R6)
+    - R7.2: If exactly one template matches, that template is selected. No further disambiguation is
+        needed
+    - R7.3: If multiple templates match, selection proceeds by specificity. The template with the
+        highest match score (R6.6) is selected
+    - R7.4: If multiple templates have the same highest match score, the template with the lowest
+        priority value (R1.11) is selected. Lower priority values indicate higher preference
+    - R7.5: If multiple templates have both the same match score and the same priority, selection
+        is ambiguous. The selector must return all tied templates and a flag indicating ambiguity.
+        The caller is responsible for prompting the user to choose among the tied templates
+    - R7.6: If no templates match (R6.7), selection returns nil and a flag indicating no match. This
+        is not an error
+    - R7.7: |
+        SelectionResult fields:
+
+        | Field     | Type            | Description                                            |
+        |-----------|-----------------|--------------------------------------------------------|
+        | Selected  | *BlazeMetadata  | The selected template, or nil if no match/ambiguous    |
+        | Tied      | []BlazeMetadata | All tied templates when ambiguous (empty otherwise)    |
+        | Ambiguous | bool            | True when multiple templates tie and user must choose   |
+        | NoMatch   | bool            | True when no templates matched the task context         |
+  R8:
+    title: Parameter Extraction
+    items:
+    - R8.1: Parameter extraction analyzes the parameters of a selected template to determine which
+        values the agent can infer from context and which require user input
+    - R8.2: A parameter is classified as required if it has no default value (R2.7). Required parameters
+        must be supplied by the agent or user before instantiation can proceed
+    - R8.3: A parameter is classified as optional if it has a default value (R2.7). Optional parameters
+        use their default if no value is provided
+    - R8.4: Context inference attempts to determine parameter values from the current task context. The
+        inference mechanism examines the task description, labels, keywords, and any additional context
+        the caller provides
+    - R8.5: |
+        Inference rules:
+
+        | Parameter type | Inference source                                                     |
+        |---------------|-----------------------------------------------------------------------|
+        | text          | Extract from task description if the parameter name appears as a key  |
+        | integer       | Extract numeric values from task context if the parameter name matches |
+        | boolean       | Infer from presence/absence of keywords matching the parameter name    |
+        | list          | Collect from task labels or keywords matching the parameter name       |
+    - R8.6: Inference is best-effort. If a value cannot be determined from context, the parameter
+        remains unresolved. The caller must prompt the user for unresolved required parameters
+    - R8.7: |
+        ExtractedParameter fields:
+
+        | Field         | Type   | Description                                                  |
+        |---------------|--------|--------------------------------------------------------------|
+        | Name          | string | Parameter name from the template                             |
+        | Description   | string | Parameter description from the template                      |
+        | Type          | string | Parameter type (text, integer, boolean, list)                |
+        | Default       | any    | Default value, or nil if no default                          |
+        | Required      | bool   | True if no default value (must be supplied)                  |
+        | InferredValue | any    | Value inferred from context, or nil if not inferred          |
+        | Inferred      | bool   | True if a value was successfully inferred from context       |
+    - R8.8: The extraction result is an ordered list of ExtractedParameter structs preserving the
+        order from the template YAML. Required parameters without inferred values should be
+        highlighted when presenting to the user
+  R9:
+    title: Error Handling
+    items:
+    - R9.1: Blaze template operations must use the following sentinel errors, following the pattern
+        established in prd001-cupboard-core R7
+    - R9.2: |
+        Error types table:
+
+        | Error                    | Condition                                                    |
+        |--------------------------|--------------------------------------------------------------|
+        | ErrTemplateDirNotFound   | Template directory does not exist on the filesystem          |
+        | ErrTemplateDirNotReadable| Template directory exists but cannot be read (permissions)   |
+        | ErrTemplateNotFound      | A specific template (by name) was requested but not found    |
+        | ErrMalformedTemplate     | Template file is valid YAML but violates the schema          |
+        | ErrNoMatch               | No templates matched the task context                        |
+    - R9.3: All errors must be checkable with errors.Is
+    - R9.4: ErrTemplateDirNotFound is returned by discovery (R3.4) when the resolved directory path
+        does not exist. The error must include the attempted path
+    - R9.5: ErrTemplateDirNotReadable is returned by discovery (R3.5) when permissions prevent reading.
+        The error must include the attempted path and the underlying OS error
+    - R9.6: ErrTemplateNotFound is returned when a caller requests a specific template by name (e.g.,
+        for direct selection without matching) and no template with that name exists in the directory
+    - R9.7: ErrMalformedTemplate is used internally during parsing (R5.3, R5.4). Malformed templates
+        are skipped with a warning; ErrMalformedTemplate is not returned to the top-level caller. It
+        may be included in a warnings list for diagnostic purposes
+    - R9.8: ErrNoMatch is returned by the selection process (R7.6) when no templates matched the task
+        context. This is a normal condition, not a system failure. Callers should handle it gracefully
+        (e.g., proceed without a template or ask the user to select manually)
+    - R9.9: I/O errors reading individual template files (e.g., file deleted between listing and
+        reading) must be treated as warnings. The parser skips the unreadable file and continues
+        with remaining files
+non_goals:
+- This PRD does not define trail instantiation from templates. Creating trails, crumbs, and belongs_to
+  links from a selected template is deferred to prd-blazes-instantiation
+- This PRD does not define parameter value binding or placeholder expansion. Substituting parameter
+  values into trail definitions is deferred to prd-blazes-instantiation
+- This PRD does not define creating crumbs via Table.Set (prd003-crumbs-interface R3) from template
+  data. That requires instantiation
+- This PRD does not define creating trails via Table.Set (prd006-trails-interface R3) from template
+  data. That requires instantiation
+- This PRD does not define creating belongs_to links (prd006-trails-interface R7) from template data.
+  That requires instantiation
+- This PRD does not define template versioning or inheritance. Templates are standalone files; there
+  is no mechanism for one template to extend or override another
+- This PRD does not define remote template repositories. Templates are local filesystem files only
+- This PRD does not define template creation or editing workflows. Templates are authored manually
+  or by external tools
+- This PRD does not define a specialized BlazeTable interface. Blaze operations are standalone
+  functions, not part of the Table interface
+- This PRD does not define Go struct definitions. Go structs will be defined in a subsequent code
+  task. This PRD specifies the contract
+acceptance_criteria:
+- Blaze template YAML schema fully specified with field names, types, required/optional status, and
+  an example template file (R1)
+- BlazeParameter schema fully specified with name, description, type, and default fields (R2)
+- Parameter types documented (text, integer, boolean, list) with Go equivalents and defaults (R2.6)
+- Template directory discovery specified with precedence chain (explicit > config > well-known path)
+  (R3)
+- Well-known path defined as .crumbs/blazes/ relative to DataDir (R3.3)
+- Template listing specified (enumerate .yaml/.yml files, no recursion, alphabetical order) (R4)
+- Metadata parsing specified (extract fields, skip malformed files with warning, ignore unknown
+  fields) (R5)
+- BlazeMetadata struct documented with all fields (R5.7)
+- Tag-based matching specified with exact match and semantic match definitions, match threshold,
+  and scoring (R6)
+- Template selection specified for single match, multiple match with specificity, and ambiguous
+  tie-breaking (R7)
+- SelectionResult struct documented with Selected, Tied, Ambiguous, NoMatch fields (R7.7)
+- Parameter extraction specified with required vs optional classification, context inference rules,
+  and ExtractedParameter struct (R8)
+- Error types defined (ErrTemplateDirNotFound, ErrTemplateDirNotReadable, ErrTemplateNotFound,
+  ErrMalformedTemplate, ErrNoMatch) following sentinel error pattern from prd001-cupboard-core (R9)
+- All errors checkable with errors.Is (R9.3)
+- Every use case success criterion (S1-S7 from rel99.0-uc001) maps to at least one requirement
+- All requirements numbered and specific
