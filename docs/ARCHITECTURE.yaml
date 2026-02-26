@@ -19,25 +19,25 @@ overview:
     (time-ordered, sortable).
 
   lifecycle: |
-    Crumb states (prd003-crumbs-interface R2): draft → pending → ready → taken → pebble or dust.
+    Crumb states (prd003-crumbs-interface R2): draft -> pending -> ready -> taken -> pebble or dust.
     Terminal states are pebble (completed successfully) and dust (failed or abandoned). Named
     transition methods exist only for semantically distinct endpoints: Pebble() and Dust() for
     crumbs; other transitions use SetState.
 
-    Trail states: draft → pending → active → completed or abandoned. Crumbs can only be added to a
+    Trail states: draft -> pending -> active -> completed or abandoned. Crumbs can only be added to a
     trail in active state. Trail.Complete() and Trail.Abandon() update the trail's state field. When
     persisted via Table.Set, the backend performs cascade operations: completing a trail transitions
     its crumbs to pebble (links retained as history), abandoning transitions crumbs to dust (links
     also retained).
 
-    Stash states: draft → active → archived. A trail cannot transition to active unless all its
+    Stash states: draft -> active -> archived. A trail cannot transition to active unless all its
     stashes are in active state. When a trail completes or is abandoned, its stashes transition to
     archived.
 
-    Link types and their semantics: child_of (crumb → crumb) — child blocked until parent reaches
-    pebble; branches_from (trail → crumb) — branching trail cannot go active until branch point
-    crumb reaches pebble; belongs_to (crumb → trail) — crumb follows trail lifecycle, links
-    retained permanently in both complete and abandon cases; scoped_to (stash → trail) — stash
+    Link types and their semantics: child_of (crumb -> crumb) — child blocked until parent reaches
+    pebble; branches_from (trail -> crumb) — branching trail cannot go active until branch point
+    crumb reaches pebble; belongs_to (crumb -> trail) — crumb follows trail lifecycle, links
+    retained permanently in both complete and abandon cases; scoped_to (stash -> trail) — stash
     shares trail lifecycle.
 
     Trail ownership rule: All crumbs must belong to a trail. Links are never deleted. A crumb
@@ -49,33 +49,42 @@ overview:
     operations; agents add workflow semantics.
 
 interfaces:
-  data_structures:
-    - name: Config
-      description: Backend selection and configuration. Backend field selects the backend type; DataDir specifies the data directory for the SQLite backend. See prd001-cupboard-core R1.
-    - name: SQLiteConfig
-      description: SQLite-specific configuration for sync strategy, batch size, and batch interval. See prd002-sqlite-backend R16.
-    - name: Crumb
-      description: Work item entity with CrumbID, Name, State, CreatedAt, UpdatedAt, Properties. Methods update struct fields only. See prd003-crumbs-interface.
-    - name: Trail
-      description: Exploration session entity with TrailID, State, CreatedAt, CompletedAt. Complete() and Abandon() update state in memory. See prd006-trails-interface.
-    - name: Property
-      description: Property definition entity with PropertyID, Name, Description, ValueType, CreatedAt. See prd004-properties-interface.
-    - name: Category
-      description: Categorical value for a property with CategoryID, PropertyID, Name, Ordinal. See prd004-properties-interface.
-    - name: Stash
-      description: Shared state entity with StashID, Name, StashType, Value, Version, CreatedAt. See prd008-stash-interface.
-    - name: Metadata
-      description: Supplementary data with MetadataID, CrumbID, TableName, Content, PropertyID, CreatedAt. See prd005-metadata-interface.
-    - name: Link
-      description: Typed directed edge with LinkID, LinkType, FromID, ToID, CreatedAt. Link types are belongs_to, child_of, branches_from, scoped_to. See prd007-links-interface.
+  - name: Cupboard and Config
+    summary: |
+      The Cupboard interface provides table access and lifecycle management. Config selects
+      the backend type and data directory. SQLiteConfig extends Config with sync strategy,
+      batch size, and batch interval settings.
+    data_structures:
+      - "Config: backend selection and configuration (Backend, DataDir). See prd001-cupboard-core R1."
+      - "SQLiteConfig: SQLite-specific configuration for sync strategy, batch size, and batch interval. See prd002-sqlite-backend R16."
+    operations:
+      - "GetTable(name string) (Table, error): returns a Table accessor for the given entity type. See prd001-cupboard-core R2."
+      - "Attach(config Config) error: opens the backend and loads data. See prd001-cupboard-core R2."
+      - "Detach() error: closes the backend and flushes pending writes. See prd001-cupboard-core R2."
+      - "Table.Get(id string) (any, error): retrieve a single entity by ID. See prd001-cupboard-core R3."
+      - "Table.Set(id string, data any) (string, error): create or update an entity. See prd001-cupboard-core R3."
+      - "Table.Delete(id string) error: remove an entity. See prd001-cupboard-core R3."
+      - "Table.Fetch(filter map[string]any) ([]any, error): query entities by filter. See prd001-cupboard-core R3."
 
-  operations:
-    - name: Cupboard interface
-      description: "GetTable(name string) (Table, error), Attach(config Config) error, Detach() error. See prd001-cupboard-core R2."
-    - name: Table interface
-      description: "Get(id string) (any, error), Set(id string, data any) (string, error), Delete(id string) error, Fetch(filter map[string]any) ([]any, error). See prd001-cupboard-core R3."
-
-  announcements: []
+  - name: Entity Types
+    summary: |
+      In-memory domain objects with state-transition methods. Entity methods modify struct fields
+      only — no I/O, no database knowledge. All entities use UUID v7 identifiers.
+    data_structures:
+      - "Crumb: work item with CrumbID, Name, State, CreatedAt, UpdatedAt, Properties. See prd003-crumbs-interface."
+      - "Trail: exploration session with TrailID, State, CreatedAt, CompletedAt. See prd006-trails-interface."
+      - "Property: property definition with PropertyID, Name, Description, ValueType, CreatedAt. See prd004-properties-interface."
+      - "Category: categorical value with CategoryID, PropertyID, Name, Ordinal. See prd004-properties-interface."
+      - "Stash: shared state with StashID, Name, StashType, Value, Version, CreatedAt. See prd008-stash-interface."
+      - "Metadata: supplementary data with MetadataID, CrumbID, TableName, Content, PropertyID, CreatedAt. See prd005-metadata-interface."
+      - "Link: typed directed edge with LinkID, LinkType, FromID, ToID, CreatedAt. Types: belongs_to, child_of, branches_from, scoped_to. See prd007-links-interface."
+    operations:
+      - "Crumb.Pebble(): transition to terminal pebble state. See prd003-crumbs-interface."
+      - "Crumb.Dust(): transition to terminal dust state. See prd003-crumbs-interface."
+      - "Crumb.SetState(state): generic state transition. See prd003-crumbs-interface."
+      - "Trail.Complete(): transition trail and cascade crumbs to pebble. See prd006-trails-interface."
+      - "Trail.Abandon(): transition trail and cascade crumbs to dust. See prd006-trails-interface."
+      - "Stash.SetValue(), Stash.Increment(), Stash.Acquire(), Stash.Release(), Stash.GetHistory(). See prd008-stash-interface."
 
 components:
   - name: Interfaces (pkg/api)
@@ -84,7 +93,8 @@ components:
       - Defines Cupboard interface (GetTable, Attach, Detach)
       - Defines Table interface (Get, Set, Delete, Fetch)
       - Defines Config and SQLiteConfig structs with Validate methods
-    references: prd001-cupboard-core R2, R3
+    references:
+      - prd001-cupboard-core R2, R3
 
   - name: Entity Types (pkg/schema)
     responsibility: In-memory domain logic. Structs (Crumb, Trail, Property, Category, Stash, Metadata, Link) and their methods (SetState, Pebble, Dust, Complete, Abandon, etc.). Methods update struct fields only — no I/O, no database knowledge. No dependency on pkg/api or internal/.
@@ -93,7 +103,13 @@ components:
       - Trail struct with lifecycle methods (Complete, Abandon)
       - Stash struct with value methods (SetValue, Increment, Acquire, Release)
       - Property, Category, Metadata, Link, Schema structs
-    references: prd003-crumbs-interface, prd006-trails-interface, prd008-stash-interface, prd004-properties-interface, prd005-metadata-interface, prd007-links-interface
+    references:
+      - prd003-crumbs-interface
+      - prd006-trails-interface
+      - prd008-stash-interface
+      - prd004-properties-interface
+      - prd005-metadata-interface
+      - prd007-links-interface
 
   - name: Constants (pkg/constants)
     responsibility: Single source of truth for all domain strings. State values, link types, property defaults, sync strategies, and table names are defined here as named constants. No package in the codebase uses raw string literals for these values.
@@ -102,7 +118,8 @@ components:
       - Trail states (draft, pending, active, completed, abandoned)
       - Link types (belongs_to, child_of, branches_from, scoped_to)
       - Table names and sync strategy names
-    references: Decision DD13
+    references:
+      - Decision 13
 
   - name: SQLite Engine (internal/persistence/engine)
     responsibility: SQLite lifecycle and JSONL file I/O. Opens and closes the database, creates the schema, manages the sync.RWMutex, and implements the atomic JSONL write pattern (temp file, fsync, rename). Knows nothing about entity types.
@@ -110,14 +127,16 @@ components:
       - Schema creation (9 tables, 12 indexes)
       - JSONL read/write with atomic rename
       - Sync strategy implementations (immediate, on_close, batch)
-    references: prd002-sqlite-backend R3, R4, R14, R16
+    references:
+      - prd002-sqlite-backend R3, R4, R14, R16
 
   - name: SQL Mapping (internal/persistence/mapping)
     responsibility: Entity-to-SQL row translation. One mapper per entity type converts between Go structs and SQL column values. This package is the only place that knows both entity field names and SQL column names. Adding a column means changing a mapper, not the engine or the interface.
     capabilities:
       - Hydration (SQL row to entity struct) for all entity types
       - Dehydration (entity struct to SQL params) for all entity types
-    references: prd002-sqlite-backend R5, R6, R7, R8, R9, R10, R11, R12, R13
+    references:
+      - prd002-sqlite-backend R5, R6, R7, R8, R9, R10, R11, R12, R13
 
   - name: CLI (cmd/cupboard)
     responsibility: Command-line tool for development and personal use. Commands map to Cupboard operations. Config file selects backend. Supports generic table commands and issue-tracking commands.
@@ -126,10 +145,12 @@ components:
       - Issue-tracking commands (ready, create, show, update, close, comments add)
       - JSON output flag for scripting
       - Platform-specific configuration directory resolution
-    references: prd009-cupboard-cli, prd010-configuration-directories
+    references:
+      - prd009-cupboard-cli
+      - prd010-configuration-directories
 
 design_decisions:
-  - id: DD1
+  - id: 1
     title: UUID v7 for all identifiers
     decision: We use UUID v7 (time-ordered UUIDs per RFC 9562) for all entity identifiers.
     benefits:
@@ -140,7 +161,7 @@ design_decisions:
       - Auto-increment IDs are not suitable for distributed systems
       - UUID v4 lacks time ordering
 
-  - id: DD2
+  - id: 2
     title: Properties as first-class entities
     decision: Property definitions have their own IDs and table. Type-specific handling (categorical, text, integer, list) enforces value types.
     benefits:
@@ -149,16 +170,16 @@ design_decisions:
     alternatives_rejected:
       - Storing properties as JSON blobs is less queryable and loses type safety
 
-  - id: DD3
+  - id: 3
     title: Trails with complete/abandon semantics
     decision: Trails represent agent exploration sessions. Complete transitions crumbs to pebble; Abandon transitions crumbs to dust. Links are retained in both cases.
     benefits:
       - Keeps the permanent task list clean
       - Makes agent exploration explicit — try an approach, abandon if it fails, complete if it succeeds
     alternatives_rejected:
-      - Marking crumbs as "tentative" requires agents to manually track and clean up failed explorations
+      - Marking crumbs as tentative requires agents to manually track and clean up failed explorations
 
-  - id: DD4
+  - id: 4
     title: Pluggable backends with full interface
     decision: Each backend implements the entire Cupboard interface.
     benefits:
@@ -166,7 +187,7 @@ design_decisions:
     alternatives_rejected:
       - A generic SQL backend with schema generation is less flexible and cannot leverage backend-specific features
 
-  - id: DD5
+  - id: 5
     title: Synchronous API
     decision: Operations are synchronous.
     benefits:
@@ -174,7 +195,7 @@ design_decisions:
     alternatives_rejected:
       - Async adds complexity before we need it
 
-  - id: DD6
+  - id: 6
     title: JSONL as source of truth for SQLite backend
     decision: The SQLite backend uses JSONL files (one JSON object per line) as the canonical data store. SQLite (modernc.org/sqlite, pure Go) serves as a query engine. On startup we load JSONL into SQLite; on writes we persist back to JSONL. Sync strategy is configurable (immediate, on_close, batch).
     benefits:
@@ -185,18 +206,18 @@ design_decisions:
       - Raw JSON with custom query logic duplicates work SQL handles well
       - Pure SQLite loses the human-readable file benefit
 
-  - id: DD7
+  - id: 7
     title: Properties always present with type-based defaults
     decision: Every crumb has a value for every defined property. When a property is defined, existing crumbs are backfilled. When a crumb is created, all properties are initialized.
     benefits:
       - Eliminates null-checking complexity
       - Ensures consistent schema across all crumbs
     alternatives_rejected:
-      - Allowing "not set" properties requires null handling everywhere and makes queries more complex
+      - Allowing not-set properties requires null handling everywhere and makes queries more complex
 
-  - id: DD8
+  - id: 8
     title: Stashes as separate entities for shared state
-    decision: When multiple crumbs on a trail need to share state, we use stashes — not "special crumbs" or property values. Stashes are versioned with full history.
+    decision: When multiple crumbs on a trail need to share state, we use stashes — not special crumbs or property values. Stashes are versioned with full history.
     benefits:
       - Supports auditability and debugging
       - Trail-scoped lifecycle keeps stash cleanup automatic
@@ -204,7 +225,7 @@ design_decisions:
       - Encoding shared state in crumb properties conflates task attributes with coordination state
       - Using external storage loses the trail-scoped lifecycle
 
-  - id: DD9
+  - id: 9
     title: ORM-style pattern with uniform Table interface
     decision: A single Table interface (Get, Set, Delete, Fetch) for all entity types. Cupboard.GetTable(name) returns the same Table interface regardless of entity type. Entity methods modify structs in memory; callers persist via Table.Set.
     benefits:
@@ -214,7 +235,7 @@ design_decisions:
     alternatives_rejected:
       - Entity-specific interfaces (CrumbTable, TrailTable, etc.) create a larger API surface, duplicate CRUD patterns, and mix storage concerns with domain logic
 
-  - id: DD10
+  - id: 10
     title: Links table for all relationships
     decision: All entity relationships use the links table with typed edges (belongs_to, child_of, branches_from, scoped_to).
     benefits:
@@ -223,7 +244,7 @@ design_decisions:
     alternatives_rejected:
       - Direct fields (e.g., Trail.ParentCrumbID) create inconsistency and require different query patterns
 
-  - id: DD11
+  - id: 11
     title: OpenTelemetry for observability, not plain logs
     decision: We use OpenTelemetry (traces, metrics, logs) as the observability layer. We do not use plain structured logging for application telemetry.
     benefits:
@@ -232,7 +253,7 @@ design_decisions:
     alternatives_rejected:
       - Plain slog logging loses trace correlation, cannot produce metrics, and requires a separate system for distributed tracing
 
-  - id: DD12
+  - id: 12
     title: Package separation of interfaces, domain types, and constants
     decision: We split the public API surface into three packages. pkg/api holds only interfaces and config. pkg/schema holds entity structs and state-transition methods. pkg/constants holds all domain strings as named constants.
     benefits:
@@ -242,28 +263,34 @@ design_decisions:
     alternatives_rejected:
       - A single pkg/types package conflates three different rates of change and forces larger context windows for AI agents
 
-  - id: DD13
+  - id: 13
     title: Centralizing domain strings as named constants
     decision: All state values, link types, table names, sync strategies, and property defaults are defined in pkg/constants as named Go constants. No package uses raw string literals for these values.
     benefits:
-      - Prevents the "magic string" problem — a rename requires a change in one place
+      - Prevents the magic-string problem — a rename requires a change in one place
       - AI coding agents are particularly susceptible to magic-string errors
     alternatives_rejected:
       - Defining constants in the package that owns the concept scatters the lookup across multiple files
 
 technology_choices:
-  - technology: Go
-    reason: CLI tool and library; strong concurrency, static typing.
-  - technology: UUID v7 (RFC 9562)
-    reason: Time-ordered, sortable, distributed-safe IDs.
-  - technology: cobra + viper
-    reason: Command parsing and config management for the CLI.
-  - technology: modernc.org/sqlite
-    reason: Pure Go SQLite driver; JSONL files as source of truth, SQLite as query engine.
-  - technology: Go testing + testify
-    reason: Unit and integration tests across all layers.
-  - technology: OpenTelemetry (go.opentelemetry.io/otel)
-    reason: Traces, metrics, and structured logs in a single pipeline.
+  - component: Language
+    technology: Go
+    purpose: CLI tool and library; strong concurrency, static typing
+  - component: Identifiers
+    technology: UUID v7 (RFC 9562)
+    purpose: Time-ordered, sortable, distributed-safe IDs
+  - component: CLI framework
+    technology: cobra + viper
+    purpose: Command parsing and config management for the CLI
+  - component: Database
+    technology: modernc.org/sqlite
+    purpose: Pure Go SQLite driver; JSONL files as source of truth, SQLite as query engine
+  - component: Testing
+    technology: Go testing + testify
+    purpose: Unit and integration tests across all layers
+  - component: Observability
+    technology: OpenTelemetry (go.opentelemetry.io/otel)
+    purpose: Traces, metrics, and structured logs in a single pipeline
 
 project_structure:
   - path: cmd/cupboard/
@@ -284,42 +311,32 @@ project_structure:
     role: Module definition
 
 implementation_status:
-  note: Release 01.0 (core storage with SQLite backend) is in progress. See road-map.yaml for the full release schedule, use case status, and prioritization rules. Success criteria from VISION.yaml — operations complete with low latency, agents integrate the library quickly, trail workflows feel natural for coding agents exploring implementation approaches.
+  current_focus: Release 01.0 (core storage with SQLite backend) is in progress. See road-map.yaml for the full release schedule, use case status, and prioritization rules.
+  progress:
+    - rel01.0: Specifications complete; implementation not yet started
 
 related_documents:
-  - id: VISION.yaml
-    path: VISION.yaml
-    note: What we are building and why; success criteria and boundaries
-  - id: road-map.yaml
-    path: road-map.yaml
-    note: Release schedule, use cases, prioritization rules
-  - id: prd001-cupboard-core.yaml
-    path: specs/product-requirements/prd001-cupboard-core.yaml
-    note: Cupboard interface, configuration, lifecycle
-  - id: prd002-sqlite-backend.yaml
-    path: specs/product-requirements/prd002-sqlite-backend.yaml
-    note: SQLite backend internals, JSON-to-SQLite sync, graph model
-  - id: prd003-crumbs-interface.yaml
-    path: specs/product-requirements/prd003-crumbs-interface.yaml
-    note: Crumb entity, state transitions, property methods
-  - id: prd006-trails-interface.yaml
-    path: specs/product-requirements/prd006-trails-interface.yaml
-    note: Trail entity, lifecycle methods, crumb membership
-  - id: prd004-properties-interface.yaml
-    path: specs/product-requirements/prd004-properties-interface.yaml
-    note: Property and Category entities, value types
-  - id: prd005-metadata-interface.yaml
-    path: specs/product-requirements/prd005-metadata-interface.yaml
-    note: Metadata entity, schema registration
-  - id: prd008-stash-interface.yaml
-    path: specs/product-requirements/prd008-stash-interface.yaml
-    note: Stash entity, shared state, versioning
-  - id: eng01-git-integration.yaml
-    path: engineering/eng01-git-integration.yaml
-    note: Git conventions — JSONL in git, task branches, trails vs git branches, merge behavior
-  - id: eng02-generation-workflow.yaml
-    path: engineering/eng02-generation-workflow.yaml
-    note: Generation lifecycle — open, generate, close; task branch naming; scripts
-  - id: eng05-testing-strategy.yaml
-    path: engineering/eng05-testing-strategy.yaml
-    note: Layered testing — unit (pkg/schema), integration (internal/persistence), e2e (cmd/cupboard)
+  - doc: VISION.yaml
+    purpose: What we are building and why; success criteria and boundaries
+  - doc: road-map.yaml
+    purpose: Release schedule, use cases, prioritization rules
+  - doc: specs/product-requirements/prd001-cupboard-core.yaml
+    purpose: Cupboard interface, configuration, lifecycle
+  - doc: specs/product-requirements/prd002-sqlite-backend.yaml
+    purpose: SQLite backend internals, JSON-to-SQLite sync, graph model
+  - doc: specs/product-requirements/prd003-crumbs-interface.yaml
+    purpose: Crumb entity, state transitions, property methods
+  - doc: specs/product-requirements/prd006-trails-interface.yaml
+    purpose: Trail entity, lifecycle methods, crumb membership
+  - doc: specs/product-requirements/prd004-properties-interface.yaml
+    purpose: Property and Category entities, value types
+  - doc: specs/product-requirements/prd005-metadata-interface.yaml
+    purpose: Metadata entity, schema registration
+  - doc: specs/product-requirements/prd008-stash-interface.yaml
+    purpose: Stash entity, shared state, versioning
+  - doc: engineering/eng01-git-integration.yaml
+    purpose: Git conventions — JSONL in git, task branches, trails vs git branches, merge behavior
+  - doc: engineering/eng02-generation-workflow.yaml
+    purpose: Generation lifecycle — open, generate, close; task branch naming; scripts
+  - doc: engineering/eng05-testing-strategy.yaml
+    purpose: Layered testing — unit (pkg/schema), integration (internal/persistence), e2e (cmd/cupboard)
