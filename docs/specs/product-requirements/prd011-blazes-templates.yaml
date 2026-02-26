@@ -220,8 +220,8 @@ requirements:
     - R6.5: A template matches a task if it has at least one exact match or at least two semantic
         matches. The match threshold prevents spurious single-word coincidences from triggering
         selection
-    - R6.6: The match score for a template is calculated as: (number of exact matches * 2) + (number of
-        semantic matches). Higher scores indicate stronger matches
+    - R6.6: The match score for a template equals (number of exact matches * 2) + (number of semantic
+        matches). Higher scores indicate stronger matches
     - R6.7: If no templates match the task context, the matching result is an empty list. This is not
         an error; the caller may proceed without a template or prompt the user
     - R6.8: Matching is case-insensitive. Tags, labels, keywords, and description are all compared in
