@@ -4,6 +4,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -18,16 +19,33 @@ type Cobbler mg.Namespace
 // Generator groups the code-generation trail lifecycle targets.
 type Generator mg.Namespace
 
+// Scaffold groups the scaffold install/uninstall targets.
+type Scaffold mg.Namespace
+
 // Beads groups issue-tracker lifecycle targets.
 type Beads mg.Namespace
 
-// Test groups the testing targets.
-type Test mg.Namespace
+// Prompt groups prompt preview targets.
+type Prompt mg.Namespace
+
+// Stats groups the stats targets (LOC, tokens).
+type Stats mg.Namespace
+
+// Tests: run directly with go test:
+//   go test -tags=usecase -v -count=1 -timeout 1800s ./tests/rel01.0/...          # all
+//   go test -tags=usecase -v ./tests/rel01.0/uc001/                               # one UC
+//   go test -tags=usecase -bench=. -benchtime=1x -run=^$ ./tests/rel01.0/uc008/   # benchmarks
 
 // baseCfg holds the configuration loaded from configuration.yaml.
 var baseCfg orchestrator.Config
 
 func init() {
+	if _, err := os.Stat(orchestrator.DefaultConfigFile); errors.Is(err, os.ErrNotExist) {
+		if err := orchestrator.WriteDefaultConfig(orchestrator.DefaultConfigFile); err != nil {
+			panic(fmt.Sprintf("creating %s: %v", orchestrator.DefaultConfigFile, err))
+		}
+		fmt.Fprintf(os.Stderr, "created default %s\n", orchestrator.DefaultConfigFile)
+	}
 	var err error
 	baseCfg, err = orchestrator.LoadConfig(orchestrator.DefaultConfigFile)
 	if err != nil {
@@ -46,9 +64,6 @@ func logf(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "[%s] %s\n", time.Now().Format(time.RFC3339), msg)
 }
 
-// boolPtr returns a pointer to a bool value.
-func boolPtr(v bool) *bool { return &v }
-
 // --- Top-level targets ---
 
 // Init initializes the project (beads).
@@ -56,9 +71,6 @@ func Init() error { return newOrch().Init() }
 
 // Reset performs a full reset: cobbler, generator, beads.
 func Reset() error { return newOrch().FullReset() }
-
-// Stats prints Go lines of code and documentation word counts.
-func Stats() error { return newOrch().Stats() }
 
 // Build compiles the project binary.
 func Build() error { return newOrch().Build() }
@@ -81,20 +93,12 @@ func Analyze() error { return newOrch().Analyze() }
 // Tag creates a documentation release tag (v0.YYYYMMDD.N) and builds the container image.
 func Tag() error { return newOrch().Tag() }
 
-// Uninstall removes orchestrator-managed files from the repository:
-// magefiles/orchestrator.go, docs/constitutions/, and configuration.yaml.
-func Uninstall() error { return newOrch().Uninstall(".") }
+// --- Scaffold targets ---
 
-// --- Test targets ---
-
-// Unit runs go test on all packages.
-func (Test) Unit() error { return newOrch().TestUnit() }
-
-// Integration runs go test in the tests/ directory.
-func (Test) Integration() error { return newOrch().TestIntegration() }
-
-// All runs unit and integration tests.
-func (Test) All() error { return newOrch().TestAll() }
+// Pop removes orchestrator-managed files from the target repository:
+// magefiles/orchestrator.go, docs/constitutions/, docs/prompts/, and
+// configuration.yaml. Pass "." for the current directory.
+func (Scaffold) Pop(target string) error { return newOrch().Uninstall(target) }
 
 // --- Cobbler targets ---
 
@@ -129,6 +133,22 @@ func (Generator) Switch() error { return newOrch().GeneratorSwitch() }
 
 // Reset destroys generation branches, worktrees, and Go source directories.
 func (Generator) Reset() error { return newOrch().GeneratorReset() }
+
+// --- Stats targets ---
+
+// Loc prints Go lines of code and documentation word counts.
+func (Stats) Loc() error { return newOrch().Stats() }
+
+// Tokens enumerates prompt-attached files and counts tokens via the Anthropic API.
+func (Stats) Tokens() error { return newOrch().TokenStats() }
+
+// --- Prompt targets ---
+
+// Measure prints the assembled measure prompt to stdout.
+func (Prompt) Measure() error { return newOrch().DumpMeasurePrompt() }
+
+// Stitch prints the assembled stitch prompt to stdout.
+func (Prompt) Stitch() error { return newOrch().DumpStitchPrompt() }
 
 // --- Beads targets ---
 
