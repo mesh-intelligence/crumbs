@@ -31,318 +31,183 @@ problem: |
 
   Integrity: Audit functions validate the graph (no cycles, valid references, DAG structure).
 goals:
-- id: G1
-  goal: Define the JSONL file format and directory layout within DataDir
-- id: G2
-  goal: Define the SQLite schema that mirrors the JSONL structure
-- id: G3
-  goal: 'Specify the startup sequence: loading JSONL into SQLite'
-- id: G4
-  goal: 'Specify write behavior: updating SQLite and persisting to JSONL'
-- id: G5
-  goal: 'Specify shutdown behavior: flushing pending writes'
-- id: G6
-  goal: Define error handling for corrupt files, schema mismatches, and I/O failures
-- id: G7
-  goal: Define the concurrency model for safe concurrent access
-- id: G8
-  goal: Specify how the backend implements the Cupboard interface (Attach/Detach)
-- id: G9
-  goal: Specify how GetTable routes table names to table implementations
-- id: G10
-  goal: 'Define entity hydration: converting table rows to entity objects'
-- id: G11
-  goal: 'Define entity persistence: converting entity objects to table rows'
+- G1: Define the JSONL file format and directory layout within DataDir
+- G2: Define the SQLite schema that mirrors the JSONL structure
+- G3: 'Specify the startup sequence: loading JSONL into SQLite'
+- G4: 'Specify write behavior: updating SQLite and persisting to JSONL'
+- G5: 'Specify shutdown behavior: flushing pending writes'
+- G6: Define error handling for corrupt files, schema mismatches, and I/O failures
+- G7: Define the concurrency model for safe concurrent access
+- G8: Specify how the backend implements the Cupboard interface (Attach/Detach)
+- G9: Specify how GetTable routes table names to table implementations
+- G10: 'Define entity hydration: converting table rows to entity objects'
+- G11: 'Define entity persistence: converting entity objects to table rows'
 requirements:
-- group: R1
-  title: Directory Layout
-  items:
-  - id: R1.1
-    requirement: The SQLite backend operates within a single directory (DataDir from
-      Config)
-  - id: R1.2
-    requirement: DataDir must contain the following files
-  - id: R1.3
-    requirement: If DataDir does not exist, Attach must create it
-  - id: R1.4
-    requirement: If JSONL files do not exist, Attach must create empty files (zero
-      bytes, not empty arrays)
-- group: R2
-  title: JSONL File Format
-  items:
-  - id: R2.1
-    requirement: Each JSONL file contains one JSON object per line. Empty lines are
-      skipped during loading
-  - id: R2.2
-    requirement: crumbs.jsonl format (one line per crumb)
-  - id: R2.3
-    requirement: trails.jsonl format (one line per trail)
-  - id: R2.4
-    requirement: properties.jsonl format (one line per property)
-  - id: R2.5
-    requirement: categories.jsonl format (one line per category)
-  - id: R2.6
-    requirement: crumb_properties.jsonl format (one line per property value, unified
-      with type in field)
-  - id: R2.7
-    requirement: links.jsonl format (one line per link, graph edges)
-  - id: R2.8
-    requirement: metadata.jsonl format (one line per metadata entry)
-  - id: R2.9
-    requirement: stashes.jsonl format (one line per stash)
-  - id: R2.10
-    requirement: stash_history.jsonl format (one line per history entry, append-only)
-  - id: R2.11
-    requirement: All timestamps must be RFC 3339 format (ISO 8601 with timezone)
-  - id: R2.12
-    requirement: All UUIDs must be lowercase hyphenated format
-- group: R3
-  title: SQLite Schema
-  items:
-  - id: R3.1
-    requirement: The SQLite database uses a single file (cupboard.db) in DataDir
-  - id: R3.2
-    requirement: SQLite schema must mirror JSONL structure for direct loading
-  - id: R3.3
-    requirement: Indexes for common queries
-  - id: R3.4
-    requirement: The value column in crumb_properties stores JSON-encoded values for
-      all types. For categorical properties, it stores the category_id. For lists,
-      it stores a JSON array
-- group: R4
-  title: Startup Sequence
-  items:
-  - id: R4.2
-    requirement: If any JSONL file contains malformed lines (invalid JSON), skip those
-      lines and log a warning. Malformed lines do not halt loading
-  - id: R4.3
-    requirement: If foreign key validation fails (e.g., crumb references non-existent
-      trail), Attach must return an error. We do not auto-repair
-- group: R5
-  title: Write Operations
-  items:
-  - id: R5.3
-    requirement: By default, write operations persist immediately (no batching). This
-      ensures JSONL files are always current. The sync strategy is configurable via
-      SQLiteConfig; see R16 for options
-  - id: R5.4
-    requirement: If JSONL persistence fails after SQLite commit, the operation must
-      return an error. The next Attach will reload from JSONL (the source of truth),
-      so SQLite and JSONL will reconcile
-  - id: R5.5
-    requirement: Table operations and the JSONL files they affect
-  - id: R5.6
-    requirement: 'Trail cascade behavior on Table.Set: When a Trail is persisted via
-      trails.Set and its State has changed, for State → completed remove all `belongs_to`
-      links where to_id equals the trail ID (the crumbs remain but are no longer associated
-      with any trail, becoming permanent, affects trails.jsonl and links.jsonl), for
-      State → abandoned delete all crumbs that belong to this trail (via belongs_to
-      links) including each deleted crumb''s property values, metadata, and all links
-      involving the crumb (affects trails.jsonl, crumbs.jsonl, crumb_properties.jsonl,
-      metadata.jsonl, links.jsonl)'
-  - id: R5.7
-    requirement: The cascade behavior is triggered by detecting a state change when
-      persisting. Entity methods (Trail.Complete, Trail.Abandon) update the struct's
-      State field; the backend detects the change and performs cascades during Set
-- group: R6
-  title: Shutdown Sequence
-  items:
-  - id: R6.2
-    requirement: Detach must be idempotent. Subsequent calls return nil
-  - id: R6.3
-    requirement: After Detach, all operations must return ErrCupboardDetached
-- group: R7
-  title: Error Handling
-  items: []
-- group: R8
-  title: Concurrency Model
-  items:
-  - id: R8.1
-    requirement: The SQLite backend supports single-writer, multiple-reader within
-      a process
-  - id: R8.2
-    requirement: Write operations acquire an exclusive lock. Only one write at a time
-  - id: R8.3
-    requirement: Read operations (Table.Get, Table.Fetch) can run concurrently with
-      each other
-  - id: R8.4
-    requirement: Read operations block during the write phase but can proceed during
-      JSONL persistence
-  - id: R8.5
-    requirement: Cross-process concurrency is not supported. Only one process should
-      open a DataDir at a time. If a second process attempts to open, behavior is
-      undefined (SQLite may lock, JSONL writes may conflict)
-- group: R9
-  title: Built-in Properties
-  items:
-  - id: R9.1
-    requirement: On first startup (empty properties.jsonl), the backend must seed
-      the following built-in properties
-  - id: R9.2
-    requirement: Built-in categories for priority
-  - id: R9.3
-    requirement: Built-in categories for type
-  - id: R9.4
-    requirement: Seeding only occurs if properties.jsonl is empty (first run). Existing
-      data is never modified
-- group: R10
-  title: Graph Audit
-  items:
-  - id: R10.1
-    requirement: The backend must provide audit functions to validate graph integrity
-  - id: R10.2
-    requirement: ValidateDAG must detect cycles using depth-first search or topological
-      sort. If a cycle is found, return an error listing the crumb_ids involved
-  - id: R10.4
-    requirement: Audit functions run on startup after loading JSONL. If validation
-      fails, Attach returns an error
-  - id: R10.5
-    requirement: Audit functions are also available as Cupboard methods for on-demand
-      validation
-- group: R11
-  title: Cupboard Interface Implementation
-  items:
-  - id: R11.1
-    requirement: The SQLite backend implements the Cupboard interface defined in prd001-cupboard-core
-  - id: R11.3
-    requirement: Attach must store the Config and mark the cupboard as attached. Subsequent
-      Attach calls return ErrAlreadyAttached
-  - id: R11.5
-    requirement: After Detach, all operations including GetTable must return ErrCupboardDetached
-- group: R12
-  title: Table Name Routing
-  items:
-  - id: R12.1
-    requirement: GetTable accepts a table name and returns a Table implementation
-      for that entity type
-  - id: R12.2
-    requirement: GetTable must return ErrTableNotFound for unrecognized table names
-  - id: R12.3
-    requirement: GetTable returns a table accessor bound to the specific entity type.
-      Each table accessor implements the Table interface but operates on its corresponding
-      entity struct
-  - id: R12.4
-    requirement: Table accessors are created once during Attach and reused. GetTable
-      returns the same accessor instance for repeated calls with the same name
-- group: R13
-  title: Table Interface Implementation
-  items:
-  - id: R13.1
-    requirement: Each table accessor implements the Table interface
-  - id: R13.6
-    requirement: Filter map keys correspond to entity field names (Go struct field
-      names, not JSON/SQL column names). The table accessor maps field names to column
-      names
-- group: R14
-  title: Entity Hydration
-  items:
-  - id: R14.1
-    requirement: Hydration converts a SQLite row into an entity struct. Each table
-      accessor defines hydration for its entity type
-  - id: R14.2
-    requirement: Hydration mapping for Crumb (from crumbs table)
-  - id: R14.3
-    requirement: Hydration mapping for Trail (from trails table)
-  - id: R14.4
-    requirement: Hydration mapping for Property (from properties table)
-  - id: R14.5
-    requirement: Hydration mapping for Metadata (from metadata table)
-  - id: R14.6
-    requirement: Hydration mapping for Link (from links table)
-  - id: R14.7
-    requirement: Hydration mapping for Stash (from stashes table)
-  - id: R14.8
-    requirement: Nullable columns hydrate to pointer types or zero values. If the
-      column is NULL and the Go field is a pointer, set it to nil. If the Go field
-      is not a pointer, return an error (schema violation)
-  - id: R14.9
-    requirement: Time conversion uses time.Parse with RFC 3339 format. Invalid timestamps
-      cause hydration to fail with an error
-- group: R15
-  title: Entity Persistence
-  items:
-  - id: R15.1
-    requirement: Persistence (dehydration) converts an entity struct into SQL parameters
-      for INSERT or UPDATE
-  - id: R15.2
-    requirement: Dehydration is the inverse of hydration. Each table accessor maps
-      Go struct fields to SQL column values
-  - id: R15.3
-    requirement: Time fields convert to RFC 3339 strings using time.Format
-  - id: R15.4
-    requirement: Pointer fields convert to NULL if nil, otherwise to the dereferenced
-      value
-  - id: R15.5
-    requirement: For Stash.Value (any type), persistence must JSON-encode the value
-      before storing
-  - id: R15.6
-    requirement: Set determines INSERT vs UPDATE by checking if a row with the given
-      ID exists. If no row exists, INSERT; if row exists, UPDATE
-  - id: R15.7
-    requirement: UUID v7 generation occurs in Set when the entity ID field is empty.
-      The generated ID is assigned to the entity before persistence
-  - id: R15.8
-    requirement: After SQLite persistence, the entity must be written to the corresponding
-      JSONL file following the atomic write pattern (R5.2)
-- group: R16
-  title: JSONL Sync Strategy
-  items:
-  - id: R16.1
-    requirement: The SQLite backend supports configurable sync strategies via SQLiteConfig.SyncStrategy
-  - id: R16.2
-    requirement: When SyncStrategy is empty or "immediate", the backend writes to
-      JSONL after every SQLite commit (current behavior per R5.3). This is the default
-  - id: R16.3
-    requirement: When SyncStrategy is "on_close", the backend defers JSONL writes.
-      SQLite remains the write cache during the session. On Detach, all pending changes
-      are flushed to JSONL files before closing. On crash, unwritten changes are lost;
-      the next Attach loads from the (stale) JSONL files
-  - id: R16.5
-    requirement: Batch mode configuration
-  - id: R16.6
-    requirement: For batch mode, at least one of BatchSize or BatchInterval must be
-      positive. If both are zero, validation fails
-  - id: R16.7
-    requirement: Atomic write semantics (R5.2) apply regardless of sync strategy.
-      When flushing, each JSONL file is written atomically (temp file, fsync, rename)
-  - id: R16.8
-    requirement: The sync strategy does not affect SQLite durability. SQLite transactions
-      commit synchronously regardless of JSONL sync strategy
+  R1:
+    title: Directory Layout
+    items:
+    - R1.1: The SQLite backend operates within a single directory (DataDir from Config)
+    - R1.2: DataDir must contain the following files
+    - R1.3: If DataDir does not exist, Attach must create it
+    - R1.4: If JSONL files do not exist, Attach must create empty files (zero bytes, not empty arrays)
+  R2:
+    title: JSONL File Format
+    items:
+    - R2.1: Each JSONL file contains one JSON object per line. Empty lines are skipped during loading
+    - R2.2: crumbs.jsonl format (one line per crumb)
+    - R2.3: trails.jsonl format (one line per trail)
+    - R2.4: properties.jsonl format (one line per property)
+    - R2.5: categories.jsonl format (one line per category)
+    - R2.6: crumb_properties.jsonl format (one line per property value, unified with type in field)
+    - R2.7: links.jsonl format (one line per link, graph edges)
+    - R2.8: metadata.jsonl format (one line per metadata entry)
+    - R2.9: stashes.jsonl format (one line per stash)
+    - R2.10: stash_history.jsonl format (one line per history entry, append-only)
+    - R2.11: All timestamps must be RFC 3339 format (ISO 8601 with timezone)
+    - R2.12: All UUIDs must be lowercase hyphenated format
+  R3:
+    title: SQLite Schema
+    items:
+    - R3.1: The SQLite database uses a single file (cupboard.db) in DataDir
+    - R3.2: SQLite schema must mirror JSONL structure for direct loading
+    - R3.3: Indexes for common queries
+    - R3.4: The value column in crumb_properties stores JSON-encoded values for all types. For categorical properties, it
+        stores the category_id. For lists, it stores a JSON array
+  R4:
+    title: Startup Sequence
+    items:
+    - R4.2: If any JSONL file contains malformed lines (invalid JSON), skip those lines and log a warning. Malformed lines
+        do not halt loading
+    - R4.3: If foreign key validation fails (e.g., crumb references non-existent trail), Attach must return an error. We do
+        not auto-repair
+  R5:
+    title: Write Operations
+    items:
+    - R5.3: By default, write operations persist immediately (no batching). This ensures JSONL files are always current. The
+        sync strategy is configurable via SQLiteConfig; see R16 for options
+    - R5.4: If JSONL persistence fails after SQLite commit, the operation must return an error. The next Attach will reload
+        from JSONL (the source of truth), so SQLite and JSONL will reconcile
+    - R5.5: Table operations and the JSONL files they affect
+    - R5.6: 'Trail cascade behavior on Table.Set: When a Trail is persisted via trails.Set and its State has changed, for
+        State → completed remove all `belongs_to` links where to_id equals the trail ID (the crumbs remain but are no longer
+        associated with any trail, becoming permanent, affects trails.jsonl and links.jsonl), for State → abandoned delete
+        all crumbs that belong to this trail (via belongs_to links) including each deleted crumb''s property values, metadata,
+        and all links involving the crumb (affects trails.jsonl, crumbs.jsonl, crumb_properties.jsonl, metadata.jsonl, links.jsonl)'
+    - R5.7: The cascade behavior is triggered by detecting a state change when persisting. Entity methods (Trail.Complete,
+        Trail.Abandon) update the struct's State field; the backend detects the change and performs cascades during Set
+  R6:
+    title: Shutdown Sequence
+    items:
+    - R6.2: Detach must be idempotent. Subsequent calls return nil
+    - R6.3: After Detach, all operations must return ErrCupboardDetached
+  R7:
+    title: Error Handling
+    items: []
+  R8:
+    title: Concurrency Model
+    items:
+    - R8.1: The SQLite backend supports single-writer, multiple-reader within a process
+    - R8.2: Write operations acquire an exclusive lock. Only one write at a time
+    - R8.3: Read operations (Table.Get, Table.Fetch) can run concurrently with each other
+    - R8.4: Read operations block during the write phase but can proceed during JSONL persistence
+    - R8.5: Cross-process concurrency is not supported. Only one process should open a DataDir at a time. If a second process
+        attempts to open, behavior is undefined (SQLite may lock, JSONL writes may conflict)
+  R9:
+    title: Built-in Properties
+    items:
+    - R9.1: On first startup (empty properties.jsonl), the backend must seed the following built-in properties
+    - R9.2: Built-in categories for priority
+    - R9.3: Built-in categories for type
+    - R9.4: Seeding only occurs if properties.jsonl is empty (first run). Existing data is never modified
+  R10:
+    title: Graph Audit
+    items:
+    - R10.1: The backend must provide audit functions to validate graph integrity
+    - R10.2: ValidateDAG must detect cycles using depth-first search or topological sort. If a cycle is found, return an error
+        listing the crumb_ids involved
+    - R10.4: Audit functions run on startup after loading JSONL. If validation fails, Attach returns an error
+    - R10.5: Audit functions are also available as Cupboard methods for on-demand validation
+  R11:
+    title: Cupboard Interface Implementation
+    items:
+    - R11.1: The SQLite backend implements the Cupboard interface defined in prd001-cupboard-core
+    - R11.3: Attach must store the Config and mark the cupboard as attached. Subsequent Attach calls return ErrAlreadyAttached
+    - R11.5: After Detach, all operations including GetTable must return ErrCupboardDetached
+  R12:
+    title: Table Name Routing
+    items:
+    - R12.1: GetTable accepts a table name and returns a Table implementation for that entity type
+    - R12.2: GetTable must return ErrTableNotFound for unrecognized table names
+    - R12.3: GetTable returns a table accessor bound to the specific entity type. Each table accessor implements the Table
+        interface but operates on its corresponding entity struct
+    - R12.4: Table accessors are created once during Attach and reused. GetTable returns the same accessor instance for repeated
+        calls with the same name
+  R13:
+    title: Table Interface Implementation
+    items:
+    - R13.1: Each table accessor implements the Table interface
+    - R13.6: Filter map keys correspond to entity field names (Go struct field names, not JSON/SQL column names). The table
+        accessor maps field names to column names
+  R14:
+    title: Entity Hydration
+    items:
+    - R14.1: Hydration converts a SQLite row into an entity struct. Each table accessor defines hydration for its entity type
+    - R14.2: Hydration mapping for Crumb (from crumbs table)
+    - R14.3: Hydration mapping for Trail (from trails table)
+    - R14.4: Hydration mapping for Property (from properties table)
+    - R14.5: Hydration mapping for Metadata (from metadata table)
+    - R14.6: Hydration mapping for Link (from links table)
+    - R14.7: Hydration mapping for Stash (from stashes table)
+    - R14.8: Nullable columns hydrate to pointer types or zero values. If the column is NULL and the Go field is a pointer,
+        set it to nil. If the Go field is not a pointer, return an error (schema violation)
+    - R14.9: Time conversion uses time.Parse with RFC 3339 format. Invalid timestamps cause hydration to fail with an error
+  R15:
+    title: Entity Persistence
+    items:
+    - R15.1: Persistence (dehydration) converts an entity struct into SQL parameters for INSERT or UPDATE
+    - R15.2: Dehydration is the inverse of hydration. Each table accessor maps Go struct fields to SQL column values
+    - R15.3: Time fields convert to RFC 3339 strings using time.Format
+    - R15.4: Pointer fields convert to NULL if nil, otherwise to the dereferenced value
+    - R15.5: For Stash.Value (any type), persistence must JSON-encode the value before storing
+    - R15.6: Set determines INSERT vs UPDATE by checking if a row with the given ID exists. If no row exists, INSERT; if row
+        exists, UPDATE
+    - R15.7: UUID v7 generation occurs in Set when the entity ID field is empty. The generated ID is assigned to the entity
+        before persistence
+    - R15.8: After SQLite persistence, the entity must be written to the corresponding JSONL file following the atomic write
+        pattern (R5.2)
+  R16:
+    title: JSONL Sync Strategy
+    items:
+    - R16.1: The SQLite backend supports configurable sync strategies via SQLiteConfig.SyncStrategy
+    - R16.2: When SyncStrategy is empty or "immediate", the backend writes to JSONL after every SQLite commit (current behavior
+        per R5.3). This is the default
+    - R16.3: When SyncStrategy is "on_close", the backend defers JSONL writes. SQLite remains the write cache during the session.
+        On Detach, all pending changes are flushed to JSONL files before closing. On crash, unwritten changes are lost; the
+        next Attach loads from the (stale) JSONL files
+    - R16.5: Batch mode configuration
+    - R16.6: For batch mode, at least one of BatchSize or BatchInterval must be positive. If both are zero, validation fails
+    - R16.7: Atomic write semantics (R5.2) apply regardless of sync strategy. When flushing, each JSONL file is written atomically
+        (temp file, fsync, rename)
+    - R16.8: The sync strategy does not affect SQLite durability. SQLite transactions commit synchronously regardless of JSONL
+        sync strategy
 non_goals:
-- This PRD does not define the Cupboard interface operations. Those are in prd001-cupboard-core
-  and the interface PRDs
+- This PRD does not define the Cupboard interface operations. Those are in prd001-cupboard-core and the interface PRDs
 - This PRD does not define cross-process locking. Single-process access is assumed
 - This PRD does not define backup or migration utilities
 acceptance_criteria:
-- id: AC1
-  criterion: JSONL file format specified for all entity types (R2)
-- id: AC2
-  criterion: SQLite schema specified with all tables and indexes (R3)
-- id: AC3
-  criterion: 'Startup sequence specified: create, load, validate (R4)'
-- id: AC4
-  criterion: 'Write operation pattern specified: transaction, persist, atomicity (R5)'
-- id: AC5
-  criterion: Trail cascade behavior documented for Table.Set (R5.6, R5.7)
-- id: AC6
-  criterion: Shutdown sequence specified (R6)
-- id: AC7
-  criterion: Error handling specified for all failure modes (R7)
-- id: AC8
-  criterion: Concurrency model specified (R8)
-- id: AC9
-  criterion: Built-in properties and categories specified (R9)
-- id: AC10
-  criterion: Graph audit functions specified (R10)
-- id: AC11
-  criterion: Cupboard interface implementation specified (R11)
-- id: AC12
-  criterion: Table name routing documented (R12)
-- id: AC13
-  criterion: Table interface implementation specified (R13)
-- id: AC14
-  criterion: Entity hydration pattern documented (R14)
-- id: AC15
-  criterion: Entity persistence pattern documented (R15)
-- id: AC16
-  criterion: JSONL sync strategy options documented (R16)
+- JSONL file format specified for all entity types (R2)
+- SQLite schema specified with all tables and indexes (R3)
+- 'Startup sequence specified: create, load, validate (R4)'
+- 'Write operation pattern specified: transaction, persist, atomicity (R5)'
+- Trail cascade behavior documented for Table.Set (R5.6, R5.7)
+- Shutdown sequence specified (R6)
+- Error handling specified for all failure modes (R7)
+- Concurrency model specified (R8)
+- Built-in properties and categories specified (R9)
+- Graph audit functions specified (R10)
+- Cupboard interface implementation specified (R11)
+- Table name routing documented (R12)
+- Table interface implementation specified (R13)
+- Entity hydration pattern documented (R14)
+- Entity persistence pattern documented (R15)
+- JSONL sync strategy options documented (R16)
